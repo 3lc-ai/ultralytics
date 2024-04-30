@@ -8,6 +8,7 @@ import tlc
 
 from ultralytics.data.dataset import YOLODataset
 from ultralytics.utils import colorstr
+from ultralytics.utils.tlc.detect.utils import infer_table_format
 
 
 def unpack_box(bbox: dict[str, int | float]) -> tuple[int | float]:
@@ -31,8 +32,9 @@ def unpack_boxes(bboxes: list[dict[str, int | float]]) -> tuple[np.ndarray, np.n
     return classes, boxes
 
 
-def tlc_table_row_to_yolo_label(row) -> dict[str, Any]:
+def tlc_table_row_to_yolo_label(row, table_format: str) -> dict[str, Any]:
     classes, bboxes = unpack_boxes(row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST])
+    
     return dict(
         im_file=tlc.Url(row[tlc.IMAGE]).to_absolute().to_str(),
         shape=(row['height'], row['width']),  # format: (height, width)
@@ -40,8 +42,8 @@ def tlc_table_row_to_yolo_label(row) -> dict[str, Any]:
         bboxes=bboxes,
         segments=[],
         keypoints=None,
-        normalized=True,
-        bbox_format="xywh",
+        normalized=True if table_format=="YOLO" else False,
+        bbox_format="xywh" if table_format=="YOLO" else "ltwh",
     )
 
 
@@ -93,6 +95,7 @@ class TLCDataset(YOLODataset):
         assert task == "detect", f"Unsupported task: {task} for TLCDataset. Only 'detect' is supported."
         assert isinstance(table, tlc.Table), f"Expected table to be a tlc.Table, got {type(table)} instead."
         self.table = table
+        self._table_format = infer_table_format(table)
         if use_sampling_weights and kwargs['rect']:
             raise ValueError("Cannot use sampling weights with rect=True.")
         self._sampling_weights = self.get_sampling_weights() if use_sampling_weights else None
@@ -116,7 +119,7 @@ class TLCDataset(YOLODataset):
 
         :return: A list of YOLOv8 labels.
         """
-        return [tlc_table_row_to_yolo_label(row) for row in self.table]
+        return [tlc_table_row_to_yolo_label(row, self._table_format) for row in self.table]
 
     def get_sampling_weights(self) -> np.ndarray:
         weights = np.array([row[tlc.SAMPLE_WEIGHT] for row in self.table])
