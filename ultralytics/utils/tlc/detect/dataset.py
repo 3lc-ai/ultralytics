@@ -117,17 +117,17 @@ class TLCDataset(YOLODataset):
 
         :return: A list of absolute paths to the images.
         """
-        return [tlc.Url(sample[tlc.IMAGE]).to_absolute().to_str() for sample in self.table]
+        return [tlc.Url(sample[tlc.IMAGE]).to_absolute().to_str() for sample in self.table.table_rows]
 
     def get_labels(self) -> list[dict[str, Any]]:
         """Get the labels for the dataset.
 
         :return: A list of YOLOv8 labels.
         """
-        return [tlc_table_row_to_yolo_label(row, self._table_format) for row in self.table]
+        return [tlc_table_row_to_yolo_label(row, self._table_format) for row in self.table.table_rows]
 
     def get_sampling_weights(self) -> np.ndarray:
-        weights = np.array([row[tlc.SAMPLE_WEIGHT] for row in self.table])
+        weights = np.array([row[tlc.SAMPLE_WEIGHT] for row in self.table.table_rows])
         probabilities = weights / weights.sum()
         return probabilities
 
