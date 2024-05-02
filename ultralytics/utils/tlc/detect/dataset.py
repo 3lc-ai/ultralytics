@@ -7,7 +7,7 @@ import numpy as np
 import tlc
 
 from ultralytics.data.dataset import YOLODataset
-from ultralytics.utils import colorstr
+from ultralytics.utils import colorstr, ops
 from ultralytics.utils.tlc.detect.utils import infer_table_format
 
 
@@ -35,6 +35,11 @@ def unpack_boxes(bboxes: list[dict[str, int | float]]) -> tuple[np.ndarray, np.n
 def tlc_table_row_to_yolo_label(row, table_format: str) -> dict[str, Any]:
     classes, bboxes = unpack_boxes(row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST])
     
+    if table_format == "COCO":
+        # Convert from ltwh absolute to xywh relative
+        bboxes_xyxy = ops.ltwh2xyxy(bboxes)
+        bboxes = ops.xyxy2xywhn(bboxes_xyxy, w=row['width'], h=row['height'])
+
     return dict(
         im_file=tlc.Url(row[tlc.IMAGE]).to_absolute().to_str(),
         shape=(row['height'], row['width']),  # format: (height, width)
@@ -42,8 +47,8 @@ def tlc_table_row_to_yolo_label(row, table_format: str) -> dict[str, Any]:
         bboxes=bboxes,
         segments=[],
         keypoints=None,
-        normalized=True if table_format=="YOLO" else False,
-        bbox_format="xywh" if table_format=="YOLO" else "ltwh",
+        normalized=True,
+        bbox_format="xywh",
     )
 
 
