@@ -146,7 +146,7 @@ class TLCDataset(YOLODataset):
         :return: A list of absolute paths to the images.
         """
         rows = self._get_table_rows(exclude_zero_weight=self._exclude_zero_weights)
-        return [tlc.Url(sample[tlc.IMAGE]).to_absolute().to_str() for sample in rows]
+        return [tlc.Url(sample[tlc.IMAGE]).to_absolute().to_str() for example_id, sample in rows]
 
     def get_labels(self) -> list[dict[str, Any]]:
         """Get the labels for the dataset. Iterates over the 3LC rows and converts them to YOLOv8 labels, possibly
@@ -169,11 +169,14 @@ class TLCDataset(YOLODataset):
 
         return labels
     
-    def _get_table_rows(self, exclude_zero_weight: bool) -> Iterator[dict[str, Any]]:
+    def _get_table_rows(self, exclude_zero_weight: bool) -> Iterator[tuple[int, dict[str, Any]]]:
+        """ Get an iterator over the example ids and table rows, optionally excluding samples with zero weight.
+        
+        """
         if exclude_zero_weight:
-            return (row for row in self.table.table_rows if row[tlc.SAMPLE_WEIGHT] > 0)
+            return ((i, row) for i, row in enumerate(self.table.table_rows) if row[tlc.SAMPLE_WEIGHT] > 0)
         else:
-            return self.table.table_rows
+            return enumerate(self.table.table_rows)
 
     def get_sampling_weights(self) -> np.ndarray:
         probabilities = self._weights / self._weights.sum()
