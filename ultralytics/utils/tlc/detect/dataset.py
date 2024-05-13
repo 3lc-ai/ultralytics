@@ -157,7 +157,7 @@ class TLCDataset(YOLODataset):
         labels = []
 
         rows = self._get_table_rows(exclude_zero_weight=self._exclude_zero_weights)
-        for example_id, row in enumerate(rows):
+        for example_id, row in rows:
             self._example_ids.append(example_id)
             if tlc.SAMPLE_WEIGHT in row:
                 self._weights.append(row[tlc.SAMPLE_WEIGHT])
