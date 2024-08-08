@@ -49,14 +49,14 @@ class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValid
             "loss": torch.nn.functional.nll_loss(torch.log(preds), batch["cls"], reduction="none"), #nll since preds are normalized
             "predicted": predicted,
             "confidence": confidence,
-            "top1_accuracy": torch.argmax(preds, dim=1) == batch["cls"],
+            "top1_accuracy": (torch.argmax(preds, dim=1) == batch["cls"]).to(torch.float32),
         }
 
         if len(self.dataloader.dataset.table.get_value_map(self._label_column_name)) > 5:
             _, top5_pred = torch.topk(preds, 5, dim=1)
             labels_expanded = batch["cls"].view(-1, 1).expand_as(top5_pred)
             top5_correct = torch.any(top5_pred == labels_expanded, dim=1)
-            batch_metrics["top5_accuracy"] = top5_correct
+            batch_metrics["top5_accuracy"] = top5_correct.to(torch.float32)
 
         return batch_metrics
     
