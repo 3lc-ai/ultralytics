@@ -35,10 +35,10 @@ class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValid
             "loss": tlc.Float32Value(),
             "predicted": tlc.CategoricalLabelSchema(class_names=class_names, display_name="Predicted"), # TODO: Improve the description?
             "confidence": tlc.Float32Value(value_min=0.0, value_max=1.0),
-            "top1_accuracy": tlc.BoolValue(),
+            "top1_accuracy": tlc.Float32Value(),
         }
         if len(class_names) > 5:
-            column_schemas["top5_accuracy"] = tlc.BoolValue()
+            column_schemas["top5_accuracy"] = tlc.Float32Value()
         return column_schemas
 
     def _compute_3lc_metrics(self, preds, batch):
