@@ -50,10 +50,16 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
     def verify_images(self):
         """ Verify all images in the dataset."""
+
+        verified_marker_url = self.table.url / "yolo_verified_marker.txt"
+
+        # If the marker exists, we can skip verification
+        if verified_marker_url.exists():
+            LOGGER.info(f"{self.prefix}Images in {self.root.to_str()} already verified.")
+            return self.samples
+
         desc = f"{self.prefix}Scanning images in {self.root.to_str()}..."
-
-        # TODO: Consider saving cache next to table (see parent)
-
+        # Run scan if the marker does not exist
         nf, nc, msgs, samples, example_ids = 0, 0, [], [], []
         with ThreadPool(NUM_THREADS) as pool:
             results = pool.imap(func=verify_image, iterable=zip(self.samples, repeat(self.prefix)))
@@ -71,6 +77,14 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
         if msgs:
             LOGGER.info("\n".join(msgs))
+
+        # If no problems are found, create the marker
+        if nc == 0:
+            LOGGER.info(f"{self.prefix}All images in {self.root.to_str()} are verified. Writing marker file to {verified_marker_url.to_str()} to skip future verification.")
+            verified_marker_url.write(
+                content="This file is created to indicate that all images in the dataset are verified by YOLOv8, and can be used as-is without further scanning.",
+                if_exists="raise", # Should not get here if already exists
+            )
 
         self._example_ids = example_ids
         return samples
