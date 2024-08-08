@@ -50,8 +50,6 @@ def tlc_check_cls_dataset(
                     description=f"Original {key} dataset for {data}, created with YOLOv8",
                 )
 
-                table.write_to_url()
-
                 # Get the latest version when inferring
                 tables[key] = table.latest()
 
