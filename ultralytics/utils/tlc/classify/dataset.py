@@ -36,7 +36,8 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         iterator = self._get_enumerated_table_rows(exclude_zero_weight=exclude_zero_weight)
         for example_id, row in iterator:
             self.example_ids.append(example_id)
-            self.samples.append((Path(row[image_column_name]), row[label_column_name]))
+            image_path = Path(tlc.Url(row[image_column_name]).to_str())
+            self.samples.append((image_path, row[label_column_name]))
 
         # Initialize attributes
         self._init_attributes(args, augment, prefix)
