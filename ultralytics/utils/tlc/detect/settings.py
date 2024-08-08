@@ -103,6 +103,25 @@ class Settings:
         # Train / collect specific settings
         self._verify_training() if training else self._verify_collection()
 
+    def get_metrics_collection_epochs(self, epochs: int) -> list[int]:
+        if self.collection_disable:
+            return []
+
+        if self.collection_epoch_start is None:
+            return []
+
+        if self.collection_epoch_start >= epochs:
+            return []
+
+        # If start is less than zero, we don't collect during training
+        if self.collection_epoch_start < 0:
+            return []
+
+        if self.collection_epoch_interval <= 0:
+            raise ValueError(f'Invalid interval {self.collection_epoch_interval}, must be non-zero')
+        else:
+            return list(range(self.collection_epoch_start, epochs, self.collection_epoch_interval))
+
     def _verify_training(self) -> None:
         """ Verify that the settings are valid for training.
 

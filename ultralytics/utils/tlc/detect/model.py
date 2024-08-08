@@ -1,10 +1,14 @@
 # Ultralytics YOLO 🚀 3LC Integration, AGPL-3.0 license
 import ultralytics
 from ultralytics.models.yolo.model import YOLO
+from ultralytics.nn.tasks import ClassificationModel
 from ultralytics.utils.tlc.detect.nn import TLCDetectionModel
 from ultralytics.utils.tlc.detect.trainer import TLCDetectionTrainer
 from ultralytics.utils.tlc.detect.utils import get_names_from_yolo_table, tlc_check_dataset
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
+
+from ultralytics.utils.tlc.classify.trainer import TLCClassificationTrainer
+from ultralytics.utils.tlc.classify.validator import TLCClassificationValidator
 
 
 def check_det_dataset(data: str):
@@ -32,5 +36,10 @@ class TLCYOLO(YOLO):
                 "model": TLCDetectionModel,
                 "trainer": TLCDetectionTrainer,
                 "validator": TLCDetectionValidator,
-            }
+            },
+            "classify": {
+                "model": ClassificationModel,
+                "trainer": TLCClassificationTrainer,
+                "validator": TLCClassificationValidator,
+            },
         }
