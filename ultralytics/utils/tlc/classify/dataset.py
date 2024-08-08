@@ -30,6 +30,8 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         self.root = table.url
         self.display_name = table.dataset_name
 
+        self.verify_schema(image_column_name, label_column_name)
+
         self.samples = []
         self.example_ids = []
 
@@ -47,6 +49,24 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
         self._indices = np.arange(len(self.example_ids))
         assert len(self._indices) == len(self.samples)
+
+    def verify_schema(self,image_column_name, label_column_name):
+        """ Verify that the provided Table has the desired schema and entries """
+        row_schema = self.table.row_schema.values
+
+        # Check for image and label columns in schema
+        assert image_column_name in row_schema, f"Image column '{image_column_name}' not found in schema for Table {self.table.url}."
+        assert label_column_name in row_schema, f"Label column '{label_column_name}' not found in schema for Table {self.table.url}."
+
+        # Check for desired roles
+        assert row_schema[image_column_name].value.string_role == tlc.STRING_ROLE_IMAGE_URL, f"Image column '{image_column_name}' must have role tlc.STRING_ROLE_IMAGE_URL={tlc.STRING_ROLE_IMAGE_URL}."
+        assert row_schema[label_column_name].value.number_role == tlc.LABEL, f"Label column '{label_column_name}' must have role tlc.LABEL={tlc.LABEL}."
+
+        # Check for data in columns
+        assert len(self.table) > 0, f"Table {self.root.to_str()} has no rows."
+        first_row = self.table.table_rows[0]
+        assert isinstance(first_row[image_column_name], str), f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
+        assert isinstance(first_row[label_column_name], int), f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
 
     def verify_images(self):
         """ Verify all images in the dataset."""
