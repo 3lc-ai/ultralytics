@@ -123,6 +123,7 @@ class TLCTrainer(BaseTrainer):
                     self.run_callbacks("on_fit_epoch_end")
 
         if self._settings.image_embeddings_dim > 0:
+            LOGGER.info(colorstr("3LC: ") + "Reducing image embeddings...")
             self._run.reduce_embeddings_by_foreign_table_url(
                 foreign_table_url=self.data["train"].url,
                 method=self._settings.image_embeddings_reducer,

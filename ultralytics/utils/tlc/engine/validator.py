@@ -4,6 +4,7 @@ import weakref
 from torch import nn
 
 from ultralytics.engine.validator import BaseValidator
+from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.detect.settings import Settings
 from ultralytics.utils.tlc.detect.utils import training_phase_schema
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
@@ -81,6 +82,17 @@ class TLCValidator(BaseValidator):
         self._post_validation()
 
         return out
+    
+    def get_desc(self):
+        desc = super().get_desc()
+
+        split = self.dataloader.dataset.display_name.split("-")[-1]
+        initial_spaces = len(desc) - len(desc.lstrip())
+        split_centered = split.center(initial_spaces)
+        split_str = f"{colorstr(split_centered)}"
+        desc = split_str + desc[len(split_centered):]
+
+        return desc
     
     def init_metrics(self, model):
         super().init_metrics(model)
