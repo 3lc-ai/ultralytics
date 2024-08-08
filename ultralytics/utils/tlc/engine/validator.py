@@ -52,14 +52,16 @@ class TLCValidator(BaseValidator):
                 self.args.data,
                 {self.args.split: self._table} if self._table is not None else None,
                 self._image_column_name,
-                self._label_column_name
+                self._label_column_name,
+                project_name=self._settings.project_name,
             )
 
         if self._run is None:
             first_split = list(self.data.keys())[0]
+            project_name = self._settings.project_name if self._settings.project_name else self.data[first_split].project_name
             self._run = tlc.init(
-                project_name=self.data[first_split].project_name,
-                description="Created with 3LC Ultralytics Integration"
+                project_name=project_name,
+                description=self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration",
             )
 
         return

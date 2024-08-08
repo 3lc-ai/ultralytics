@@ -12,11 +12,15 @@ def tlc_check_cls_dataset(
         tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
         image_column_name: str,
         label_column_name: str,
+        project_name: str | None = None,
     ) -> dict[str, tlc.Table | dict[float, str] | int]:
     """ Get or create tables for YOLOv8 classification datasets. If tables are provided, data is ignored.
     
     :param data: Path to an ImageFolder dataset
     :param tables: Dictionary of tables, if already created
+    :param image_column_name: Name of the column containing image paths
+    :param label_column_name: Name of the column containing labels
+    :param project_name: Name of the project
     :return: Dictionary of tables and class names, with keys for each split and "names"
     """
     if tables is None:
@@ -31,6 +35,9 @@ def tlc_check_cls_dataset(
             if data_dict.get(key) is not None:
                 name = Path(data).name
 
+                if project_name is None:
+                    project_name = f"{name}-YOLOv8"
+
                 table = tlc.Table.from_image_folder(
                     root=data_dict[key],
                     image_column_name=image_column_name,
@@ -38,7 +45,7 @@ def tlc_check_cls_dataset(
                     extensions=IMG_FORMATS,
                     table_name="original",
                     dataset_name=f"{name}-{key}",
-                    project_name=f"{name}-YOLOv8", # TODO: Allow user to provide this
+                    project_name=project_name,
                     if_exists="reuse",
                     description=f"Original {key} dataset for {data}, created with YOLOv8",
                 )

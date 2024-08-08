@@ -19,7 +19,8 @@ class TLCClassificationTrainer(TLCTrainer, yolo.classify.ClassificationTrainer):
             self.args.data,
             self._tables,
             self._image_column_name,
-            self._label_column_name
+            self._label_column_name,
+            project_name=self._settings.project_name,
         )
         return self.data["train"], self.data.get("val") or self.data.get("test")
 

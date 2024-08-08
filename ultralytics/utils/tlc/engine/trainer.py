@@ -35,8 +35,9 @@ class TLCTrainer(BaseTrainer):
         # Create a 3LC run
         if RANK in {-1, 0}:
             description = self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration"
+            project_name = self._settings.project_name if self._settings.project_name else self.data["train"].project_name
             self._run = tlc.init(
-                project_name=self.data["train"].project_name,
+                project_name=project_name,
                 description=description,
             )
 
