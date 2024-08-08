@@ -7,7 +7,6 @@ from ultralytics.utils.torch_utils import model_info_for_loggers, strip_optimize
 
 # TODO:
 # Schema check? - Gudbrand
-# Validation only
 # DDP training
 # Adapt to object detection task in case of any problems
   
