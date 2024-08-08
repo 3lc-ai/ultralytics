@@ -45,7 +45,7 @@ class TLCTrainer(BaseTrainer):
         # Log parameters to 3LC
         self._log_3lc_parameters()
 
-        LOGGER.info(f"{colorstr('3LC:')} Collecting metrics for epochs {self._metrics_collection_epochs}")
+        self._print_metrics_collection_epochs()
 
         self.add_callback("on_train_epoch_start", resample_indices)
         
@@ -62,6 +62,21 @@ class TLCTrainer(BaseTrainer):
             **{f"3LC/{k}": v for k, v in vars(self._settings).items()}, # 3LC settings
         }
         self._run.set_parameters(parameters)
+
+    def _print_metrics_collection_epochs(self):
+        """ Print collection epochs to the console. """
+
+        # Special message when no collection is enabled
+        if self._settings.collection_disable:
+            message = "No metrics collection is enabled."
+        # No collection during training
+        elif not self._metrics_collection_epochs:
+            message = "Metrics will be collected after training only."
+        # Print collection epochs
+        else:
+            message = f"Metrics will be collected after training and for the following epochs: {sorted(self._metrics_collection_epochs)}"
+
+        LOGGER.info(f"{colorstr('3LC')}: {message}")
 
     def get_dataset(self):
         raise NotImplementedError("Subclasses must implement this method.")
