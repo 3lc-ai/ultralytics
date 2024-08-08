@@ -2,7 +2,7 @@ import tlc
 
 from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.utils.tlc.detect.settings import Settings
-from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK
+from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
 from ultralytics.utils.torch_utils import model_info_for_loggers, strip_optimizer
 
 # TODO:
@@ -39,10 +39,13 @@ class TLCTrainer(BaseTrainer):
             self._run = tlc.init(
                 project_name=project_name,
                 description=description,
+                run_name=self._settings.run_name,
             )
 
         # Log parameters to 3LC
         self._log_3lc_parameters()
+
+        LOGGER.info(f"{colorstr('3LC:')} Collecting metrics for epochs {self._metrics_collection_epochs}")
 
         self.add_callback("on_train_epoch_start", resample_indices)
         

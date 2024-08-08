@@ -62,6 +62,7 @@ class TLCValidator(BaseValidator):
             self._run = tlc.init(
                 project_name=project_name,
                 description=self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration",
+                run_name=self._settings.run_name,
             )
 
         return
@@ -86,7 +87,7 @@ class TLCValidator(BaseValidator):
     def init_metrics(self, model):
         super().init_metrics(model)
 
-        self._verify_model_data_compatibility(model)
+        self._verify_model_data_compatibility(model.names)
         self._add_embeddings_hook(model)
         self._pre_validation()
 
