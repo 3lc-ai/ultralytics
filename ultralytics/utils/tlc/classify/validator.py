@@ -59,3 +59,10 @@ class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValid
             batch_metrics["top5_accuracy"] = top5_correct
 
         return batch_metrics
+    
+    def _verify_model_data_compatibility(self, names):
+        if names != self.data["names"]:
+            raise ValueError(
+                "The model and data are incompatible. " 
+                "The model was trained with different classes than the data on which val() has been called."
+            )

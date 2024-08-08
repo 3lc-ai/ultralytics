@@ -1,13 +1,10 @@
 import tlc
 
-from ultralytics.utils.tlc.detect.model import TLCYOLO
-from ultralytics.utils.tlc.detect.settings import Settings
+from ultralytics.utils.tlc import TLCYOLO, Settings
 
 model = TLCYOLO("yolov8n-cls.pt")
 
-settings = Settings(
-    image_embeddings_dim=2,
-)
+settings = Settings()
 
 # data + split should be okay
 # table should be okay

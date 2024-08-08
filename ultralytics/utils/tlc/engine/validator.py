@@ -23,6 +23,7 @@ class TLCValidator(BaseValidator):
             self._settings = settings
             self._image_column_name = image_column_name
             self._label_column_name = label_column_name
+            self._training = True
 
         # Called directly (Create a run and get settings directly)
         else:
@@ -34,6 +35,7 @@ class TLCValidator(BaseValidator):
             self._image_column_name = args.pop("image_column_name", self._default_image_column_name)
             self._label_column_name = args.pop("label_column_name", self._default_label_column_name)
             self._table = args.pop("table", None)
+            self._training = False
 
         # State
         self._activation_size = None
@@ -45,12 +47,13 @@ class TLCValidator(BaseValidator):
 
         super().__init__(dataloader, save_dir, pbar, args, _callbacks)
 
-        self.data = tlc_check_cls_dataset(
-            self.args.data,
-            {self.args.split: self._table} if self._table is not None else None,
-            self._image_column_name,
-            self._label_column_name
-        )
+        if not self._training:
+            self.data = tlc_check_cls_dataset(
+                self.args.data,
+                {self.args.split: self._table} if self._table is not None else None,
+                self._image_column_name,
+                self._label_column_name
+            )
 
         if self._run is None:
             first_split = list(self.data.keys())[0]
@@ -80,8 +83,13 @@ class TLCValidator(BaseValidator):
     
     def init_metrics(self, model):
         super().init_metrics(model)
+
+        self._verify_model_data_compatibility(model)
         self._add_embeddings_hook(model)
         self._pre_validation()
+
+    def _verify_model_data_compatibility(self, names):
+        raise NotImplementedError("Subclasses must implement this method.")
 
     @execute_when_collecting
     def _add_embeddings_hook(self, model):

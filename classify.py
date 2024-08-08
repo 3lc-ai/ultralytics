@@ -1,7 +1,6 @@
 import tlc
 
-from ultralytics.utils.tlc.detect.model import TLCYOLO  # noqa: E402
-from ultralytics.utils.tlc.detect.settings import Settings  # noqa: E402
+from ultralytics.utils.tlc import TLCYOLO, Settings
 
 # Load a model
 model = TLCYOLO("yolov8n-cls.pt")  # load a pretrained model (recommended for training)
@@ -13,7 +12,6 @@ settings = Settings(
 )
 
 # Train the model using tables directly
-
 results = model.train(
     data="cifar10",
     epochs=1,
