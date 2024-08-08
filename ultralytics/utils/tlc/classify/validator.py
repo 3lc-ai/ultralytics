@@ -61,7 +61,11 @@ class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValid
         return batch_metrics
     
     def _verify_model_data_compatibility(self, names):
-        if names != self.data["names"]:
+        class_names={
+            float(i): value['internal_name']
+            for i, value in enumerate(self.dataloader.dataset.table.get_value_map(self._label_column_name).values())
+        }
+        if names != class_names:
             raise ValueError(
                 "The model and data are incompatible. " 
                 "The model was trained with different classes than the data on which val() has been called."

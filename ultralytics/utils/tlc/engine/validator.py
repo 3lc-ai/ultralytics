@@ -65,8 +65,6 @@ class TLCValidator(BaseValidator):
                 run_name=self._settings.run_name,
             )
 
-        return
-
     def __call__(self, trainer=None, model=None):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
         
