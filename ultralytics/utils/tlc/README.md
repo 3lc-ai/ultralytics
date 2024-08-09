@@ -52,6 +52,9 @@ model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset S
 In the background, 3LC will create `tlc.Table`s and collect metrics with the trained mode after training completes, which can be opened in the 3LC Dashboard.
 
 ## Dataset specification
+
+![https://raw.githubusercontent.com/ultralytics/assets/main/im/banner-tasks.png](Banner image with tasks)
+
 Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics tasks.
 
 <details>
