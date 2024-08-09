@@ -2,12 +2,12 @@ from ultralytics.models import yolo
 
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, CLASSIFY_LABEL_COLUMN_NAME
 from ultralytics.utils.tlc.classify.dataset import TLCClassificationDataset
-from ultralytics.utils.tlc.engine.trainer import TLCTrainer
+from ultralytics.utils.tlc.engine.trainer import TLCTrainerMixin
 from ultralytics.utils.tlc.classify.validator import TLCClassificationValidator
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 
 
-class TLCClassificationTrainer(TLCTrainer, yolo.classify.ClassificationTrainer):
+class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrainer):
     _default_image_column_name = IMAGE_COLUMN_NAME
     _default_label_column_name = CLASSIFY_LABEL_COLUMN_NAME
 
@@ -49,6 +49,3 @@ class TLCClassificationTrainer(TLCTrainer, yolo.classify.ClassificationTrainer):
             label_column_name=self._label_column_name,
             settings=self._settings,
         )
-    
-    def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
-        return super().get_dataloader(dataset_path, batch_size=batch_size, rank=rank, mode=mode, shuffle=mode=="train")

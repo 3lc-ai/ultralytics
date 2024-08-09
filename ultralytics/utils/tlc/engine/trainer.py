@@ -1,19 +1,20 @@
+from __future__ import annotations
+
 import tlc
 
 from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.utils.tlc.detect.settings import Settings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
-from ultralytics.utils.torch_utils import model_info_for_loggers, strip_optimizer
+from ultralytics.utils.torch_utils import strip_optimizer
 
 # TODO:
-# Schema check? - Gudbrand
 # DDP training
 # Adapt to object detection task in case of any problems
   
-class TLCTrainer(BaseTrainer):
+class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
-    which implements common 3LC-specific behavior across tasks. Use as one of two base classes for
-    task-specific trainers.
+    which implements common 3LC-specific behavior across tasks. Use as a Mixin class for task-specific
+    trainers.
     """
     def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None):
         LOGGER.info("Using 3LC Trainer 🌟")
@@ -80,6 +81,15 @@ class TLCTrainer(BaseTrainer):
 
     def get_dataset(self):
         raise NotImplementedError("Subclasses must implement this method.")
+    
+    def build_dataset(self, table, mode="train", batch=None):
+        raise NotImplementedError("Subclasses must implement this method.")
+    
+    def get_validator(self, dataloader):
+        raise NotImplementedError("Subclasses must implement this method.")
+    
+    def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
+        return super().get_dataloader(dataset_path, batch_size=batch_size, rank=rank, mode=mode, shuffle=mode=="train")
     
     @property
     def train_validator(self):

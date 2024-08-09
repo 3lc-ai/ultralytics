@@ -14,7 +14,7 @@ def tlc_check_cls_dataset(
         label_column_name: str,
         project_name: str | None = None,
     ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    """ Get or create tables for YOLOv8 classification datasets. If tables are provided, data is ignored.
+    """ Get or create tables for YOLOv8 classification datasets. data is ignored when tables is provided.
     
     :param data: Path to an ImageFolder dataset
     :param tables: Dictionary of tables, if already created

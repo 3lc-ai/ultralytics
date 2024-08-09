@@ -1,8 +1,6 @@
 import tlc
-import weakref
 
-from torch import nn
-
+from ultralytics.data import build_dataloader
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.detect.settings import Settings
@@ -15,7 +13,7 @@ def execute_when_collecting(method):
             return method(self, *args, **kwargs)
     return wrapper
 
-class TLCValidator(BaseValidator):
+class TLCValidatorMixin(BaseValidator):
     def __init__(self, dataloader=None, save_dir=None, pbar=None, args=None, _callbacks=None, run=None, image_column_name=None, label_column_name=None, settings=None):
 
         # Called by trainer (Get run and settings from trainer)
@@ -39,7 +37,6 @@ class TLCValidator(BaseValidator):
             self._training = False
 
         # State
-        self._activation_size = None
         self._epoch = None
         self._should_collect = None
         self._seen = None
@@ -57,14 +54,19 @@ class TLCValidator(BaseValidator):
                 project_name=self._settings.project_name,
             )
 
+        # Create a run if not provided
         if self._run is None:
-            first_split = list(self.data.keys())[0]
-            project_name = self._settings.project_name if self._settings.project_name else self.data[first_split].project_name
-            self._run = tlc.init(
-                project_name=project_name,
-                description=self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration",
-                run_name=self._settings.run_name,
-            )
+            if tlc.active_run() is not None:
+                # TODO: Match against provided project name / run name / description
+                self._run = tlc.active_run()
+            else:
+                first_split = list(self.data.keys())[0]
+                project_name = self._settings.project_name if self._settings.project_name else self.data[first_split].project_name
+                self._run = tlc.init(
+                    project_name=project_name,
+                    description=self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration",
+                    run_name=self._settings.run_name,
+                )
 
     def __call__(self, trainer=None, model=None):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
@@ -72,9 +74,8 @@ class TLCValidator(BaseValidator):
         if trainer:
             self._should_collect = not self._settings.collection_disable and self._epoch in trainer._metrics_collection_epochs
         else:
+            # TODO: When to collect when called directly?
             self._should_collect = True
-
-        # self._pre_validation()
 
         # Call parent to perform the validation
         out = super().__call__(trainer, model)
@@ -84,6 +85,7 @@ class TLCValidator(BaseValidator):
         return out
     
     def get_desc(self):
+        """ Add the split name next to the validation description"""
         desc = super().get_desc()
 
         split = self.dataloader.dataset.display_name.split("-")[-1]
@@ -98,38 +100,32 @@ class TLCValidator(BaseValidator):
         super().init_metrics(model)
 
         self._verify_model_data_compatibility(model.names)
-        self._add_embeddings_hook(model)
-        self._pre_validation()
+        self._pre_validation(model)
 
-    def _verify_model_data_compatibility(self, names):
+    def get_dataloader(self, dataset_path, batch_size):
+        """Builds and returns a data loader with given parameters."""
+        dataset = self.build_dataset(dataset_path)
+        return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1)
+
+    def build_dataset(self, table):
+        """ Build a dataset from a table """
         raise NotImplementedError("Subclasses must implement this method.")
 
-    @execute_when_collecting
-    def _add_embeddings_hook(self, model):
+    def _verify_model_data_compatibility(self, names):
+        """ Verify that the model being validated is compatible with the data"""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def _get_metrics_schemas(self) -> dict[str, tlc.Schema]:
+        """ Get the metrics schemas for the 3LC metrics data """
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def _compute_3lc_metrics(self, preds, batch) -> dict[str, tlc.MetricData]:
+        """ Compute 3LC metrics for a batch of predictions and targets """
+        raise NotImplementedError("Subclasses must implement this method.")
+    
+    def _add_embeddings_hook(self, model) -> int:
         """ Add a hook to extract embeddings from the model, and infer the activation size """
-        if self._settings.image_embeddings_dim > 0:
-            # Find index of the linear layer
-            has_linear_layer = False
-            for index, module in enumerate(model.modules()):
-                if isinstance(module, nn.Linear):
-                    has_linear_layer = True
-                    self._activation_size = module.in_features
-                    break
-
-            if not has_linear_layer:
-                raise ValueError("No linear layer found in model, cannot collect embeddings.")
-
-            weak_self = weakref.ref(self) # Avoid circular reference (self <-> hook_fn)
-            def hook_fn(module, input, output):
-                # Store embeddings
-                self_ref = weak_self()
-                embeddings = output.detach().cpu().numpy()
-                self_ref.embeddings = embeddings
-
-            # Add forward hook to collect embeddings
-            for i, module in enumerate(model.modules()):
-                if i == index - 1:
-                    self._hook_handles.append(module.register_forward_hook(hook_fn))
+        raise NotImplementedError("Subclasses must implement this method.")
     
     def update_metrics(self, preds, batch):
         """ Collect 3LC metrics """
@@ -140,13 +136,14 @@ class TLCValidator(BaseValidator):
 
     @execute_when_collecting
     def _update_metrics(self, preds, batch):
+        """ Update 3LC metrics with common and task-specific metrics"""
         batch_size = preds.size(0)
         example_indices = list(range(self._seen, self._seen + batch_size))
         example_ids = [self.dataloader.dataset.example_ids[i] for i in example_indices]
 
         batch_metrics = {
             tlc.EXAMPLE_ID: example_ids,
-            **self._compute_3lc_metrics(preds, batch)
+            **self._compute_3lc_metrics(preds, batch) # Task specific metrics
         }
 
         if self._settings.image_embeddings_dim > 0:
@@ -161,11 +158,15 @@ class TLCValidator(BaseValidator):
         self._seen += batch_size
 
     @execute_when_collecting
-    def _pre_validation(self):
+    def _pre_validation(self, model):
+        """ Prepare the validator for metrics collection """
         column_schemas = {}
         column_schemas.update(self._get_metrics_schemas()) # Add task-specific metrics schema
 
         if self._settings.image_embeddings_dim > 0:
+            # Add hook and get the activation size
+            activation_size = self._add_embeddings_hook(model)
+
             column_schemas["embeddings"] = tlc.Schema(
                 'Embedding',
                 'Large NN embedding',
@@ -173,8 +174,8 @@ class TLCValidator(BaseValidator):
                 computable=False,
                 value=tlc.Float32Value(number_role=tlc.NUMBER_ROLE_NN_EMBEDDING),
                 size0=tlc.DimensionNumericValue(
-                    value_min=self._activation_size,
-                    value_max=self._activation_size,
+                    value_min=activation_size,
+                    value_max=activation_size,
                     enforce_min=True,
                     enforce_max=True
                 )
@@ -187,7 +188,7 @@ class TLCValidator(BaseValidator):
 
         self._metrics_writer = tlc.MetricsTableWriter(
             run_url=self._run.url,
-            foreign_table_url=self.dataloader.dataset.table.url, # TODO: Generalize
+            foreign_table_url=self.dataloader.dataset.table.url,
             foreign_table_display_name=self.dataloader.dataset.display_name,
             column_schemas=column_schemas
         )
@@ -196,6 +197,8 @@ class TLCValidator(BaseValidator):
 
     @execute_when_collecting
     def _post_validation(self):
+        """ Clean up the validator after one validation pass """
+        # Write metrics data to 3LC run
         self._metrics_writer.finalize()
         metrics_infos = self._metrics_writer.get_written_metrics_infos()
         self._run.update_metrics(metrics_infos)
@@ -207,7 +210,6 @@ class TLCValidator(BaseValidator):
             for handle in self._hook_handles:
                 handle.remove()
             self._hook_handles.clear()
-            self._activation_size = None
         
         # Reset state
         self._seen = None

@@ -1,14 +1,14 @@
 import tlc
 import torch
+import weakref
 
 from ultralytics.models import yolo
-from ultralytics.data import build_dataloader
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, CLASSIFY_LABEL_COLUMN_NAME
 from ultralytics.utils.tlc.classify.dataset import TLCClassificationDataset
-from ultralytics.utils.tlc.engine.validator import TLCValidator
+from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
 
 
-class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValidator):
+class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.ClassificationValidator):
     _default_image_column_name = IMAGE_COLUMN_NAME
     _default_label_column_name = CLASSIFY_LABEL_COLUMN_NAME
 
@@ -23,11 +23,6 @@ class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValid
             exclude_zero_weight=self._settings.exclude_zero_weight_collection,
             settings=self._settings
         )
-    
-    def get_dataloader(self, dataset_path, batch_size):
-        """Builds and returns a data loader for classification tasks with given parameters."""
-        dataset = self.build_dataset(dataset_path)
-        return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1)
 
     def _get_metrics_schemas(self):
         class_names=[value['internal_name'] for value in self.dataloader.dataset.table.get_value_map(self._label_column_name).values()]
@@ -60,13 +55,44 @@ class TLCClassificationValidator(TLCValidator, yolo.classify.ClassificationValid
 
         return batch_metrics
     
-    def _verify_model_data_compatibility(self, names):
-        class_names={
+    def _verify_model_data_compatibility(self, model_class_names):
+        dataset_class_names={
             float(i): value['internal_name']
             for i, value in enumerate(self.dataloader.dataset.table.get_value_map(self._label_column_name).values())
         }
-        if names != class_names:
+        if len(model_class_names) != len(dataset_class_names):
             raise ValueError(
-                "The model and data are incompatible. " 
-                "The model was trained with different classes than the data on which val() has been called."
+                f"The model and data are incompatible. The model was trained on {len(model_class_names)} classes, but the data has {len(dataset_class_names)} classes. "
             )
+        elif model_class_names != dataset_class_names:
+            raise ValueError(
+                "The model was trained on a different set of classes to the classes in the dataset."
+            )
+
+    def _add_embeddings_hook(self, model):
+        """ Add a hook to extract embeddings from the model, and infer the activation size """
+        
+        # Find index of the linear layer
+        has_linear_layer = False
+        for index, module in enumerate(model.modules()):
+            if isinstance(module, torch.nn.Linear):
+                has_linear_layer = True
+                activation_size = module.in_features
+                break
+
+        if not has_linear_layer:
+            raise ValueError("No linear layer found in model, cannot collect embeddings.")
+
+        weak_self = weakref.ref(self) # Avoid circular reference (self <-> hook_fn)
+        def hook_fn(module, input, output):
+            # Store embeddings
+            self_ref = weak_self()
+            embeddings = output.detach().cpu().numpy()
+            self_ref.embeddings = embeddings
+
+        # Add forward hook to collect embeddings
+        for i, module in enumerate(model.modules()):
+            if i == index - 1:
+                self._hook_handles.append(module.register_forward_hook(hook_fn))
+
+        return activation_size
