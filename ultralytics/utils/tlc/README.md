@@ -57,17 +57,17 @@ For object detection, there are three ways to specify which data to use during t
 
 <details>
 <summary>Segmentation (not supported)</summary>
-The 3LC integration does not yet support the Segmentation task. Stay tuned on Discord to learn when support is added!
+The 3LC integration does not yet support the Segmentation task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
 </details>
 
 <details>
 <summary>Pose Estimation (not supported)</summary>
-The 3LC integration does not yet support the Pose Estimation task. Stay tuned on Discord to learn when support is added!
+The 3LC integration does not yet support the Pose Estimation task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
 </details>
 
 <details>
 <summary>OBB (oriented object detection) (not supported)</summary>
-The 3LC integration does not yet support the Oriented Object Detection task. Stay tuned on Discord to learn when support is added!
+The 3LC integration does not yet support the Oriented Object Detection task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
 </details>
 
 In order to run training with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` just like you are used to. The most simple example, which also shows how to specify 3LC settings, looks like this:
