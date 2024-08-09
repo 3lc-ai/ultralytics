@@ -45,7 +45,7 @@ settings = Settings(
 
 # Initialize and run training
 model = TLCYOLO("yolov8n.pt") # Or e.g. "yolov8n-cls.pt" for classification
-model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset Specification' for how to specify which the to use
+model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset Specification' for how to specify which data to use
 ```
 </details>
 
@@ -90,117 +90,6 @@ The 3LC integration does not yet support the Pose Estimation task. Stay tuned on
 <details>
 <summary>OBB (oriented object detection) (not supported)</summary>
 The 3LC integration does not yet support the Oriented Object Detection task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
-</details>
-
-In order to run training with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` just like you are used to. The most simple example, which also shows how to specify 3LC settings, looks like this:
-
-```python
-from ultralytics.utils.tlc import Settings, TLCYOLO
-
-# Set 3LC specific settings
-settings = Settings(
-    project_name="my_yolo_project",
-    run_name="my_yolo_run",
-    run_description="my_yolo_run_description",
-    image_embeddings_dim=2,
-    collection_epoch_start=0,
-    collection_epoch_interval=2,
-    conf_thres=0.2,
-)
-
-# Initialize and run training
-model = TLCYOLO("yolov8n.pt")
-model.train(data="coco128.yaml", settings=settings)
-```
-
-In order to run metrics collection only (no training) in a single 3LC run, you can use `.val()`, where the same run is reused across calls:
-
-```python
-from ultralytics.utils.tlc import Settings, TLCYOLO
-
-model = TLCYOLO("yolov8n.pt")
-
-# Set 3LC specific settings
-settings = Settings(
-    conf_thres=0.2,
-)
-
-# Run metrics collection on 
-for split in ("train", "val"):
-    results = model.val(data="coco128.yaml", split=split, settings=settings)
-```
-
-### First Time
-
-For your first run, 3LC creates `Table`s for your training and validation sets provided through the `data` kwarg, and collects metrics after the final epoch for every sample in your dataset. A new YAML file is written next to the one that was used, which can be used for later runs, more on that in [Later Runs](#later-runs).
-
-You can then open the 3LC Dashboard to view your run!
-
-### Later Runs
-
-For later runs, in order to specify that you would like to continue working with the same 3LC tables, there are two ways to proceed:
-
-#### Regular YAML file
-
-You can keep using the same YAML file pointed to by `data`. As long as this file does not change, the integration will resolve to the same 3LC tables and always get the latest revision for each split. The specific revisions used are logged to the console, and a line is printed stating that a 3LC YAML is printed with instructions on how to use it.
-
-The integration uses only the YAML file name to resolve to the relevant tables if they exist. Therefore, if any changes are made to the original YAML file name, this reference to the tables is lost (and new tables are instead created on your next run).
-
-#### 3LC YAML File
-
-For more flexibility and to explicitly select which tables to use, you should use a 3LC YAML file, like the one written during your first run.
-
-The file should simply contain keys for the relevant splits (`train` and `val` in most cases), with values set to the 3LC Urls of the corresponding tables. Once your 3LC YAML is populated with these it will look like the following example:
-
-```yaml
-train: my_train_table
-val: my_val_table
-```
-
-In order to use it, prepend a 3LC prefix `3LC://` to the path. If the 3LC YAML file is named `my_dataset.yaml`, you should provide `data="3LC://my_dataset.yaml` to `.train()` and `.val()`. After running your first run with the regular YAML file, a 3LC YAML is written next to it which you can use immediately (just remember to prepend the 3LC prefix).
-
-In order to train on different revisions, simply change the paths in the file to your desired revision.
-
-If you would like to train on the latest revisions, you can add `:latest` to one or both of the paths, and 3LC will find the `Table`s for the latest revision in the same lineage. For the above example, with latest on both, the 3LC YAML would look like this:
-
-```yaml
-train: my_train_table:latest
-val: my_val_table:latest
-```
-
-______________________________________________________________________
-
-**NOTE**: We recommend using a 3LC YAML to specify which revisions to use, as this enables using specific revisions of the dataset, and adding `:latest` in order to use the latest table in the lineage. It removes the dependency on the original YAML file to find the corresponding tables.
-
-______________________________________________________________________
-
-<details>
-<summary>3LC YAML Example</summary>
-<br>
-The following example highlights the behavior when using 3LC YAML files.
-
-Let's assume that you made a new revision in the 3LC Dashboard where you edited two bounding boxes. You would then have the following tables in your lineage:
-```
-my_train_table ---> Edited2BoundingBoxes (latest)
-my_val_table (latest)
-```
-
-If you were to reuse the original YAML file, `Edited2BoundingBoxes` would be the latest revision of your train set and `my_val_table` the latest val set. These would be used for your run.
-
-In order to train on a specific revision, in this case the original data, you can provide a 3LC YAML file `my_3lc_dataset.yaml` with `--data 3LC://my_3lc_dataset.yaml`, with the following content:
-
-```yaml
-train: my_train_table
-val: my_val_table
-```
-
-Specifying to use the latest revisions instead can be done by adding `:latest` to one or both of these `Url`s:
-
-```yaml
-train: my_train_table:latest # resolves to the latest revision of my_train_table, which is Edited1BoundingBoxes
-val: my_val_table:latest # resolves to the latest revision of my_val_table, which is my_val_table
-```
-
 </details>
 
 ## 3LC Settings
