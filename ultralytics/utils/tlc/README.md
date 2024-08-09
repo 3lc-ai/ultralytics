@@ -105,7 +105,15 @@ Providing invalid values (or combinations of values) will either log an appropri
 
 ### Image Embeddings
 
-Image embeddings can be collected by setting `image_embeddings_dim` to 2 or 3, and are based on the output of the spatial pooling function output from the YOLOv8 architectures. Similar images, as seen by the model, tend to be close to each other in this space. In the 3LC Dashboard these embeddings can be visualized, allowing you to find similar images, duplicates and imbalances in your dataset and determine if your validation set is representative of your training data (and vice-versa).
+Image embeddings can be collected by setting `image_embeddings_dim` to 2 or 3. Similar images, as seen by the model, tend to be close to each other in this space. In the 3LC Dashboard these embeddings can be visualized, allowing you to find similar images, duplicates and imbalances in your dataset, and take appropriate actions to mitigate these issues.
+
+The way in which embeddings are collected is different for the different tasks. For more details, see the drop-downs:
+<summary>Classification</summary>
+For classification, the integration scans your model for the first occurance of a `torch.nn.Linear` layer. The inputs to this layer are used to extract image embeddings.
+</details>
+<summary>Object Detection</summary>
+For object detection, the output of the spatial pooling function is used to extract embeddings.
+</details>
 
 Note that when collecting image embeddings for validation only runs, `reduce_all_embeddings()` must be called at the end to produce embeddings which can be visualized in the Dashboard.
 
