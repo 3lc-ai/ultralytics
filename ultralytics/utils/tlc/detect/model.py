@@ -1,14 +1,8 @@
 # Ultralytics YOLO 🚀 3LC Integration, AGPL-3.0 license
 import ultralytics
-from ultralytics.models.yolo.model import YOLO
-from ultralytics.nn.tasks import ClassificationModel
-from ultralytics.utils.tlc.detect.nn import TLCDetectionModel
-from ultralytics.utils.tlc.detect.trainer import TLCDetectionTrainer
-from ultralytics.utils.tlc.detect.utils import get_names_from_yolo_table, tlc_check_dataset
-from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
 
-from ultralytics.utils.tlc.classify.trainer import TLCClassificationTrainer
-from ultralytics.utils.tlc.classify.validator import TLCClassificationValidator
+from ultralytics.utils.tlc.detect.utils import get_names_from_yolo_table, tlc_check_dataset
+from ultralytics.utils.tlc.engine.model import TLCYOLO
 
 
 def check_det_dataset(data: str):
@@ -24,22 +18,4 @@ def check_det_dataset(data: str):
 
 ultralytics.engine.validator.check_det_dataset = check_det_dataset
 
-
-class TLCYOLO(YOLO):
-    """ YOLO (You Only Look Once) object detection model with 3LC integration. """
-
-    @property
-    def task_map(self):
-        """ Map head to 3LC model, trainer, validator, and predictor classes. """
-        return {
-            "detect": {
-                "model": TLCDetectionModel,
-                "trainer": TLCDetectionTrainer,
-                "validator": TLCDetectionValidator,
-            },
-            "classify": {
-                "model": ClassificationModel,
-                "trainer": TLCClassificationTrainer,
-                "validator": TLCClassificationValidator,
-            },
-        }
+TLCYOLO = TLCYOLO

@@ -1,9 +1,7 @@
-from .detect.model import TLCYOLO
-from .classify.trainer import TLCClassificationTrainer
-from .classify.validator import TLCClassificationValidator
-from .detect.trainer import TLCDetectionTrainer
-from .detect.validator import TLCDetectionValidator
+from .classify import TLCClassificationTrainer, TLCClassificationValidator
+from .detect import TLCDetectionTrainer, TLCDetectionValidator
 from .detect.settings import Settings
+from .engine.model import TLCYOLO
 
 __all__ = [
     "Settings",

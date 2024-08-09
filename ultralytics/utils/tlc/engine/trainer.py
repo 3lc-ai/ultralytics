@@ -39,6 +39,8 @@ class TLCTrainerMixin(BaseTrainer):
                 run_name=self._settings.run_name,
             )
 
+        LOGGER.info(f"{colorstr('3LC')}: Created run named '{self._run.run_name}' in project {self._run.project_name}.")
+
         # Log parameters to 3LC
         self._log_3lc_parameters()
 
@@ -129,11 +131,11 @@ class TLCTrainerMixin(BaseTrainer):
                     self.run_callbacks("on_fit_epoch_end")
 
         if self._settings.image_embeddings_dim > 0:
-            LOGGER.info(colorstr("3LC: ") + "Reducing image embeddings...")
+            LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {self._settings.image_embeddings_dim}D with {self._settings.image_embeddings_reducer}...")
             self._run.reduce_embeddings_by_foreign_table_url(
                 foreign_table_url=self.data["train"].url,
                 method=self._settings.image_embeddings_reducer,
-                n_components=3,
+                n_components=self._settings.image_embeddings_dim,
             )
         self._run.set_status_completed()
 

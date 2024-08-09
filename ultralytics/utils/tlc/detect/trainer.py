@@ -11,7 +11,7 @@ from ultralytics.data import build_dataloader
 from ultralytics.models.yolo.detect import DetectionTrainer
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK
 from ultralytics.utils.tlc.detect.dataset import TLCDataset, build_tlc_dataset
-from ultralytics.utils.tlc.detect.model import TLCDetectionModel
+from ultralytics.utils.tlc.detect.nn import TLCDetectionModel
 from ultralytics.utils.tlc.detect.settings import Settings
 from ultralytics.utils.tlc.detect.utils import check_det_dataset, get_metrics_collection_epochs
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
