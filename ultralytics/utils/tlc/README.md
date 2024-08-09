@@ -45,10 +45,12 @@ Details on object detection datasets.
 <details>
 <summary>Segmentation (not supported)</summary>
 The 3LC integration does not yet support the Segmentation task. Stay tuned on Discord to learn when support is added!
+</details>
 
 <details>
 <summary>Pose Estimation (not supported)</summary>
 The 3LC integration does not yet support the Pose Estimation task. Stay tuned on Discord to learn when support is added!
+</details>
 
 <details>
 <summary>OBB (oriented object detection) (not supported)</summary>
