@@ -39,7 +39,7 @@ class TLCTrainerMixin(BaseTrainer):
                 run_name=self._settings.run_name,
             )
 
-        LOGGER.info(f"{colorstr('3LC')}: Created run named '{self._run.run_name}' in project {self._run.project_name}.")
+        LOGGER.info(f"{colorstr('3LC')}: Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
         # Log parameters to 3LC
         self._log_3lc_parameters()
