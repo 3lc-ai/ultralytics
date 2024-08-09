@@ -30,16 +30,29 @@ pip install pacmap # or umap-learn (only required for embeddings collection)
 In order to create a 3LC `Run` with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` like usual. In the background, 3LC will create `Table`s and collect metrics with the trained mode after training completes.
 
 ## Dataset specification
-Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics Tasks.
+Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics tasks.
 
 <details>
 <summary>Classification</summary>
-Details on classification datasets.
+For image classification, there are two ways to specify which data to use during training and metrics collection.
+
+1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/classify/). This will create `tlc.Table`s for each split, with the dataset name set to the last part of the dataset path. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
+
+1. Using the argument `tables` when calling `model.train(tables={"train": my_train_table, "val": my_val_table})`. Here `my_train_table` and `my_val_table` need to be instances of `tlc.Table` or paths to tables in the form of a `tlc.Url`, `pathlib.Path` or `str`. In this case the provided `tlc.Table`s will be used as provided. This way of specifying the data is useful when you would like to use specific versions of your data (i.e. not necessarily 'latest'), or if you have created your own `tlc.Table`s and would like to use them instead.
+
+If your `tlc.Table`s have custom column names for your image and label columns, you can provide these as additional arguments `image_column_name` and `label_column_name`. The defaults are `Image` and `Label`.
 </details>
 
 <details>
 <summary>Object Detection</summary>
-Details on object detection datasets.
+For object detection, there are three ways to specify which data to use during training and metrics collection.
+
+1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset.yaml)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/detect/). This will create `tlc.Table`s for each split. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
+
+1. Using the argument `data` like usual, but providing the path to a 3LC Dataset YAML file. The way to specify this is by adding a prefix `3LC://` to the path. ..
+
+1. Using the argument `tables` when calling `model.train(tables={"train": my_train_table, "val": my_val_table})`. ...
+
 </details>
 
 <details>
