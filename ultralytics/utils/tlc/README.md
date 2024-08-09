@@ -27,7 +27,26 @@ pip install 3lc # install 3lc
 pip install pacmap # or umap-learn (only required for embeddings collection)
 ```
 
-In order to create a 3LC `Run` with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` like usual. In the background, 3LC will create `Table`s and collect metrics with the trained mode after training completes.
+In order to create a `tlc.Run` with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` like usual:
+<details>
+<summary>Code Example</summary>
+    ```python
+    from ultralytics.utils.tlc import Settings, TLCYOLO
+
+    # Set 3LC specific settings
+    settings = Settings(
+        project_name="my_yolo_project",
+        run_name="my_yolo_run",
+        run_description="my_yolo_run_description",
+    )
+
+    # Initialize and run training
+    model = TLCYOLO("yolov8n.pt") # Or e.g. "yolov8n-cls.pt" for classification
+    model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset Specification' for how to specify which the to use
+    ```
+</details>
+
+In the background, 3LC will create `tlc.Table`s and collect metrics with the trained mode after training completes, which can be opened in the 3LC Dashboard.
 
 ## Dataset specification
 Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics tasks.
