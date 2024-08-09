@@ -6,10 +6,6 @@ from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.utils.tlc.detect.settings import Settings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
 from ultralytics.utils.torch_utils import strip_optimizer
-
-# TODO:
-# DDP training
-# Adapt to object detection task in case of any problems
   
 class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
@@ -142,10 +138,6 @@ class TLCTrainerMixin(BaseTrainer):
         self._run.set_status_completed()
 
     def save_metrics(self, metrics):
-        # Log model info only after first epoch
-        # if self.epoch == 0:
-        #     self._run.add_output_value(model_info_for_loggers(self))
-        
         # Log aggregate metrics after every epoch
         self._run.add_output_value({"epoch": self.epoch, **self.metrics})
         
@@ -153,6 +145,5 @@ class TLCTrainerMixin(BaseTrainer):
 
 # CALLBACKS ##############################################################################################################
 def resample_indices(trainer):
-    # TODO: DDP - verify called by all processes
     if trainer._settings.sampling_weights:
         trainer.train_loader.dataset.resample_indices()

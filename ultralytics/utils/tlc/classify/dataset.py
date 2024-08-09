@@ -75,7 +75,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
         # If the marker exists, we can skip verification
         if verified_marker_url.exists():
-            LOGGER.info(f"{self.prefix}Images in {self.root.to_str()} already verified.")
+            LOGGER.info(f"{self.prefix}Images in {self.root.to_str()} already verified, skipping scan.")
             return self.samples
 
         desc = f"{self.prefix}Scanning images in {self.root.to_str()}..."

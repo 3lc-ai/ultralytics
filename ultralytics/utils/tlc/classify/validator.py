@@ -27,17 +27,23 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
     def _get_metrics_schemas(self):
         class_names=[value['internal_name'] for value in self.dataloader.dataset.table.get_value_map(self._label_column_name).values()]
         column_schemas = {
-            "loss": tlc.Float32Value(),
-            "predicted": tlc.CategoricalLabelSchema(class_names=class_names, display_name="Predicted"), # TODO: Improve the description?
-            "confidence": tlc.Float32Value(value_min=0.0, value_max=1.0),
-            "top1_accuracy": tlc.Float32Value(),
+            "loss": tlc.Schema("Loss", "Cross Entropy Loss", writable=False, value=tlc.Float32Value()),
+            "predicted": tlc.CategoricalLabelSchema(class_names=class_names, display_name="Predicted", description="The highest confidence class predicted by the model."),
+            "confidence": tlc.Schema("Confidence", "The confidence of the prediction", value=tlc.Float32Value(value_min=0.0, value_max=1.0)),
+            "top1_accuracy": tlc.Schema("Top-1 Accuracy", "The correctness of the prediction", value= tlc.Float32Value()),
         }
+
         if len(class_names) > 5:
-            column_schemas["top5_accuracy"] = tlc.Float32Value()
+            column_schemas["top5_accuracy"] = tlc.Schema(
+                "Top-5 Accuracy",
+                "The correctness of any of the top five confidence predictions",
+                value=tlc.Float32Value()
+            )
+
         return column_schemas
 
     def _compute_3lc_metrics(self, preds, batch):
-        """ Update 3LC metrics """
+        """ Compute 3LC classification metrics for each sample. """
         confidence, predicted = preds.max(dim=1)
 
         batch_metrics = {
@@ -56,6 +62,8 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
         return batch_metrics
     
     def _verify_model_data_compatibility(self, model_class_names):
+        """ Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
+        that the order of the class names match and that they have the same number of classes."""
         dataset_class_names={
             float(i): value['internal_name']
             for i, value in enumerate(self.dataloader.dataset.table.get_value_map(self._label_column_name).values())
@@ -66,11 +74,12 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
             )
         elif model_class_names != dataset_class_names:
             raise ValueError(
-                "The model was trained on a different set of classes to the classes in the dataset."
+                "The model was trained on a different set of classes to the classes in the dataset, or the classes are in a different order."
             )
 
     def _add_embeddings_hook(self, model):
-        """ Add a hook to extract embeddings from the model, and infer the activation size """
+        """ Add a hook to extract embeddings from the model, and infer the activation size. For a classification model, this
+        amounts to finding the linear layer and extracting the input size."""
         
         # Find index of the linear layer
         has_linear_layer = False
