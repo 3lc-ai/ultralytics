@@ -2,7 +2,9 @@
 
 # 3LC Integration
 
-This document outlines how to use the 3LC integration available for YOLOv8 object detection.
+This document outlines how to use the 3LC integration available for YOLOv8 classification and object detection.
+
+For any questions or problems, please reach out on the [3LC Discord](https://discord.com/channels/1236027984150794290/1236118620002586655).
 
 ## About 3LC
 
@@ -19,16 +21,44 @@ The first step is to clone this fork, change directory into it and install the p
 git clone https://github.com/3lc-ai/ultralytics.git
 cd ultralytics
 python -m venv .venv
-source .venv/bin/activate # or .venv/Scripts/activate in Git Bash
+source .venv/bin/activate # or .venv/Scripts/activate in Git Bash / Windows
 pip install -e . # install the local ultralytics fork package
 pip install 3lc # install 3lc
+pip install pacmap # or umap-learn (only required for embeddings collection)
 ```
+
+In order to create a 3LC `Run` with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` like usual. In the background, 3LC will create `Table`s and collect metrics with the trained mode after training completes.
+
+## Dataset specification
+Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics Tasks.
+
+<details>
+<summary>Classification</summary>
+Details on classification datasets.
+</details>
+
+<details>
+<summary>Object Detection</summary>
+Details on object detection datasets.
+</details>
+
+<details>
+<summary>Segmentation (not supported)</summary>
+The 3LC integration does not yet support the Segmentation task. Stay tuned on Discord to learn when support is added!
+
+<details>
+<summary>Pose Estimation (not supported)</summary>
+The 3LC integration does not yet support the Pose Estimation task. Stay tuned on Discord to learn when support is added!
+
+<details>
+<summary>OBB (oriented object detection) (not supported)</summary>
+The 3LC integration does not yet support the Oriented Object Detection task. Stay tuned on Discord to learn when support is added!
+</details>
 
 In order to run training with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` just like you are used to. The most simple example, which also shows how to specify 3LC settings, looks like this:
 
 ```python
-from ultralytics.utils.tlc.detect.model import TLCYOLO
-from ultralytics.utils.tlc.detect.settings import Settings
+from ultralytics.utils.tlc import Settings, TLCYOLO
 
 # Set 3LC specific settings
 settings = Settings(
@@ -49,14 +79,12 @@ model.train(data="coco128.yaml", settings=settings)
 In order to run metrics collection only (no training) in a single 3LC run, you can use `.val()`, where the same run is reused across calls:
 
 ```python
-from ultralytics.utils.tlc.detect.model import TLCYOLO
-from ultralytics.utils.tlc.detect.settings import Settings
+from ultralytics.utils.tlc import Settings, TLCYOLO
 
 model = TLCYOLO("yolov8n.pt")
 
 # Set 3LC specific settings
 settings = Settings(
-    image_embeddings_dim=2,
     conf_thres=0.2,
 )
 
@@ -170,7 +198,7 @@ Early stopping can be used just like before. Unless metrics collection is disabl
 
 ## Why is embeddings collection disabled by default?
 
-Embeddings collection has an extra dependency for the library used for reduction, and a performance implication (fitting and applying the reducer) at the end of your run. It is therefore disabled by default.
+Embeddings collection has an extra dependency for the library used for reduction, and a performance implication (fitting and applying the reducer) at the end of a run. It is therefore disabled by default.
 
 ## How do I collect embeddings for each bounding box?
 
