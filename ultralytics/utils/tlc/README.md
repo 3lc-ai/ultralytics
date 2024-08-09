@@ -70,13 +70,24 @@ If your `tlc.Table`s have custom column names for your image and label columns, 
 
 <details>
 <summary>Object Detection</summary>
-For object detection, there are three ways to specify which data to use during training and metrics collection.
+For object detection, there are currently ways to specify which data to use during training and metrics collection.
 
 1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset.yaml)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/detect/). This will create `tlc.Table`s for each split. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
 
-1. Using the argument `data` like usual, but providing the path to a 3LC Dataset YAML file. The way to specify this is by adding a prefix `3LC://` to the path. ..
+1. Using the argument `data` like usual, but providing the path to a 3LC Dataset YAML file. The way to specify this is by adding a prefix `3LC://` to the path. A 3LC Dataset YAML file specifies the locations of 3LC Tables instead of the locations of images or labels on your disk. An example 3LC YAML looks like this:
 
-1. Using the argument `tables` when calling `model.train(tables={"train": my_train_table, "val": my_val_table})`. ...
+```yaml
+path: /common/part/of/
+train: path/to/train/table
+val: path/to/val/table
+```
+
+It is even possible to specify that you would like to use the latest revision of these tables, by attaching `:latest` at the end of a path:
+```yaml
+path: /common/part/of/
+train: path/to/train/table:latest
+val: path/to/val/table:latest
+```
 
 </details>
 
