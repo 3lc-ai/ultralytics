@@ -53,7 +53,7 @@ In the background, 3LC will create `tlc.Table`s and collect metrics with the tra
 
 ## Dataset specification
 
-![https://raw.githubusercontent.com/ultralytics/assets/main/im/banner-tasks.png](Banner image with tasks)
+![Banner image with tasks](https://raw.githubusercontent.com/ultralytics/assets/main/im/banner-tasks.png)
 
 Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics tasks.
 
