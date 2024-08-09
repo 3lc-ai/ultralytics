@@ -203,6 +203,14 @@ class TLCValidatorMixin(BaseValidator):
         metrics_infos = self._metrics_writer.get_written_metrics_infos()
         self._run.update_metrics(metrics_infos)
 
+        self._run.add_input_table(self.dataloader.dataset.table.url)
+
+        # Improve memory usage - don't cache metrics data
+        for metrics_info in metrics_infos:
+            tlc.ObjectRegistry._delete_object_from_caches(
+                tlc.Url(metrics_info["url"]).to_absolute(self._run.url)
+            )
+
         self._run.set_status_running()
 
         # Remove hook handles
