@@ -1,4 +1,5 @@
 import tlc
+import json
 
 from multiprocessing.pool import ThreadPool
 import numpy as np
@@ -71,7 +72,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
     def verify_images(self):
         """ Verify all images in the dataset."""
 
-        verified_marker_url = self.table.url / "yolo_verified_marker.txt"
+        verified_marker_url = self.table.url / "cache.yolo"
 
         # If the marker exists, we can skip verification
         if verified_marker_url.exists():
@@ -102,7 +103,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         if nc == 0:
             LOGGER.info(f"{self.prefix}All images in {self.root.to_str()} are verified. Writing marker file to {verified_marker_url.to_str()} to skip future verification.")
             verified_marker_url.write(
-                content="This file is created to indicate that all images in the dataset are verified by YOLOv8, and can be used as-is without further scanning.",
+                content=json.dumps({"verified": True}),
                 if_exists="raise", # Should not get here if already exists
             )
 
