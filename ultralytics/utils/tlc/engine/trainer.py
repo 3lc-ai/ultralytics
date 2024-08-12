@@ -17,6 +17,7 @@ from ultralytics.utils.torch_utils import strip_optimizer
 # - Recursive image searching in TableFromYolo
 # - Support collecting loss
 # - Verify fix of 3LC yaml reading (Gudbrand)
+# - Explore whether we want to support tlcyolo cli command (probably in the future)
 
 class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
@@ -129,7 +130,7 @@ class TLCTrainerMixin(BaseTrainer):
     
     def final_eval(self):
         # Set epoch on validator - required when final validation is called without prior mc during training
-        if not self._settings.collection_val_only:
+        if not self._settings.collection_val_only or self._settings.collection_disable:
             self.train_validator._final_validation = True
             self.train_validator._epoch = self.epoch
             self.train_validator.data = self.data
@@ -141,7 +142,7 @@ class TLCTrainerMixin(BaseTrainer):
                 strip_optimizer(f)  # strip optimizers
                 if f is self.best:
                     LOGGER.info(f"\nValidating {f}...")
-                    if not self._settings.collection_val_only:
+                    if not self._settings.collection_val_only or self._settings.collection_disable:
                         self.train_validator(model=f)
                     self.validator.args.plots = self.args.plots
                     self.metrics = self.validator(model=f)
