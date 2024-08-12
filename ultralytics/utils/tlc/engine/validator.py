@@ -4,7 +4,7 @@ from ultralytics.data import build_dataloader
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.settings import Settings
-from ultralytics.utils.tlc.utils import training_phase_schema
+from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 
 def execute_when_collecting(method):
@@ -171,19 +171,7 @@ class TLCValidatorMixin(BaseValidator):
             # Add hook and get the activation size
             activation_size = self._add_embeddings_hook(model)
 
-            column_schemas["embeddings"] = tlc.Schema(
-                'Embedding',
-                'Large NN embedding',
-                writable=False,
-                computable=False,
-                value=tlc.Float32Value(number_role=tlc.NUMBER_ROLE_NN_EMBEDDING),
-                size0=tlc.DimensionNumericValue(
-                    value_min=activation_size,
-                    value_max=activation_size,
-                    enforce_min=True,
-                    enforce_max=True
-                )
-            )
+            column_schemas["embeddings"] = image_embeddings_schema(activation_size=activation_size)
 
         if self._epoch is not None:
             column_schemas["Training Phase"] = training_phase_schema()

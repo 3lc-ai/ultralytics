@@ -9,10 +9,8 @@ from ultralytics.utils.torch_utils import strip_optimizer
 
 # TODO:
 # - Fix DDP
-# - Detection with 3LC YAML file
 # - Fix problems with reading detection dataset (in particular 3LC YOLO YAML)
 # - Manually test remaining Settings and make sure they are used correctly (disable collection, val only)
-# - One-based indexes for epochs
 # - Dive deeper into increasing memory usage...
 # - Clean up Detection code
 # - collect method on Model?
@@ -60,6 +58,7 @@ class TLCTrainerMixin(BaseTrainer):
         self.add_callback("on_train_epoch_start", resample_indices)
         
     def _log_3lc_parameters(self):
+        """ Log various data as parameters to the tlc.Run. """
         if "val" in self.data:
             val_url = str(self.data["val"].url)
         else:
@@ -85,8 +84,8 @@ class TLCTrainerMixin(BaseTrainer):
         # Print collection epochs
         else:
             if len(self._metrics_collection_epochs) == 1:
-                epochs = str(next(iter(self._metrics_collection_epochs)) + 1)
-                message = f"Metrics will be collected after training and after epoch {epochs}."
+                epoch = str(next(iter(self._metrics_collection_epochs)) + 1)
+                message = f"Metrics will be collected after training and after epoch {epoch}."
             else:
                 epochs = ", ".join(str(epoch + 1) for epoch in sorted(self._metrics_collection_epochs))
                 message = f"Metrics will be collected after training and after the following epochs: {epochs}"

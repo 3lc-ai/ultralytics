@@ -16,7 +16,7 @@ from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 from ultralytics.utils.tlc.settings import Settings
 
-
+# TODO: Clean up (make functions etc.)
 def tlc_check_dataset(
         data: str,
         tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
@@ -28,33 +28,59 @@ def tlc_check_dataset(
     if tables is None:
         tables = {}
 
-        data_dict = check_det_dataset(data)
-        # TODO: Factor out common code between this and tlc_check_cls_dataset
-        # TODO: 3LC formatted YAML
+        # 3LC YAML file
+        if data.startswith(TLC_PREFIX):
+            # Read the YAML file, removing the prefix
+            if not (data_file_url := tlc.Url(data.replace(TLC_PREFIX, ""))).exists():
+                raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
 
-        for key in ("train", "val", "test"):
-            if data_dict.get(key) is not None:
-                name = Path(data).stem
-                project_name = f"{name}-YOLOv8" if project_name is None else project_name
+            data_config = yaml.safe_load(data_file_url.read())
 
-                table = tlc.Table.from_yolo(
-                    dataset_yaml_file=data_dict["yaml_file"],
-                    split=key,
-                    override_split_path=data_dict[key],
-                    structure=None,
-                    table_name="original",
-                    dataset_name=f"{name}-{key}",
-                    project_name=project_name,
-                    if_exists='reuse',
-                    description=f"Original {key} dataset for {data}, created with YOLOv8",
-                )
+            path = data_config.get("path")
+            splits = [key for key in data_config if key != "path"]
 
-                tables[key] = table.latest()
-
-                if tables[key] != table:
-                    LOGGER.info(f"   - {key}: Using latest version of table {table.url} -> {tables[key].url}")
+            LOGGER.info(f"{TLC_COLORSTR}Parsing 3LC YAML file: {data_file_url}")
+            for split in splits:
+            
+                # Handle :latest at the end
+                if data_config[split].endswith(":latest"):
+                    latest = True
+                    split_path = data_config[split].rstrip(":latest")
                 else:
-                    LOGGER.info(f"   - {key}: Using original table {tables[key].url}")
+                    latest = False
+
+                table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
+
+                table = get_tlc_table_from_url(table_url=table_url, split=split, latest=latest)
+
+                tables[split] = table
+        # Regular YAML file
+        else:
+            data_dict = check_det_dataset(data)
+
+            for key in ("train", "val", "test"):
+                if data_dict.get(key) is not None:
+                    name = Path(data).stem
+                    project_name = f"{name}-YOLOv8" if project_name is None else project_name
+
+                    table = tlc.Table.from_yolo(
+                        dataset_yaml_file=data_dict["yaml_file"],
+                        split=key,
+                        override_split_path=data_dict[key],
+                        structure=None,
+                        table_name="original",
+                        dataset_name=f"{name}-{key}",
+                        project_name=project_name,
+                        if_exists='reuse',
+                        description=f"Original {key} dataset for {data}, created with YOLOv8",
+                    )
+
+                    tables[key] = table.latest()
+
+                    if tables[key] != table:
+                        LOGGER.info(f"   - {key}: Using latest version of table {table.url} -> {tables[key].url}")
+                    else:
+                        LOGGER.info(f"   - {key}: Using original table {tables[key].url}")
     
     else:
         for key, table in tables.items():
@@ -117,72 +143,6 @@ def build_tlc_yolo_dataset(
         exclude_zero_weight=exclude_zero_weight,
     )
 
-def tlc_check_dataset_old(data_file: str, get_splits: tuple | list = ('train', 'val'), settings: Settings | None=None) -> dict[str, tlc.Table]:
-    """ Parse the data file and get or create corresponding 3LC tables. If no 3LC YAML exists,
-    create one.
-
-    :param data_file: The path to the original YOLO YAML file.
-    :param get_splits: The splits to get tables for.
-    :param settings: The settings containing the run info.
-    :returns: The 3LC tables.
-    :raises: FileNotFoundError if the YAML file does not exist.
-    """
-    # Regular YAML file
-    if not data_file.startswith(TLC_PREFIX):
-        data_file = check_file(data_file)
-
-        if not (data_file_url := tlc.Url(data_file)).exists():
-            raise FileNotFoundError(f'Could not find YAML file {data_file_url}')
-
-        data_file_content = yaml.safe_load(data_file_url.read())
-        splits = [
-            key for key in data_file_content if key not in ('path', 'names', 'download', 'nc') and data_file_content[key]]
-
-        # Create 3LC tables, get root table if already registered
-        LOGGER.info(f'{TLC_COLORSTR}Parsing YOLO YAML file: {data_file_url}')
-        tables = {split: get_or_create_tlc_table_from_yolo(data_file, settings=settings, split=split) for split in splits}
-
-        # Write all tables to the 3LC YAML file
-        write_3lc_yaml(data_file, tables)
-
-        # Remove any tables that are not in get_splits
-        tables = {split: table for split, table in tables.items() if split in get_splits}
-
-    # 3LC YAML file
-    else:
-
-        # Read the YAML file, removing the prefix
-        if not (data_file_url := tlc.Url(data_file.replace(TLC_PREFIX, ''))).exists():
-            raise FileNotFoundError(f'Could not find YAML file {data_file_url}')
-
-        data_config = yaml.safe_load(data_file_url.read())
-
-        path = data_config.get('path')
-        splits = [key for key in data_config if key != 'path']
-
-        LOGGER.info(f'{TLC_COLORSTR}Parsing 3LC YAML file: {data_file_url}')
-        tables = {}
-        for split in splits:
-            if split not in get_splits:
-                continue
-
-            split_path = data_config[split].split(':')[0]
-            latest = data_config[split].endswith(':latest')
-
-            if split_path.count(':') > 1:
-                raise ValueError(f'Found more than one : in the split path {split_path} for split {split}')
-            url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
-
-            table = get_tlc_table_from_url(table_url=url, split=split, latest=latest)
-
-            tables[split] = table
-
-    # Check that the tables have the same bounding box value maps
-    value_maps = [get_names_from_yolo_table(table) for table in tables.values()]
-    assert all(value_maps[0] == value_maps[i] for i in range(1, len(value_maps)))
-
-    return tables
-
 def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema:
     """ Create a 3LC bounding box schema for YOLOv8
 
@@ -233,24 +193,6 @@ def yolo_loss_schemas() -> dict[str, tlc.Schema]:
                                      value=tlc.Float32Value(),
                                      display_importance=3006)
     return schemas
-
-def yolo_image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
-    """ Create a 3LC schema for YOLOv8 image embeddings.
-
-    :param activation_size: The size of the activation tensor.
-    :returns: The YOLO image embeddings schema.
-    """
-    embedding_schema = tlc.Schema('Embedding',
-                                  'Large NN embedding',
-                                  writable=False,
-                                  computable=False,
-                                  value=tlc.Float32Value(number_role=tlc.NUMBER_ROLE_NN_EMBEDDING),
-                                  size0=tlc.DimensionNumericValue(value_min=activation_size,
-                                                                  value_max=activation_size,
-                                                                  enforce_min=True,
-                                                                  enforce_max=True))
-    return {'embeddings': embedding_schema}
-
 
 def construct_bbox_struct(
     predicted_annotations: list[dict[str, int | float | dict[str, float]]],
