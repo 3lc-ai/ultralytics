@@ -128,10 +128,12 @@ class TLCTrainerMixin(BaseTrainer):
         return super().validate()
     
     def final_eval(self):
-        self.train_validator._final_validation = True
         # Set epoch on validator - required when final validation is called without prior mc during training
-        self.train_validator._epoch = self.epoch
-        self.train_validator.data = self.data
+        if not self._settings.collection_val_only:
+            self.train_validator._final_validation = True
+            self.train_validator._epoch = self.epoch
+            self.train_validator.data = self.data
+
         self.validator._final_validation = True
 
         for f in self.last, self.best:
@@ -139,7 +141,8 @@ class TLCTrainerMixin(BaseTrainer):
                 strip_optimizer(f)  # strip optimizers
                 if f is self.best:
                     LOGGER.info(f"\nValidating {f}...")
-                    self.train_validator(model=f)
+                    if not self._settings.collection_val_only:
+                        self.train_validator(model=f)
                     self.validator.args.plots = self.args.plots
                     self.metrics = self.validator(model=f)
                     self.metrics.pop("fitness", None)
@@ -147,8 +150,9 @@ class TLCTrainerMixin(BaseTrainer):
 
         if self._settings.image_embeddings_dim > 0:
             LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {self._settings.image_embeddings_dim}D with {self._settings.image_embeddings_reducer}, this may take a few minutes...")
+            foreign_table_url = self.trainset.url if not self._settings.collection_val_only else self.testset.url
             self._run.reduce_embeddings_by_foreign_table_url(
-                foreign_table_url=self.data["train"].url,
+                foreign_table_url=foreign_table_url,
                 method=self._settings.image_embeddings_reducer,
                 n_components=self._settings.image_embeddings_dim,
             )

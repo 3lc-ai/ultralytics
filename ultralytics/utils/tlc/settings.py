@@ -48,13 +48,12 @@ class Settings:
     collection_disable: bool = field(default=False,
                                      metadata={'description': 'Whether to disable 3LC metrics collection entirely'})
     collection_epoch_start: int | None = field(default=None,
-                                               metadata={'description': 'Start epoch for collection during training'})
+                                               metadata={'description': 'Start epoch for collection during training (1 is after the first epoch)'})
     collection_epoch_interval: int = field(default=1,
                                            metadata={
                                                'description':
                                                'Epoch interval for collection. Only used if a starting epoch is set'})
-    collection_splits: list[str] = field(default_factory=lambda: ['train', 'val'],
-                                         metadata={'description': 'Splits to collect metrics on'})
+
 
     @classmethod
     def from_env(cls) -> Settings:
