@@ -9,12 +9,12 @@ from ultralytics.utils.torch_utils import strip_optimizer
 
 # TODO:
 # - Fix DDP
-# - Fix problems with reading detection dataset (in particular 3LC YOLO YAML)
 # - Manually test remaining Settings and make sure they are used correctly (disable collection, val only)
 # - Dive deeper into increasing memory usage...
 # - Clean up Detection code
 # - collect method on Model?
 # - Support collecting loss
+# - Verify fix of 3LC yaml reading (Gudbrand)
 
 class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
@@ -84,10 +84,10 @@ class TLCTrainerMixin(BaseTrainer):
         # Print collection epochs
         else:
             if len(self._metrics_collection_epochs) == 1:
-                epoch = str(next(iter(self._metrics_collection_epochs)) + 1)
+                epoch = str(next(iter(self._metrics_collection_epochs)))
                 message = f"Metrics will be collected after training and after epoch {epoch}."
             else:
-                epochs = ", ".join(str(epoch + 1) for epoch in sorted(self._metrics_collection_epochs))
+                epochs = ", ".join(str(epoch) for epoch in sorted(self._metrics_collection_epochs))
                 message = f"Metrics will be collected after training and after the following epochs: {epochs}"
 
         LOGGER.info(f"{colorstr('3LC')}: {message}")
