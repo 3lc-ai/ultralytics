@@ -74,8 +74,7 @@ class TLCValidatorMixin(BaseValidator):
         if trainer:
             self._should_collect = not self._settings.collection_disable and self._epoch + 1 in trainer._metrics_collection_epochs
         else:
-            # TODO: When to collect when called directly?
-            self._should_collect = True
+            self._should_collect = not self._settings.collection_disable
 
         # Call parent to perform the validation
         out = super().__call__(trainer, model)
