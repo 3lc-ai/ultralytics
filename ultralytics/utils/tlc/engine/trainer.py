@@ -13,6 +13,8 @@ from ultralytics.utils.torch_utils import strip_optimizer
 # - Dive deeper into increasing memory usage...
 # - Clean up Detection code
 # - collect method on Model?
+# - Error message improvements in TableFromYolo
+# - Recursive image searching in TableFromYolo
 # - Support collecting loss
 # - Verify fix of 3LC yaml reading (Gudbrand)
 
@@ -144,7 +146,7 @@ class TLCTrainerMixin(BaseTrainer):
                     self.run_callbacks("on_fit_epoch_end")
 
         if self._settings.image_embeddings_dim > 0:
-            LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {self._settings.image_embeddings_dim}D with {self._settings.image_embeddings_reducer}...")
+            LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {self._settings.image_embeddings_dim}D with {self._settings.image_embeddings_reducer}, this may take a few minutes...")
             self._run.reduce_embeddings_by_foreign_table_url(
                 foreign_table_url=self.data["train"].url,
                 method=self._settings.image_embeddings_reducer,
