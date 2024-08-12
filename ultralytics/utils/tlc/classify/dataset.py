@@ -23,7 +23,17 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         prefix (str): See parent.
     
     """
-    def __init__(self, table, args, augment=False, prefix="", image_column_name="Image", label_column_name="Label", exclude_zero_weight=False, **kwargs):
+    def __init__(
+            self,
+            table,
+            args,
+            augment=False,
+            prefix="",
+            image_column_name="Image",
+            label_column_name="Label",
+            exclude_zero_weight=False,
+            sampling_weights=False
+        ):
         # Populate self.samples with image paths and labels
         # Each is a tuple of (image_path, label)
         assert isinstance(table, tlc.Table)
@@ -46,7 +56,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         self._init_attributes(args, augment, prefix)
 
         # Call mixin
-        super().__init__(**kwargs)
+        self._post_init(sampling_weights=sampling_weights)
 
         self._indices = np.arange(len(self.example_ids))
         assert len(self._indices) == len(self.samples)

@@ -1,6 +1,6 @@
 from .classify import TLCClassificationTrainer, TLCClassificationValidator
 from .detect import TLCDetectionTrainer, TLCDetectionValidator
-from .detect.settings import Settings
+from .settings import Settings
 from .engine.model import TLCYOLO
 
 __all__ = [

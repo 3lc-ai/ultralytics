@@ -3,8 +3,8 @@ import tlc
 from ultralytics.data import build_dataloader
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import colorstr
-from ultralytics.utils.tlc.detect.settings import Settings
-from ultralytics.utils.tlc.detect.utils import training_phase_schema
+from ultralytics.utils.tlc.settings import Settings
+from ultralytics.utils.tlc.utils import training_phase_schema
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 
 def execute_when_collecting(method):
@@ -72,7 +72,7 @@ class TLCValidatorMixin(BaseValidator):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
         
         if trainer:
-            self._should_collect = not self._settings.collection_disable and self._epoch in trainer._metrics_collection_epochs
+            self._should_collect = not self._settings.collection_disable and self._epoch + 1 in trainer._metrics_collection_epochs
         else:
             # TODO: When to collect when called directly?
             self._should_collect = True
@@ -127,6 +127,10 @@ class TLCValidatorMixin(BaseValidator):
         """ Add a hook to extract embeddings from the model, and infer the activation size """
         raise NotImplementedError("Subclasses must implement this method.")
     
+    def _infer_batch_size(self, preds) -> int:
+        """ Infer the batch size from the predictions """
+        raise NotImplementedError("Subclasses must implement this method.")
+    
     def update_metrics(self, preds, batch):
         """ Collect 3LC metrics """
         self._update_metrics(preds, batch)
@@ -137,9 +141,9 @@ class TLCValidatorMixin(BaseValidator):
     @execute_when_collecting
     def _update_metrics(self, preds, batch):
         """ Update 3LC metrics with common and task-specific metrics"""
-        batch_size = preds.size(0)
+        batch_size = self._infer_batch_size(preds, batch)
         example_indices = list(range(self._seen, self._seen + batch_size))
-        example_ids = [self.dataloader.dataset.example_ids[i] for i in example_indices]
+        example_ids = [int(self.dataloader.dataset.example_ids[i]) for i in example_indices]
 
         batch_metrics = {
             tlc.EXAMPLE_ID: example_ids,
@@ -150,7 +154,7 @@ class TLCValidatorMixin(BaseValidator):
             batch_metrics["embeddings"] = self.embeddings
 
         if self._epoch is not None:
-            batch_metrics[tlc.EPOCH] = [self._epoch] * batch_size
+            batch_metrics[tlc.EPOCH] = [self._epoch + 1] * batch_size
             training_phase = 1 if self._final_validation else 0
             batch_metrics["Training Phase"] = [training_phase] * batch_size
 

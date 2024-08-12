@@ -1,21 +1,14 @@
 # Ultralytics YOLO 🚀 3LC Integration, AGPL-3.0 license
-import ultralytics
 
-from ultralytics.utils.tlc.detect.utils import get_names_from_yolo_table, tlc_check_dataset
+import warnings
+
 from ultralytics.utils.tlc.engine.model import TLCYOLO
 
+warnings.warn(
+    "Importing `TLCYOLO` from `ultralytics.utils.tlc.detect.model` is deprecated. "
+    "Please import `TLCYOLO` from `ultralytics.utils.tlc` instead, as the former will be removed in a future commit.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-def check_det_dataset(data: str):
-    """Check if the dataset is compatible with the 3LC."""
-    tables = tlc_check_dataset(data)
-    names = get_names_from_yolo_table(tables["train"])
-    return {
-        "train": tables["train"],
-        "val": tables["val"],
-        "nc": len(names),
-        "names": names, }
-
-
-ultralytics.engine.validator.check_det_dataset = check_det_dataset
-
-TLCYOLO = TLCYOLO
+__all__ = ["TLCYOLO"]

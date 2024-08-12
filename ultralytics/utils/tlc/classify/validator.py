@@ -21,7 +21,7 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
             image_column_name=self._image_column_name,
             label_column_name=self._label_column_name,
             exclude_zero_weight=self._settings.exclude_zero_weight_collection,
-            settings=self._settings
+            sampling_weights=False, # Don't use sampling weights for val / mc
         )
 
     def _get_metrics_schemas(self):
@@ -105,3 +105,6 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
                 self._hook_handles.append(module.register_forward_hook(hook_fn))
 
         return activation_size
+    
+    def _infer_batch_size(self, preds, batch) -> int:
+        return preds.size(0)

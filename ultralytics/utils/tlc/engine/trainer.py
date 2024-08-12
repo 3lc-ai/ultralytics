@@ -3,10 +3,21 @@ from __future__ import annotations
 import tlc
 
 from ultralytics.engine.trainer import BaseTrainer
-from ultralytics.utils.tlc.detect.settings import Settings
+from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
 from ultralytics.utils.torch_utils import strip_optimizer
-  
+
+# TODO:
+# - Fix DDP
+# - Detection with 3LC YAML file
+# - Fix problems with reading detection dataset (in particular 3LC YOLO YAML)
+# - Manually test remaining Settings and make sure they are used correctly (disable collection, val only)
+# - One-based indexes for epochs
+# - Dive deeper into increasing memory usage...
+# - Clean up Detection code
+# - collect method on Model?
+# - Support collecting loss
+
 class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
     which implements common 3LC-specific behavior across tasks. Use as a Mixin class for task-specific
@@ -73,7 +84,12 @@ class TLCTrainerMixin(BaseTrainer):
             message = "Metrics will be collected after training only."
         # Print collection epochs
         else:
-            message = f"Metrics will be collected after training and for the following epochs: {sorted(self._metrics_collection_epochs)}"
+            if len(self._metrics_collection_epochs) == 1:
+                epochs = str(next(iter(self._metrics_collection_epochs)) + 1)
+                message = f"Metrics will be collected after training and after epoch {epochs}."
+            else:
+                epochs = ", ".join(str(epoch + 1) for epoch in sorted(self._metrics_collection_epochs))
+                message = f"Metrics will be collected after training and after the following epochs: {epochs}"
 
         LOGGER.info(f"{colorstr('3LC')}: {message}")
 
@@ -85,10 +101,7 @@ class TLCTrainerMixin(BaseTrainer):
     
     def get_validator(self, dataloader):
         raise NotImplementedError("Subclasses must implement this method.")
-    
-    def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
-        return super().get_dataloader(dataset_path, batch_size=batch_size, rank=rank, mode=mode, shuffle=mode=="train")
-    
+
     @property
     def train_validator(self):
         if RANK in {-1, 0}:
@@ -107,7 +120,7 @@ class TLCTrainerMixin(BaseTrainer):
     def validate(self):
         """ Perform validation with 3LC metrics collection, also on the training data, if applicable."""
         # Validate on the training set
-        if not self._settings.collection_disable and not self._settings.collection_val_only and self.epoch in self._metrics_collection_epochs:
+        if not self._settings.collection_disable and not self._settings.collection_val_only and self.epoch + 1 in self._metrics_collection_epochs:
             self.train_validator(trainer=self)
         
         # Validate on the validation/test set like usual
@@ -117,6 +130,7 @@ class TLCTrainerMixin(BaseTrainer):
         self.train_validator._final_validation = True
         # Set epoch on validator - required when final validation is called without prior mc during training
         self.train_validator._epoch = self.epoch
+        self.train_validator.data = self.data
         self.validator._final_validation = True
 
         for f in self.last, self.best:
@@ -141,9 +155,13 @@ class TLCTrainerMixin(BaseTrainer):
 
     def save_metrics(self, metrics):
         # Log aggregate metrics after every epoch
-        self._run.add_output_value({"epoch": self.epoch, **self.metrics})
+        processed_metrics = self._process_metrics(metrics)
+        self._run.add_output_value({"epoch": self.epoch+1, **processed_metrics})
         
         super().save_metrics(metrics=metrics)
+
+    def _process_metrics(self, metrics):
+        return metrics
 
 # CALLBACKS ##############################################################################################################
 def resample_indices(trainer):

@@ -10,30 +10,178 @@ from tlc.client.torch.metrics.metrics_collectors.bounding_box_metrics_collector 
     _TLCPredictedBoundingBoxes,
 )
 
-from ultralytics.data.utils import check_file
-from ultralytics.engine.trainer import BaseTrainer
-from ultralytics.engine.validator import BaseValidator
-from ultralytics.utils import LOGGER
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX, TRAINING_PHASE
-from ultralytics.utils.tlc.detect.settings import Settings
+from ultralytics.data.utils import check_file, check_det_dataset
+from ultralytics.utils import LOGGER, colorstr
+from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
+from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
+from ultralytics.utils.tlc.settings import Settings
 
 
-def check_det_dataset(data: str, settings: Settings | None = None) -> dict[str, tlc.Table | int | dict[int, str]]:
-    """Check if the dataset is compatible with the 3LC. Use to patch the YOLOv8 check_det_dataset
-    to have 3LC parse the dataset.
+def tlc_check_dataset(
+        data: str,
+        tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
+        image_column_name: str,
+        label_column_name: str,
+        project_name: str | None = None,
+    ) -> dict[str, tlc.Table | dict[float, str] | int]:
+    
+    if tables is None:
+        tables = {}
 
-    :param data: The path to the dataset YAML file.
+        data_dict = check_det_dataset(data)
+        # TODO: Factor out common code between this and tlc_check_cls_dataset
+        # TODO: 3LC formatted YAML
+
+        for key in ("train", "val", "test"):
+            if data_dict.get(key) is not None:
+                name = Path(data).stem
+                project_name = f"{name}-YOLOv8" if project_name is None else project_name
+
+                table = tlc.Table.from_yolo(
+                    dataset_yaml_file=data_dict["yaml_file"],
+                    split=key,
+                    override_split_path=data_dict[key],
+                    structure=None,
+                    table_name="original",
+                    dataset_name=f"{name}-{key}",
+                    project_name=project_name,
+                    if_exists='reuse',
+                    description=f"Original {key} dataset for {data}, created with YOLOv8",
+                )
+
+                tables[key] = table.latest()
+
+                if tables[key] != table:
+                    LOGGER.info(f"   - {key}: Using latest version of table {table.url} -> {tables[key].url}")
+                else:
+                    LOGGER.info(f"   - {key}: Using original table {tables[key].url}")
+    
+    else:
+        for key, table in tables.items():
+            if isinstance(table, (str, Path, tlc.Url)):
+                table_url = tlc.Url(table)
+                tables[key] = tlc.Table.from_url(table_url)
+            elif isinstance(table, tlc.Table):
+                tables[key] = table
+            else:
+                raise ValueError(
+                    f"Invalid type {type(table)} for split {key} provided through `tables`."
+                    "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table."
+                )
+
+            LOGGER.info(f"   - {key}: {tables[key].url}")
+    
+    first_split = next(iter(tables.keys()))
+    value_map = tables[first_split].get_value_map("bbs.bb_list.label")
+    names = {int(k): v['internal_name'] for k, v in value_map.items()}
+
+    return {**tables, "names": names, "nc": len(names)}
+
+def build_tlc_yolo_dataset(
+        cfg,
+        table,
+        batch,
+        data,
+        mode="train",
+        rect=False,
+        stride=32,
+        multi_modal=False,
+        settings=None,):
+    if multi_modal:
+        return ValueError("Multi-modal datasets are not supported in the 3LC YOLOv8 integration.")
+    
+    if mode=="train":
+        sampling_weights = settings.sampling_weights
+        exclude_zero_weight = settings.exclude_zero_weight_training
+    else:
+        sampling_weights = False # Never use sampling weights for validation
+        exclude_zero_weight = settings.exclude_zero_weight_collection
+
+    return TLCYOLODataset(
+        table,
+        imgsz=cfg.imgsz,
+        batch_size=batch,
+        augment=mode == "train",  # augmentation
+        hyp=cfg,  # TODO: probably add a get_hyps_from_cfg function
+        rect=cfg.rect or rect,  # rectangular batches
+        cache=cfg.cache or None,
+        single_cls=cfg.single_cls or False,
+        stride=int(stride),
+        pad=0.0 if mode == "train" else 0.5,
+        prefix=colorstr(f"{mode}: "),
+        task=cfg.task,
+        classes=cfg.classes,
+        data=data,
+        fraction=cfg.fraction if mode == "train" else 1.0,
+        sampling_weights=sampling_weights,
+        exclude_zero_weight=exclude_zero_weight,
+    )
+
+def tlc_check_dataset_old(data_file: str, get_splits: tuple | list = ('train', 'val'), settings: Settings | None=None) -> dict[str, tlc.Table]:
+    """ Parse the data file and get or create corresponding 3LC tables. If no 3LC YAML exists,
+    create one.
+
+    :param data_file: The path to the original YOLO YAML file.
+    :param get_splits: The splits to get tables for.
     :param settings: The settings containing the run info.
-    :returns: A YOLO-style data dict with 3LC tables instead of paths.
+    :returns: The 3LC tables.
+    :raises: FileNotFoundError if the YAML file does not exist.
     """
-    tables = tlc_check_dataset(data, settings=settings)
-    names = get_names_from_yolo_table(tables["train"])
-    return {
-        "train": tables["train"],
-        "val": tables["val"],
-        "nc": len(names),
-        "names": names, }
+    # Regular YAML file
+    if not data_file.startswith(TLC_PREFIX):
+        data_file = check_file(data_file)
 
+        if not (data_file_url := tlc.Url(data_file)).exists():
+            raise FileNotFoundError(f'Could not find YAML file {data_file_url}')
+
+        data_file_content = yaml.safe_load(data_file_url.read())
+        splits = [
+            key for key in data_file_content if key not in ('path', 'names', 'download', 'nc') and data_file_content[key]]
+
+        # Create 3LC tables, get root table if already registered
+        LOGGER.info(f'{TLC_COLORSTR}Parsing YOLO YAML file: {data_file_url}')
+        tables = {split: get_or_create_tlc_table_from_yolo(data_file, settings=settings, split=split) for split in splits}
+
+        # Write all tables to the 3LC YAML file
+        write_3lc_yaml(data_file, tables)
+
+        # Remove any tables that are not in get_splits
+        tables = {split: table for split, table in tables.items() if split in get_splits}
+
+    # 3LC YAML file
+    else:
+
+        # Read the YAML file, removing the prefix
+        if not (data_file_url := tlc.Url(data_file.replace(TLC_PREFIX, ''))).exists():
+            raise FileNotFoundError(f'Could not find YAML file {data_file_url}')
+
+        data_config = yaml.safe_load(data_file_url.read())
+
+        path = data_config.get('path')
+        splits = [key for key in data_config if key != 'path']
+
+        LOGGER.info(f'{TLC_COLORSTR}Parsing 3LC YAML file: {data_file_url}')
+        tables = {}
+        for split in splits:
+            if split not in get_splits:
+                continue
+
+            split_path = data_config[split].split(':')[0]
+            latest = data_config[split].endswith(':latest')
+
+            if split_path.count(':') > 1:
+                raise ValueError(f'Found more than one : in the split path {split_path} for split {split}')
+            url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
+
+            table = get_tlc_table_from_url(table_url=url, split=split, latest=latest)
+
+            tables[split] = table
+
+    # Check that the tables have the same bounding box value maps
+    value_maps = [get_names_from_yolo_table(table) for table in tables.values()]
+    assert all(value_maps[0] == value_maps[i] for i in range(1, len(value_maps)))
+
+    return tables
 
 def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema:
     """ Create a 3LC bounding box schema for YOLOv8
@@ -85,14 +233,6 @@ def yolo_loss_schemas() -> dict[str, tlc.Schema]:
                                      value=tlc.Float32Value(),
                                      display_importance=3006)
     return schemas
-
-def infer_embeddings_size(model) -> int:
-    sppf_index = next((i for i, m in enumerate(model.model) if "SPPF" in m.type), -1)
-
-    if sppf_index == -1:
-            raise ValueError("A SPPF layer is required for 3LC YOLOv8 embeddings, but the model does not have one.")
-    
-    return model.model[sppf_index]._modules['cv2']._modules['conv'].out_channels
 
 def yolo_image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
     """ Create a 3LC schema for YOLOv8 image embeddings.
@@ -147,50 +287,6 @@ def construct_bbox_struct(
             ))
 
     return bbox_struct
-
-
-def get_metrics_collection_epochs(start: int | None, epochs: int, interval: int, disable: bool) -> list[int]:
-    """ Compute the epochs to collect metrics for.
-
-    :param start: The starting epoch. If None, metrics are not collected during training.
-    :param epochs: The total number of epochs.
-    :param interval: How frequently to collect metrics. 1 means every epoch, 2 means every other epoch, and so on.
-    :param disable: Whether metrics collection is disabled.
-    """
-    if disable:
-        return []
-
-    if start is None:
-        return []
-
-    if start >= epochs:
-        return []
-
-    # If start is less than zero, we don't collect during training
-    if start < 0:
-        return []
-
-    if interval <= 0:
-        raise ValueError(f'Invalid interval {interval}, must be non-zero')
-    else:
-        return list(range(start, epochs, interval))
-
-
-def create_tlc_info_string_before_training(metrics_collection_epochs: list[int]) -> str:
-    """ Creates a 3LC info string to print before training.
-
-    :param metrics_collection_epochs: The epochs to collect metrics for.
-
-    :returns: The 3LC info string.
-    """
-    if not metrics_collection_epochs:
-        tlc_mc_string = 'Metrics collection disabled for this run.'
-    else:
-        plural_epochs = len(metrics_collection_epochs) > 1
-        mc_epochs_str = ','.join(map(str, metrics_collection_epochs))
-        tlc_mc_string = f'Collecting metrics for epoch{"s" if plural_epochs else ""} {mc_epochs_str}'
-
-    return tlc_mc_string
 
 def get_or_create_tlc_table_from_yolo(yolo_yaml_file: tlc.Url | str, split: str, settings: Settings | None = None) -> tlc.Table:
     """ Get or create a 3LC table from a YOLO YAML file.
@@ -405,110 +501,6 @@ def write_3lc_yaml(data_file: str, tables: dict[str, tlc.Table]):
     LOGGER.info(f'{TLC_COLORSTR}Created 3LC YAML file: {str(new_yaml_url)}. To use this file,'
                 f' add a 3LC prefix: "3LC://{str(new_yaml_url)}".')
 
-
-def tlc_check_dataset(data_file: str, get_splits: tuple | list = ('train', 'val'), settings: Settings | None=None) -> dict[str, tlc.Table]:
-    """ Parse the data file and get or create corresponding 3LC tables. If no 3LC YAML exists,
-    create one.
-
-    :param data_file: The path to the original YOLO YAML file.
-    :param get_splits: The splits to get tables for.
-    :param settings: The settings containing the run info.
-    :returns: The 3LC tables.
-    :raises: FileNotFoundError if the YAML file does not exist.
-    """
-    # Regular YAML file
-    if not data_file.startswith(TLC_PREFIX):
-        data_file = check_file(data_file)
-
-        if not (data_file_url := tlc.Url(data_file)).exists():
-            raise FileNotFoundError(f'Could not find YAML file {data_file_url}')
-
-        data_file_content = yaml.safe_load(data_file_url.read())
-        splits = [
-            key for key in data_file_content if key not in ('path', 'names', 'download', 'nc') and data_file_content[key]]
-
-        # Create 3LC tables, get root table if already registered
-        LOGGER.info(f'{TLC_COLORSTR}Parsing YOLO YAML file: {data_file_url}')
-        tables = {split: get_or_create_tlc_table_from_yolo(data_file, settings=settings, split=split) for split in splits}
-
-        # Write all tables to the 3LC YAML file
-        write_3lc_yaml(data_file, tables)
-
-        # Remove any tables that are not in get_splits
-        tables = {split: table for split, table in tables.items() if split in get_splits}
-
-    # 3LC YAML file
-    else:
-
-        # Read the YAML file, removing the prefix
-        if not (data_file_url := tlc.Url(data_file.replace(TLC_PREFIX, ''))).exists():
-            raise FileNotFoundError(f'Could not find YAML file {data_file_url}')
-
-        data_config = yaml.safe_load(data_file_url.read())
-
-        path = data_config.get('path')
-        splits = [key for key in data_config if key != 'path']
-
-        LOGGER.info(f'{TLC_COLORSTR}Parsing 3LC YAML file: {data_file_url}')
-        tables = {}
-        for split in splits:
-            if split not in get_splits:
-                continue
-
-            split_path = data_config[split].split(':')[0]
-            latest = data_config[split].endswith(':latest')
-
-            if split_path.count(':') > 1:
-                raise ValueError(f'Found more than one : in the split path {split_path} for split {split}')
-            url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
-
-            table = get_tlc_table_from_url(table_url=url, split=split, latest=latest)
-
-            tables[split] = table
-
-    # Check that the tables have the same bounding box value maps
-    value_maps = [get_names_from_yolo_table(table) for table in tables.values()]
-    assert all(value_maps[0] == value_maps[i] for i in range(1, len(value_maps)))
-
-    return tables
-
-
-def tlc_task_map(task: str, key: str) -> BaseTrainer | BaseValidator | None:
-    """Map a task and key to a 3LC Trainer or Validator. Currently only supports the detect task."""
-    if task != 'detect':
-        LOGGER.info("3LC enabled, but currently only supports detect task. Defaulting to non-3LC mode.")
-        return None
-
-    from ultralytics.utils.tlc.detect.trainer import TLCDetectionTrainer
-    from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
-
-    if key == "trainer":
-        return TLCDetectionTrainer
-    elif key == "validator":
-        return TLCDetectionValidator
-    else:
-        return None
-
-
-def training_phase_schema() -> tlc.Schema:
-    """Create a 3LC schema for the training phase.
-
-    :returns: The training phase schema.
-    """
-    return tlc.Schema(
-        display_name=TRAINING_PHASE,
-        description=("'During' metrics are collected with EMA during training, "
-                     "'After' is with the final model weights after completed training."),
-        display_importance=tlc.DISPLAY_IMPORTANCE_EPOCH - 1,  # Right hand side of epoch in the Dashboard
-        writable=False,
-        computable=False,
-        value=tlc.Int32Value(
-            value_min=0,
-            value_max=1,
-            value_map={
-                float(0): tlc.MapElement(display_name='During'),
-                float(1): tlc.MapElement(display_name='After'), },
-        ))
 
 def get_names_from_yolo_table(table: tlc.Table, value_path: str = 'bbs.bb_list.label') -> dict[int, str]:
     """ Get the category names from a YOLO table.

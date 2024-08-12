@@ -4,17 +4,17 @@ import numpy as np
 # Responsible for any generic 3LC dataset handling, such as using sampling weights
 # Assume there is an attribute self.table that is a tlc.Table, and self._example_ids
 class TLCDatasetMixin:
-    def __init__(self, *args, **kwargs):
-        settings = kwargs.pop("settings", None)
-        
+    def _post_init(self, sampling_weights=False):
         # Checks
-        if settings.sampling_weights and tlc.SAMPLE_WEIGHT not in self.table.table_rows[0]:
+        if sampling_weights and tlc.SAMPLE_WEIGHT not in self.table.table_rows[0]:
             raise ValueError("Cannot use sampling weights with no sample weight column in the table.")
-
 
         assert hasattr(self, "table") and isinstance(self.table, tlc.Table), "TLCDatasetMixin requires an attribute `table` which is a tlc.Table."
         # Assume instance has self._indices (live sampled indices of the dataset)
         # Assume instance has self._example_ids (index -> example_id mapping)
+
+        if not hasattr(self, "_indices"):
+            self._indices = np.arange(len(self.example_ids))
 
         sample_weights = [
             self.table.table_rows[example_id][tlc.SAMPLE_WEIGHT]

@@ -26,6 +26,7 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
 
     def build_dataset(self, table, mode="train", batch=None):
         exclude_zero_weight = self._settings.exclude_zero_weight_training if mode=="train" else self._settings.exclude_zero_weight_collection
+        sampling_weights = self._settings.sampling_weights if mode == "train" else False
         return TLCClassificationDataset(
             table,
             args=self.args,
@@ -34,7 +35,7 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
             image_column_name=self._image_column_name,
             label_column_name=self._label_column_name,
             exclude_zero_weight=exclude_zero_weight,
-            settings=self._settings
+            sampling_weights=sampling_weights
         )
     
     def get_validator(self, dataloader=None):
@@ -49,3 +50,6 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
             label_column_name=self._label_column_name,
             settings=self._settings,
         )
+    
+    def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
+        return super().get_dataloader(dataset_path, batch_size=batch_size, rank=rank, mode=mode, shuffle=mode=="train")
