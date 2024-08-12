@@ -9,9 +9,7 @@ from ultralytics.utils.torch_utils import strip_optimizer
 
 # TODO:
 # - Fix DDP
-# - Manually test remaining Settings and make sure they are used correctly (disable collection, val only)
-# - Dive deeper into increasing memory usage...
-# - Clean up Detection code
+# - Clean up Detection code (val only for detection)
 # - collect method on Model?
 # - Error message improvements in TableFromYolo
 # - Recursive image searching in TableFromYolo

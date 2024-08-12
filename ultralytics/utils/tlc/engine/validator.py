@@ -1,11 +1,9 @@
 import tlc
 
-from ultralytics.data import build_dataloader
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
-from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 
 def execute_when_collecting(method):
     def wrapper(self, *args, **kwargs):
@@ -46,7 +44,7 @@ class TLCValidatorMixin(BaseValidator):
         super().__init__(dataloader, save_dir, pbar, args, _callbacks)
 
         if not self._training:
-            self.data = tlc_check_cls_dataset(
+            self.data = self.check_dataset(
                 self.args.data,
                 {self.args.split: self._table} if self._table is not None else None,
                 self._image_column_name,
@@ -100,11 +98,6 @@ class TLCValidatorMixin(BaseValidator):
 
         self._verify_model_data_compatibility(model.names)
         self._pre_validation(model)
-
-    def get_dataloader(self, dataset_path, batch_size):
-        """Builds and returns a data loader with given parameters."""
-        dataset = self.build_dataset(dataset_path)
-        return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1)
 
     def build_dataset(self, table):
         """ Build a dataset from a table """

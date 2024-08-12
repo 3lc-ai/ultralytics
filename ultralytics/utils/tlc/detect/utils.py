@@ -230,64 +230,6 @@ def construct_bbox_struct(
 
     return bbox_struct
 
-def get_or_create_tlc_table_from_yolo(yolo_yaml_file: tlc.Url | str, split: str, settings: Settings | None = None) -> tlc.Table:
-    """ Get or create a 3LC table from a YOLO YAML file.
-
-    :param yolo_yaml_file: The path to the YOLO YAML file.
-    :param split: The split to get the table for.
-    :param settings: The settings containing the run info.
-    :returns: The 3LC table.
-    """
-    tlc.TableIndexingTable.instance().ensure_fully_defined()
-
-    # Resolving logic for YOLO YAML file
-    dataset_name_base = Path(yolo_yaml_file).stem
-    dataset_name = dataset_name_base + '-' + split
-    project_name = settings.project_name if settings and settings.project_name else "yolov8-" + dataset_name_base
-
-    yolo_yaml_file = str(Path(yolo_yaml_file).resolve())  # Ensure absolute path for resolving Table Url
-
-    try:
-        table = tlc.Table.from_yolo(
-            dataset_yaml_file=yolo_yaml_file,
-            split=split,
-            structure=None,
-            table_name=split,
-            dataset_name=dataset_name,
-            project_name=project_name,
-            if_exists='raise',
-            add_weight_column=True,
-        )
-        table.write_to_row_cache(create_url_if_empty=True, overwrite_if_exists=False)  # Always cache for YOLO tables
-        LOGGER.info(f'{TLC_COLORSTR}Created {split} table {table.url} from YAML file {yolo_yaml_file}')
-
-    except FileExistsError:
-        # Table already exists, reuse it instead and log it
-        table = tlc.Table.from_yolo(
-            dataset_yaml_file=yolo_yaml_file,
-            split=split,
-            structure=None,
-            table_name=split,
-            dataset_name=dataset_name,
-            project_name=project_name,
-            if_exists='reuse',
-            add_weight_column=True,
-        )
-
-        latest_table = table.latest()
-
-        if latest_table == table:
-            LOGGER.info(f"{TLC_COLORSTR}Using existing {split} table {table.url} for YAML file {yolo_yaml_file}.")
-        else:
-            LOGGER.info(f"{TLC_COLORSTR}Using latest {split} table {latest_table.url} from YAML file {yolo_yaml_file}.")
-
-        table = latest_table # Always use latest table when reusing through YOLO YAML file
-
-    table.ensure_fully_defined()
-
-    return table
-
-
 def get_tlc_table_from_url(table_url: tlc.Url, split: str, latest: bool) -> tuple[tlc.Table, str]:
     """ Get a 3LC table from a URL.
 
