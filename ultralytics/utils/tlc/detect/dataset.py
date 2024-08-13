@@ -26,14 +26,9 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
         self._post_init(sampling_weights=sampling_weights)
 
-        # TODO: Inspect caching mechanism! Make sure it isn't called unless we want to.
-
     def get_img_files(self, _):
-        return [
-            tlc.Url(sample[tlc.IMAGE]).to_absolute().to_str()
-            for _, sample
-            in self._get_enumerated_table_rows(exclude_zero_weight=self._exclude_zero_weight)
-        ]
+        """Images are read in `get_labels` to avoid two loops, return empty list here."""
+        return []
 
     def get_labels(self):
         labels = []
@@ -41,7 +36,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         rows = self._get_enumerated_table_rows(exclude_zero_weight=self._exclude_zero_weight)
         for example_id, row in rows:
             self.example_ids.append(example_id)
-
+            self.im_files = tlc.Url(row[tlc.IMAGE]).to_absolute().to_str()
             labels.append(tlc_table_row_to_yolo_label(row, self._table_format))
 
         self.example_ids = np.array(self.example_ids, dtype=np.int32)
