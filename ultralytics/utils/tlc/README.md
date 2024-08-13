@@ -146,6 +146,7 @@ Providing invalid values (or combinations of values) will either log an appropri
 Image embeddings can be collected by setting `image_embeddings_dim` to 2 or 3. Similar images, as seen by the model, tend to be close to each other in this space. In the 3LC Dashboard these embeddings can be visualized, allowing you to find similar images, duplicates and imbalances in your dataset, and take appropriate actions to mitigate these issues.
 
 The way in which embeddings are collected is different for the different tasks. For more details, see the drop-downs:
+<details>
 <summary>Classification</summary>
 For classification, the integration scans your model for the first occurrence of a `torch.nn.Linear` layer. The inputs to this layer are used to extract image embeddings.
 </details>
