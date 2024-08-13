@@ -137,7 +137,7 @@ model.collect(
 
 The integration offers a rich set of settings and features which can be set through an instance of `Settings`. They allow specifying which metrics to collect, how often to collect them, and whether to use sampling weights during training.
 
-The available 3LC settings can be seen in the `Settings` class in [settings.py](detect/settings.py).
+The available 3LC settings can be seen in the `Settings` class in [settings.py](settings.py).
 
 Providing invalid values (or combinations of values) will either log an appropriate warning or raise an error, depending on the case.
 
