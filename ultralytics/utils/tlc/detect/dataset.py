@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from multiprocessing.pool import ThreadPool
 import numpy as np
 import tlc
-
-from ultralytics.utils import ops
+from itertools import repeat
 
 from ultralytics.data.dataset import YOLODataset
+from ultralytics.data.utils import verify_image
+from ultralytics.utils import ops
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
+
+from ultralytics.utils import LOGGER, NUM_THREADS, TQDM
 
 from typing import Any
 
@@ -31,18 +35,56 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         return []
 
     def get_labels(self):
-        labels = []
+        self.labels = []
 
         rows = self._get_enumerated_table_rows(exclude_zero_weight=self._exclude_zero_weight)
         for example_id, row in rows:
             self.example_ids.append(example_id)
-            self.im_files = tlc.Url(row[tlc.IMAGE]).to_absolute().to_str()
-            labels.append(tlc_table_row_to_yolo_label(row, self._table_format))
+            self.im_files.append(tlc.Url(row[tlc.IMAGE]).to_absolute().to_str())
+            self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format))
+
+        # Scan images if not already scanned
+        if not self._is_scanned():
+            self._scan_images()
 
         self.example_ids = np.array(self.example_ids, dtype=np.int32)
 
-        return labels
+        return self.labels
     
+    def _scan_images(self):
+        desc = f"{self.prefix}Scanning images in {self.table.url.to_str()}..."
+        
+        nf, nc, msgs, im_files, labels, example_ids = 0, 0, [], [], [], []
+
+        # We use verify_image here, but it expects (image_path, cls) since it is used for classification
+        # Labels are not verified because they are verified in tlc.TableFromYolo
+        samples_iterator = ((im_file, None) for im_file in self.im_files)
+
+        with ThreadPool(NUM_THREADS) as pool:
+            results = pool.imap(func=verify_image, iterable=zip(samples_iterator, repeat(self.prefix)))
+            pbar = TQDM(enumerate(results), desc=desc, total=len(self.im_files))
+            for i, (sample, nf_f, nc_f, msg) in pbar:
+                if nf_f:
+                    example_ids.append(self.example_ids[i])
+                    im_files.append(self.im_files[i])
+                    labels.append(self.labels[i])
+                if msg:
+                    msgs.append(msg)
+                nf += nf_f
+                nc += nc_f
+                pbar.desc = f"{desc} {nf} images, {nc} corrupt"
+            pbar.close()
+
+        if msgs:
+            LOGGER.info("\n".join(msgs))
+
+        if nc == 0:
+            self._write_scanned_marker()
+        
+        self._example_ids = example_ids
+        self.im_files = im_files
+        self.labels = labels
+
     def set_rectangle(self):
         """Save the batch shapes and inidices for the dataset. """
         bi = np.floor(np.arange(self.ni) / self.batch_size).astype(int)  # batch index
