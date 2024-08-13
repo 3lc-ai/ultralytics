@@ -6,11 +6,10 @@ from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.constants import TLC_COLORSTR
 from ultralytics.utils.tlc.utils import reduce_embeddings
-from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
+from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK
 from ultralytics.utils.torch_utils import strip_optimizer
 
 # TODO:
-# - Fix DDP
 # - Version check of 3lc package
 # - Clean up Detection code (val only for detection)
 # - detection dataset caching / scanning!!!
