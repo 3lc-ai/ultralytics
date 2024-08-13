@@ -38,11 +38,12 @@ class TLCTrainerMixin(BaseTrainer):
 
         super().__init__(cfg, overrides, _callbacks)
 
-        self._metrics_collection_epochs = set(self._settings.get_metrics_collection_epochs(self.epochs))
         self._train_validator = None
 
-        # Create a 3LC run
         if RANK in {-1, 0}:
+            self._metrics_collection_epochs = set(self._settings.get_metrics_collection_epochs(self.epochs))
+            
+            # Create a 3LC run
             description = self._settings.run_description if self._settings.run_description else "Created with model.train()"
             project_name = self._settings.project_name if self._settings.project_name else self.data["train"].project_name
             self._run = tlc.init(
@@ -51,14 +52,14 @@ class TLCTrainerMixin(BaseTrainer):
                 run_name=self._settings.run_name,
             )
 
-        LOGGER.info(f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
+            LOGGER.info(f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
-        # Log parameters to 3LC
-        self._log_3lc_parameters()
+            # Log parameters to 3LC
+            self._log_3lc_parameters()
 
-        self._print_metrics_collection_epochs()
+            self._print_metrics_collection_epochs()
 
-        self.add_callback("on_train_epoch_start", resample_indices)
+        self.add_callback("on_train_epoch_start", resample_indices) # Run on all ranks
         
     def _log_3lc_parameters(self):
         """ Log various data as parameters to the tlc.Run. """
@@ -118,6 +119,8 @@ class TLCTrainerMixin(BaseTrainer):
                     dataloader=train_validator_dataloader
                 )
             return self._train_validator
+        else:
+            return None
 
     def validate(self):
         """ Perform validation with 3LC metrics collection, also on the training data, if applicable."""
@@ -149,15 +152,16 @@ class TLCTrainerMixin(BaseTrainer):
                     self.metrics.pop("fitness", None)
                     self.run_callbacks("on_fit_epoch_end")
 
-        if self._settings.image_embeddings_dim > 0:
-            foreign_table_url = self.trainset.url if not self._settings.collection_val_only else self.testset.url
-            reduce_embeddings(
-                self._run,
-                method=self._settings.image_embeddings_reducer,
-                n_components=self._settings.image_embeddings_dim,
-                foreign_table_url=foreign_table_url,
-            )
-        self._run.set_status_completed()
+        if RANK in {-1, 0}:
+            if self._settings.image_embeddings_dim > 0:
+                foreign_table_url = self.trainset.url if not self._settings.collection_val_only else self.testset.url
+                reduce_embeddings(
+                    self._run,
+                    method=self._settings.image_embeddings_reducer,
+                    n_components=self._settings.image_embeddings_dim,
+                    foreign_table_url=foreign_table_url,
+                )
+            self._run.set_status_completed()
 
     def save_metrics(self, metrics):
         # Log aggregate metrics after every epoch
