@@ -9,12 +9,6 @@ from ultralytics.utils.tlc.utils import reduce_embeddings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK
 from ultralytics.utils.torch_utils import strip_optimizer
 
-# TODO:
-# - Clean up Detection code (val only for detection)
-# - Error message improvements in TableFromYolo
-# - Recursive image searching in TableFromYolo
-# - Support collecting loss
-# - Verify fix of 3LC yaml reading (Gudbrand)
 
 class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
