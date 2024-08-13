@@ -28,7 +28,7 @@ pip install pacmap # or umap-learn (only required for embeddings collection)
 ```
 
 In order to create a `tlc.Run` with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` like usual:
-<details>
+<details open>
 <summary>Code Example</summary>
 The following code example shows basic usage of the 3LC integration. The `Settings` object can be used to specify 3LC specific settings. For more details, see the
 customization section.
