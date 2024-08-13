@@ -92,10 +92,6 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
         return predicted_boxes
     
-    def _verify_model_data_compatibility(self, model_class_names):
-        # TODO: Improve upon this (more useful messages, generalize by reading from self.data["names"]?)
-        assert model_class_names == self.data["names"]
-    
     def _add_embeddings_hook(self, model) -> int:
         if hasattr(model.model, "model"):
             model = model.model

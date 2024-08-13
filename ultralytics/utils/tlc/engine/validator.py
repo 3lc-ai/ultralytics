@@ -212,3 +212,16 @@ class TLCValidatorMixin(BaseValidator):
         self._seen = None
         self._training_phase = None
         self._final_validation = None
+
+    def _verify_model_data_compatibility(self, model_class_names):
+        """ Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
+        that the order of the class names match and that they have the same number of classes."""
+        dataset_class_names=self.data["names"]
+        if len(model_class_names) != len(dataset_class_names):
+            raise ValueError(
+                f"The model and data are incompatible. The model was trained on {len(model_class_names)} classes, but the data has {len(dataset_class_names)} classes. "
+            )
+        elif model_class_names != dataset_class_names:
+            raise ValueError(
+                "The model was trained on a different set of classes to the classes in the dataset, or the classes are in a different order."
+            )

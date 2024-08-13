@@ -70,22 +70,6 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
             batch_metrics["top5_accuracy"] = top5_correct.to(torch.float32)
 
         return batch_metrics
-    
-    def _verify_model_data_compatibility(self, model_class_names):
-        """ Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
-        that the order of the class names match and that they have the same number of classes."""
-        dataset_class_names={
-            float(i): value['internal_name']
-            for i, value in enumerate(self.dataloader.dataset.table.get_value_map(self._label_column_name).values())
-        }
-        if len(model_class_names) != len(dataset_class_names):
-            raise ValueError(
-                f"The model and data are incompatible. The model was trained on {len(model_class_names)} classes, but the data has {len(dataset_class_names)} classes. "
-            )
-        elif model_class_names != dataset_class_names:
-            raise ValueError(
-                "The model was trained on a different set of classes to the classes in the dataset, or the classes are in a different order."
-            )
 
     def _add_embeddings_hook(self, model):
         """ Add a hook to extract embeddings from the model, and infer the activation size. For a classification model, this
