@@ -1,3 +1,6 @@
+# Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
+from __future__ import annotations
+
 from ultralytics.models.yolo.detect import DetectionTrainer
 
 from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, tlc_check_dataset

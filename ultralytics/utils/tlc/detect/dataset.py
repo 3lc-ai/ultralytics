@@ -1,3 +1,4 @@
+# Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
 from __future__ import annotations
 
 from multiprocessing.pool import ThreadPool

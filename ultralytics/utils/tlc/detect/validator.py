@@ -1,3 +1,6 @@
+# Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
+from __future__ import annotations
+
 import tlc
 import torch
 import weakref

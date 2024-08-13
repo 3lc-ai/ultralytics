@@ -1,3 +1,6 @@
+# Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
+from __future__ import annotations
+
 from ultralytics.models import yolo
 
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, CLASSIFY_LABEL_COLUMN_NAME
