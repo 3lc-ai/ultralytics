@@ -1,5 +1,4 @@
 import tlc
-import json
 
 from multiprocessing.pool import ThreadPool
 import numpy as np
@@ -40,6 +39,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         self.table = table
         self.root = table.url
         self.display_name = table.dataset_name
+        self._exclude_zero_weight = exclude_zero_weight
 
         self.verify_schema(image_column_name, label_column_name)
 
@@ -82,14 +82,11 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
     def verify_images(self):
         """ Verify all images in the dataset."""
 
-        verified_marker_url = self.table.url / "cache.yolo"
-
-        # If the marker exists, we can skip verification
-        if verified_marker_url.exists():
-            LOGGER.info(f"{self.prefix}Images in {self.root.to_str()} already verified, skipping scan.")
+        # Skip verification if the dataset has already been scanned
+        if self._is_scanned():
             return self.samples
-
-        desc = f"{self.prefix}Scanning images in {self.root.to_str()}..."
+ 
+        desc = f"{self.prefix}Scanning images in {self.table.url.to_str()}..."
         # Run scan if the marker does not exist
         nf, nc, msgs, samples, example_ids = 0, 0, [], [], []
         with ThreadPool(NUM_THREADS) as pool:
@@ -111,11 +108,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
         # If no problems are found, create the marker
         if nc == 0:
-            LOGGER.info(f"{self.prefix}All images in {self.root.to_str()} are verified. Writing marker file to {verified_marker_url.to_str()} to skip future verification.")
-            verified_marker_url.write(
-                content=json.dumps({"verified": True}),
-                if_exists="raise", # Should not get here if already exists
-            )
+            self._write_scanned_marker()
 
         self._example_ids = example_ids
         return samples
