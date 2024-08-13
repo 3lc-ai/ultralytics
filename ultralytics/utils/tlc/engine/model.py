@@ -69,6 +69,5 @@ class TLCYOLO(YOLO):
                 tlc.active_run(),
                 method=settings.image_embeddings_reducer,
                 n_components=settings.image_embeddings_dim,
-                foreign_table_url=foreign_table_url,
             )
         

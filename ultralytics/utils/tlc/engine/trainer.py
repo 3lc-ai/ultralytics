@@ -11,13 +11,11 @@ from ultralytics.utils.torch_utils import strip_optimizer
 # TODO:
 # - Fix DDP
 # - Clean up Detection code (val only for detection)
-# - collect method on Model?
 # - detection dataset caching / scanning!!!
 # - Error message improvements in TableFromYolo
 # - Recursive image searching in TableFromYolo
 # - Support collecting loss
 # - Verify fix of 3LC yaml reading (Gudbrand)
-# - Explore whether we want to support tlcyolo cli command (probably in the future)
 
 class TLCTrainerMixin(BaseTrainer):
     """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
