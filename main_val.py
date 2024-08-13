@@ -12,13 +12,4 @@ settings = Settings(
     conf_thres=0.2,
 )
 
-for split in splits:
-    results = model.val(data=data, split=split, batch=32, imgsz=320, device=0, workers=0, settings=settings)
-
-# Reduce the embeddings
-reduce_all_embeddings(
-    data_file=data,
-    by="val",
-    method=settings.image_embeddings_reducer,
-    n_components=settings.image_embeddings_dim
-)
+model.collect(data=data, splits=splits, settings=settings, batch=32, imgsz=320, device=0, workers=0)
