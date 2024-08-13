@@ -4,6 +4,7 @@ import tlc
 
 from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.utils.tlc.settings import Settings
+from ultralytics.utils.tlc.utils import reduce_embeddings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
 from ultralytics.utils.torch_utils import strip_optimizer
 
@@ -11,6 +12,7 @@ from ultralytics.utils.torch_utils import strip_optimizer
 # - Fix DDP
 # - Clean up Detection code (val only for detection)
 # - collect method on Model?
+# - detection dataset caching / scanning!!!
 # - Error message improvements in TableFromYolo
 # - Recursive image searching in TableFromYolo
 # - Support collecting loss
@@ -41,7 +43,7 @@ class TLCTrainerMixin(BaseTrainer):
 
         # Create a 3LC run
         if RANK in {-1, 0}:
-            description = self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration"
+            description = self._settings.run_description if self._settings.run_description else "Created with model.train()"
             project_name = self._settings.project_name if self._settings.project_name else self.data["train"].project_name
             self._run = tlc.init(
                 project_name=project_name,
@@ -148,12 +150,12 @@ class TLCTrainerMixin(BaseTrainer):
                     self.run_callbacks("on_fit_epoch_end")
 
         if self._settings.image_embeddings_dim > 0:
-            LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {self._settings.image_embeddings_dim}D with {self._settings.image_embeddings_reducer}, this may take a few minutes...")
             foreign_table_url = self.trainset.url if not self._settings.collection_val_only else self.testset.url
-            self._run.reduce_embeddings_by_foreign_table_url(
-                foreign_table_url=foreign_table_url,
+            reduce_embeddings(
+                self._run,
                 method=self._settings.image_embeddings_reducer,
                 n_components=self._settings.image_embeddings_dim,
+                foreign_table_url=foreign_table_url,
             )
         self._run.set_status_completed()
 

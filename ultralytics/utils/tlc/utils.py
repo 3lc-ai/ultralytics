@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import tlc
 
 from .constants import TRAINING_PHASE
+
+from ultralytics.utils import LOGGER, colorstr
 
 def training_phase_schema() -> tlc.Schema:
     """Create a 3LC schema for the training phase.
@@ -38,3 +42,22 @@ def image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
                                                                   enforce_min=True,
                                                                   enforce_max=True))
     return embedding_schema
+
+def reduce_embeddings(
+    run: tlc.Run,
+    method: str,
+    n_components: int,
+    foreign_table_url: tlc.Url | None = None,
+):
+    """Reduce image embeddings by a foreign table URL."""
+    if foreign_table_url is None:
+        foreign_table_url = tlc.Url(
+            tlc.active_run().constants['inputs'][0]['input_table_url']
+        ).to_absolute(tlc.active_run().url)
+
+    LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {n_components}D with {method}, this may take a few minutes...")
+    run.reduce_embeddings_by_foreign_table_url(
+        foreign_table_url=foreign_table_url,
+        method=method,
+        n_components=n_components,
+    )

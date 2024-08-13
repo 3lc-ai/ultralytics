@@ -1,7 +1,7 @@
 import tlc
 
 from ultralytics.engine.validator import BaseValidator
-from ultralytics.utils import colorstr
+from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
 
@@ -57,6 +57,8 @@ class TLCValidatorMixin(BaseValidator):
             if tlc.active_run() is not None:
                 # TODO: Match against provided project name / run name / description
                 self._run = tlc.active_run()
+
+                LOGGER.info(f"{colorstr('3LC')}: Reusing active run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
             else:
                 first_split = list(self.data.keys())[0]
                 project_name = self._settings.project_name if self._settings.project_name else self.data[first_split].project_name
@@ -65,6 +67,8 @@ class TLCValidatorMixin(BaseValidator):
                     description=self._settings.run_description if self._settings.run_description else "Created with 3LC Ultralytics Integration",
                     run_name=self._settings.run_name,
                 )
+                
+                LOGGER.info(f"{colorstr('3LC')}: Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
     def __call__(self, trainer=None, model=None):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
