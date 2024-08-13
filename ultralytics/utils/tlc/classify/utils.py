@@ -5,7 +5,8 @@ import tlc
 from pathlib import Path
 
 from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
-from ultralytics.utils import colorstr, LOGGER
+from ultralytics.utils import LOGGER
+from ultralytics.utils.tlc.constants import TLC_COLORSTR
 
 def tlc_check_cls_dataset(
         data: str,
@@ -29,7 +30,7 @@ def tlc_check_cls_dataset(
         data_dict = check_cls_dataset(data)
 
         # Get or create tables
-        LOGGER.info(f"{colorstr('3LC')}: Creating or reusing tables from {data}")
+        LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from {data}")
 
         for key in ("train", "val", "test"):
             if data_dict.get(key) is not None:
@@ -60,7 +61,7 @@ def tlc_check_cls_dataset(
 
     else:
         # Get existing tables if Urls are provided
-        LOGGER.info(f"{colorstr('3LC')}: Using data provided through `tables`")
+        LOGGER.info(f"{TLC_COLORSTR}Using data provided through `tables`")
         for key, table in tables.items():
             if isinstance(table, (str, Path, tlc.Url)):
                 table_url = tlc.Url(table)

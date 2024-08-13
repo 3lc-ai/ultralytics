@@ -4,6 +4,7 @@ import tlc
 
 from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.utils.tlc.settings import Settings
+from ultralytics.utils.tlc.constants import TLC_COLORSTR
 from ultralytics.utils.tlc.utils import reduce_embeddings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, colorstr
 from ultralytics.utils.torch_utils import strip_optimizer
@@ -49,7 +50,7 @@ class TLCTrainerMixin(BaseTrainer):
                 run_name=self._settings.run_name,
             )
 
-        LOGGER.info(f"{colorstr('3LC')}: Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
+        LOGGER.info(f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
         # Log parameters to 3LC
         self._log_3lc_parameters()
@@ -91,7 +92,7 @@ class TLCTrainerMixin(BaseTrainer):
                 epochs = ", ".join(str(epoch) for epoch in sorted(self._metrics_collection_epochs))
                 message = f"Metrics will be collected after training and after the following epochs: {epochs}"
 
-        LOGGER.info(f"{colorstr('3LC')}: {message}")
+        LOGGER.info(f"{TLC_COLORSTR}{message}")
 
     def get_dataset(self):
         raise NotImplementedError("Subclasses must implement this method.")

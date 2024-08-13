@@ -4,7 +4,8 @@ import tlc
 
 from .constants import TRAINING_PHASE
 
-from ultralytics.utils import LOGGER, colorstr
+from ultralytics.utils import LOGGER
+from ultralytics.utils.tlc.constants import TLC_COLORSTR
 
 def training_phase_schema() -> tlc.Schema:
     """Create a 3LC schema for the training phase.
@@ -55,7 +56,7 @@ def reduce_embeddings(
             tlc.active_run().constants['inputs'][0]['input_table_url']
         ).to_absolute(tlc.active_run().url)
 
-    LOGGER.info(colorstr("3LC: ") + f"Reducing image embeddings to {n_components}D with {method}, this may take a few minutes...")
+    LOGGER.info(TLC_COLORSTR + f"Reducing image embeddings to {n_components}D with {method}, this may take a few minutes...")
     run.reduce_embeddings_by_foreign_table_url(
         foreign_table_url=foreign_table_url,
         method=method,
