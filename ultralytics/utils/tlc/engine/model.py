@@ -6,12 +6,19 @@ from ultralytics.nn.tasks import ClassificationModel, DetectionModel
 from ultralytics.utils.tlc.classify import TLCClassificationTrainer, TLCClassificationValidator
 from ultralytics.utils.tlc.detect import TLCDetectionTrainer, TLCDetectionValidator
 from ultralytics.utils.tlc.settings import Settings
-from ultralytics.utils.tlc.utils import reduce_embeddings
+from ultralytics.utils.tlc.utils import check_tlc_version, reduce_embeddings
 
 from typing import Iterable
 
 class TLCYOLO(YOLO):
     """ YOLO (You Only Look Once) object detection model with 3LC integration. """
+
+    def __init__(self, *args, **kwargs):
+        """ Initialize YOLO model with 3LC integration. Checks that the installed version of 3LC is compatible. """
+        
+        check_tlc_version()
+
+        super().__init__(*args, **kwargs)
 
     @property
     def task_map(self):

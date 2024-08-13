@@ -5,7 +5,9 @@ import tlc
 from .constants import TRAINING_PHASE
 
 from ultralytics.utils import LOGGER
-from ultralytics.utils.tlc.constants import TLC_COLORSTR
+from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION
+
+from packaging import version
 
 def training_phase_schema() -> tlc.Schema:
     """Create a 3LC schema for the training phase.
@@ -61,4 +63,13 @@ def reduce_embeddings(
         foreign_table_url=foreign_table_url,
         method=method,
         n_components=n_components,
+    )
+
+def check_tlc_version():
+    """Check the 3LC version."""
+    installed_version = version.parse(tlc.__version__)
+    if installed_version < version.parse(TLC_REQUIRED_VERSION):
+        raise ValueError(
+            f"3LC version {tlc.__version__} is too old to use the YOLOv8 integration. "
+            f"Please upgrade to version {TLC_REQUIRED_VERSION} or later by running 'pip install --upgrade 3lc'."
     )

@@ -11,6 +11,7 @@ from ultralytics.utils.torch_utils import strip_optimizer
 
 # TODO:
 # - Fix DDP
+# - Version check of 3lc package
 # - Clean up Detection code (val only for detection)
 # - detection dataset caching / scanning!!!
 # - Error message improvements in TableFromYolo
