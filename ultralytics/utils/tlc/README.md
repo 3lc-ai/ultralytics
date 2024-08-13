@@ -150,9 +150,28 @@ The way in which embeddings are collected is different for the different tasks. 
 <summary>Classification</summary>
 For classification, the integration scans your model for the first occurrence of a `torch.nn.Linear` layer. The inputs to this layer are used to extract image embeddings.
 </details>
+<details>
 <summary>Object Detection</summary>
 For object detection, the output of the spatial pooling function is used to extract embeddings.
 </details>
+
+You can change which `3lc`-supported reducer to use by setting `image_embeddings_dim`. `pacmap` is the default.
+
+### Run properties
+Use `project_name`, `run_name` and `run_description` to customize the `tlc.Run` that is created. Any tables created by the integration will be under the `project_name` provided here. If these settings are not set, appropriate defaults are used instead.
+
+### Sampling Weights
+Use `sampling_weights=True` to enable the usage of sampling weights. This resamples the data presented to the model according to the weight column in the `Table`. If a sample has weight 2.0, it is twice as likely to appear as a particular sample with weight 1.0. Any given sample can occur multiple times in one epoch. This setting only applies to training.
+
+### Exclude zero weight samples
+Use `exclude_zero_weight_training=True` (only applies to training) and `exclude_zero_weight_collection=True` to eliminate rows with weight 0.0. If your table has samples with weight 0.0, this will effectively reduce the size of the dataset (i.e. shorten the number of iterations per epoch).
+
+### Metrics collection settings
+Use `collection_val_only=True` to disable metrics collection on the training set. This only applies to training.
+
+Use `collection_disable=True` to disable metrics collection entirely. This only applies to training. A run will still be created, and hyperparameters and aggregate metrics will be logged to 3LC.
+
+Use `collection_epoch_start` and `collection_epoch_interval` to define when to collect metrics during training. The start epoch is 1-based, i.e. 1 means after the first epoch. As an example, `collection_epoch_start=1` with `collection_epoch_interval=2` means metrics collection will occur after the first epoch and then every other epoch after that.
 
 ## Other output
 

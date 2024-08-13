@@ -112,8 +112,8 @@ class Settings:
         if self.collection_epoch_start >= epochs:
             return []
 
-        # If start is less than zero, we don't collect during training
-        if self.collection_epoch_start < 0:
+        # If start is less than one, we don't collect during training
+        if self.collection_epoch_start < 1:
             return []
 
         if self.collection_epoch_interval <= 0:
