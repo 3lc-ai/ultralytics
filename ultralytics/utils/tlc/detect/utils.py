@@ -48,6 +48,7 @@ def tlc_check_dataset(
                     split_path = data_config[split].rstrip(":latest")
                 else:
                     latest = False
+                    split_path = data_config[split]
 
                 table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
 
@@ -57,6 +58,9 @@ def tlc_check_dataset(
         # Regular YAML file
         else:
             data_dict = check_det_dataset(data)
+
+            # Get or create tables
+            LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from {data}")
 
             for key in ("train", "val", "test"):
                 if data_dict.get(key) is not None:
@@ -78,9 +82,9 @@ def tlc_check_dataset(
                     tables[key] = table.latest()
 
                     if tables[key] != table:
-                        LOGGER.info(f"   - {key}: Using latest version of table {table.url} -> {tables[key].url}")
+                        LOGGER.info(f"   {colorstr(key)}: Using latest version of table {table.url} -> {tables[key].url}")
                     else:
-                        LOGGER.info(f"   - {key}: Using original table {tables[key].url}")
+                        LOGGER.info(f"   {colorstr(key)}: Using original table {tables[key].url}")
     
     else:
         for key, table in tables.items():

@@ -1,5 +1,8 @@
+import json
 import tlc
 import numpy as np
+
+from ultralytics.utils import LOGGER
 
 # Responsible for any generic 3LC dataset handling, such as using sampling weights
 # Assume there is an attribute self.table that is a tlc.Table, and self._example_ids
@@ -41,3 +44,32 @@ class TLCDatasetMixin:
             return ((i, row) for i, row in enumerate(self.table.table_rows) if row[tlc.SAMPLE_WEIGHT] > 0)
         else:
             return enumerate(self.table.table_rows)
+        
+    def _is_scanned(self):
+        """ Check if the dataset has been scanned. """
+        verified_marker_url = self.table.url / "cache.yolo"
+        
+        if verified_marker_url.exists():
+            # Only skip scan if full scan was done or zero weight sample exclusion is the same as for scan
+            content = json.loads(verified_marker_url.read(mode="s"))
+            # If zero_excluded is not in the marker, we assume it is True
+            if not content.get("zero_excluded", True):
+                LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} already verified, skipping scan.")
+                return True
+            elif content.get("zero_excluded", True) and self._exclude_zero_weight:
+                LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} already verified (excluding zero weight samples), skipping scan.")
+                return True
+            else:
+                LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} already verified, but scan was not on all images. Re-scanning.")
+        
+        return False
+    
+    def _write_scanned_marker(self):
+        verified_marker_url = self.table.url / "cache.yolo"
+        possible_subset_str = "All non-zero weight images" if self._exclude_zero_weight else "All images"
+        LOGGER.info(f"{self.prefix}{possible_subset_str} in {self.table.url.to_str()} are verified. Writing marker file to {verified_marker_url.to_str()} to skip future verification.")
+        verified_marker_url.write(
+            content=json.dumps({"verified": True, "zero_excluded": self._exclude_zero_weight}),
+            mode="s",
+            if_exists="overwrite",
+        )

@@ -5,7 +5,7 @@ import tlc
 from pathlib import Path
 
 from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
-from ultralytics.utils import LOGGER
+from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.constants import TLC_COLORSTR
 
 def tlc_check_cls_dataset(
@@ -55,9 +55,9 @@ def tlc_check_cls_dataset(
                 tables[key] = table.latest()
 
                 if tables[key] != table:
-                    LOGGER.info(f"   - {key}: Using latest version of table {table.url} -> {tables[key].url}")
+                    LOGGER.info(f"   {colorstr(key)}:: Using latest version of table {table.url} -> {tables[key].url}")
                 else:
-                    LOGGER.info(f"   - {key}: Using original table {tables[key].url}")
+                    LOGGER.info(f"   {colorstr(key)}:: Using original table {tables[key].url}")
 
     else:
         # Get existing tables if Urls are provided
