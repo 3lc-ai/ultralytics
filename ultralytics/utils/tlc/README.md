@@ -63,48 +63,75 @@ For image classification, there are two ways to specify which data to use during
 
 1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/classify/). This will create `tlc.Table`s for each split, with the dataset name set to the last part of the dataset path. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
 
-1. Using the argument `tables` when calling `model.train(tables={"train": my_train_table, "val": my_val_table})`. Here `my_train_table` and `my_val_table` need to be instances of `tlc.Table` or paths to tables in the form of a `tlc.Url`, `pathlib.Path` or `str`. In this case the provided `tlc.Table`s will be used as provided. This way of specifying the data is useful when you would like to use specific versions of your data (i.e. not necessarily 'latest'), or if you have created your own `tlc.Table`s and would like to use them instead.
+1. Using the argument `tables` when calling `model.train(tables={"train": my_train_table, "val": my_val_table})`. Here `my_train_table` and `my_val_table` need to be instances of `tlc.Table` or paths to tables in the form of a `tlc.Url`, `pathlib.Path` or `str`. In this case the provided `tlc.Table`s will be used as provided. If `"val"` and `"test"` splits are provided, `"val"` will be used for validation. This way of specifying the data is useful when you would like to use specific versions of your data (i.e. not necessarily 'latest'), or if you have created your own `tlc.Table`s and would like to use them instead.
 
 If your `tlc.Table`s have custom column names for your image and label columns, you can provide these as additional arguments `image_column_name` and `label_column_name`. The defaults are `Image` and `Label`.
 </details>
 
 <details>
 <summary>Object Detection</summary>
-For object detection, there are currently ways to specify which data to use during training and metrics collection.
+For object detection, there are three ways to specify which data to use during training and metrics collection.
 
 1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset.yaml)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/detect/). This will create `tlc.Table`s for each split. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
 
-1. Using the argument `data` like usual, but providing the path to a 3LC Dataset YAML file. The way to specify this is by adding a prefix `3LC://` to the path. A 3LC Dataset YAML file specifies the locations of 3LC Tables instead of the locations of images or labels on your disk. An example 3LC YAML looks like this:
+1. Using the argument `tables`. Here `my_train_table` and `my_val_table` need to be instances of `tlc.Table` or paths to tables in the form of a `tlc.Url`, `pathlib.Path` or `str`. In this case the provided `tlc.Table`s will be used as provided. If `"val"` and `"test"` splits are provided, `"val"` will be used for validation. This way of specifying the data is useful when you would like to use specific versions of your data (i.e. not necessarily `'latest'`), or if you have created your own `tlc.Table`s and would like to use them instead.
 
+1. Using the argument `data` like usual, but providing the path to a 3LC Dataset YAML file. The way to specify this is by adding a prefix `3LC://` to the path. A 3LC Dataset YAML file specifies the locations of 3LC Tables instead of the locations of images or labels on your disk. An example 3LC YAML looks like this:
 ```yaml
-path: /common/part/of/
 train: path/to/train/table
-val: path/to/val/table
+val: s3://path/to/val/table
 ```
 
 It is even possible to specify that you would like to use the latest revision of these tables, by attaching `:latest` at the end of a path:
 ```yaml
-path: /common/part/of/
 train: path/to/train/table:latest
-val: path/to/val/table:latest
+val: s3://path/to/val/table:latest
 ```
 
 </details>
 
 <details>
 <summary>Segmentation (not supported)</summary>
-The 3LC integration does not yet support the Segmentation task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
+The 3LC integration does not yet support the Segmentation task. Let us know on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) if you would like us to add it.
 </details>
 
 <details>
 <summary>Pose Estimation (not supported)</summary>
-The 3LC integration does not yet support the Pose Estimation task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
+The 3LC integration does not yet support the Pose Estimation task. Let us know on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) if you would like us to add it.
 </details>
 
 <details>
 <summary>OBB (oriented object detection) (not supported)</summary>
-The 3LC integration does not yet support the Oriented Object Detection task. Stay tuned on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) to learn when support is added!
+The 3LC integration does not yet support the Oriented Object Detection task. Let us know on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) if you would like us to add it.
 </details>
+
+## Metrics collection only
+
+It is possible to create runs where only metrics collection, and no training, is performed. This is useful when you already have a trained model and would like to collect metrics, or if you would like to collect metrics on a different dataset to the one you trained and validated on.
+
+Use the method `model.collect()` to perform metrics collection only. Either pass `data` (a path to a yaml file) and `splits` (an iterable of split names to collect metrics for), or a dictionary `tables` like detailed in the previous section, to define which data to collect metrics on. This will create a run, collect the metrics on each split by calling `model.val()` and finally reduce any embeddings that were collected. Any additional arguments, such as `imgsz` and `batch`, are forwarded as `model.val(**kwargs)`.
+
+The following code snippet shows how to collect metrics on the train and validation splits of the `coco128` dataset with `yolov8m.pt`:
+```python
+from ultralytics.utils.tlc.detect.model import TLCYOLO
+from ultralytics.utils.tlc.detect.settings import Settings
+from ultralytics.utils.tlc.detect.utils import reduce_all_embeddings
+
+model = TLCYOLO("yolov8m.pt")
+
+settings = Settings(
+    image_embeddings_dim=2,
+    conf_thres=0.2,
+)
+
+model.collect(
+    data="coco128.yaml",
+    splits=("train", "val"),
+    settings=settings,
+    batch=32,
+    imgsz=320
+)
+```
 
 ## 3LC Settings
 
@@ -120,17 +147,15 @@ Image embeddings can be collected by setting `image_embeddings_dim` to 2 or 3. S
 
 The way in which embeddings are collected is different for the different tasks. For more details, see the drop-downs:
 <summary>Classification</summary>
-For classification, the integration scans your model for the first occurance of a `torch.nn.Linear` layer. The inputs to this layer are used to extract image embeddings.
+For classification, the integration scans your model for the first occurrence of a `torch.nn.Linear` layer. The inputs to this layer are used to extract image embeddings.
 </details>
 <summary>Object Detection</summary>
 For object detection, the output of the spatial pooling function is used to extract embeddings.
 </details>
 
-Note that when collecting image embeddings for validation only runs, `reduce_all_embeddings()` must be called at the end to produce embeddings which can be visualized in the Dashboard.
-
 ## Other output
 
-When viewing all your YOLOv8 runs in the 3LC Dashboard, charts will show up with per-epoch validation metrics for each run. This allows you to follow your runs in real-time, and compare them with each other.
+When viewing all your YOLOv8 runs in the 3LC Dashboard, charts will show up with per-epoch aggregate metrics produced by YOLOv8 for each run. This allows you to follow your runs in real-time, and compare them with each other.
 
 # Frequently Asked Questions
 
@@ -151,3 +176,7 @@ Embeddings collection has an extra dependency for the library used for reduction
 ## How do I collect embeddings for each bounding box?
 
 In order to collect embeddings (or other additional metrics) for each bounding box, refer to the [3LC Bounding Box Example Notebooks](https://docs.3lc.ai/3lc/latest/public-notebooks/add-bb-embeddings.html).
+
+## Can I use the YOLOv8 CLI commands in the integration to train and collect metrics?
+
+This is not supported yet, but will be added in a future commit!
