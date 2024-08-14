@@ -72,7 +72,7 @@ def tlc_check_det_dataset(
             dataset_checker=check_det_dataset,
             table_creator=get_or_create_det_table,
             project_name=project_name,
-            check_backwards_compatible_table_name=False
+            check_backwards_compatible_table_name=True,
         )
     
 def get_or_create_det_table(
