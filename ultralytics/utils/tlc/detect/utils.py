@@ -35,6 +35,7 @@ def tlc_check_det_dataset(
         splits = [key for key in data_config if key != "path"]
 
         LOGGER.info(f"{TLC_COLORSTR}Using tables in 3LC YAML file: {data_file_url}")
+        tables = {}
         for split in splits:
             # Handle :latest at the end
             if data_config[split].endswith(":latest"):
