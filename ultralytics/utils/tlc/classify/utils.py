@@ -62,7 +62,7 @@ def tlc_check_cls_dataset(
 
     else:
         # Get existing tables if Urls are provided
-        LOGGER.info(f"{TLC_COLORSTR}Using data provided through `tables`")
+        LOGGER.info(f"{TLC_COLORSTR}Using data provided directly through `tables`.")
         for key, table in tables.items():
             if isinstance(table, (str, Path, tlc.Url)):
                 table_url = tlc.Url(table)
