@@ -67,24 +67,44 @@ def tlc_check_dataset(
                     name = Path(data).stem
                     project_name = f"{name}-YOLOv8" if project_name is None else project_name
 
-                    table = tlc.Table.from_yolo(
-                        dataset_yaml_file=data_dict["yaml_file"],
-                        split=key,
-                        override_split_path=data_dict[key],
-                        structure=None,
-                        table_name="original",
-                        dataset_name=f"{name}-{key}",
+                    # Check for original table for backwards compatibility
+                    table_url_backcompatible = tlc.Table._resolve_table_url(
+                        table_url=None,
+                        root_url=None,
                         project_name=project_name,
-                        if_exists='reuse',
-                        description=f"Original {key} dataset for {data}, created with YOLOv8",
+                        dataset_name=f"{name}-{key}",
+                        table_name="original",
                     )
+
+                    if table_url_backcompatible.exists():
+                        table = tlc.Table.from_yolo(
+                            dataset_yaml_file=data_dict["yaml_file"],
+                            split=key,
+                            override_split_path=data_dict[key],
+                            structure=None,
+                            table_url=table_url_backcompatible,
+                            if_exists='reuse',
+                            description=f"Original {key} dataset for {data}, created with YOLOv8",
+                        )
+                    else:
+                        table = tlc.Table.from_yolo(
+                            dataset_yaml_file=data_dict["yaml_file"],
+                            split=key,
+                            override_split_path=data_dict[key],
+                            structure=None,
+                            table_name="initial",
+                            dataset_name=f"{name}-{key}",
+                            project_name=project_name,
+                            if_exists='reuse',
+                            description=f"Initial {key} dataset for {data}, created with YOLOv8",
+                        )
 
                     tables[key] = table.latest()
 
                     if tables[key] != table:
                         LOGGER.info(f"   {colorstr(key)}: Using latest version of table {table.url} -> {tables[key].url}")
                     else:
-                        LOGGER.info(f"   {colorstr(key)}: Using original table {tables[key].url}")
+                        LOGGER.info(f"   {colorstr(key)}: Using initial version of table {tables[key].url}")
     
     else:
         for key, table in tables.items():

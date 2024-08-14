@@ -45,11 +45,11 @@ def tlc_check_cls_dataset(
                     image_column_name=image_column_name,
                     label_column_name=label_column_name,
                     extensions=IMG_FORMATS,
-                    table_name="original",
+                    table_name="initial",
                     dataset_name=f"{name}-{key}",
                     project_name=project_name,
                     if_exists="reuse",
-                    description=f"Original {key} dataset for {data}, created with YOLOv8",
+                    description=f"Initial {key} dataset for {data}, created with YOLOv8",
                 )
 
                 # Get the latest version when inferring
@@ -58,7 +58,7 @@ def tlc_check_cls_dataset(
                 if tables[key] != table:
                     LOGGER.info(f"   {colorstr(key)}:: Using latest version of table {table.url} -> {tables[key].url}")
                 else:
-                    LOGGER.info(f"   {colorstr(key)}:: Using original table {tables[key].url}")
+                    LOGGER.info(f"   {colorstr(key)}:: Using initial version of table {tables[key].url}")
 
     else:
         # Get existing tables if Urls are provided
