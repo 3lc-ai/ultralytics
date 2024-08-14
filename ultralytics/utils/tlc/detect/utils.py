@@ -10,14 +10,13 @@ from tlc.client.torch.metrics.metrics_collectors.bounding_box_metrics_collector 
     _TLCPredictedBoundingBoxes,
 )
 
-from ultralytics.data.utils import check_file, check_det_dataset
+from ultralytics.data.utils import check_det_dataset
 from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
-from ultralytics.utils.tlc.settings import Settings
+from ultralytics.utils.tlc.utils import check_tlc_dataset
 
-# TODO: Clean up (make functions etc.)
-def tlc_check_dataset(
+def tlc_check_det_dataset(
         data: str,
         tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
         image_column_name: str,
@@ -25,114 +24,87 @@ def tlc_check_dataset(
         project_name: str | None = None,
     ) -> dict[str, tlc.Table | dict[float, str] | int]:
     
-    if tables is None:
-        tables = {}
+    if tables is None and data.startswith(TLC_PREFIX):
+        # Read the YAML file, removing the prefix
+        if not (data_file_url := tlc.Url(data.replace(TLC_PREFIX, ""))).exists():
+            raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
 
-        # 3LC YAML file
-        if data.startswith(TLC_PREFIX):
-            # Read the YAML file, removing the prefix
-            if not (data_file_url := tlc.Url(data.replace(TLC_PREFIX, ""))).exists():
-                raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
+        data_config = yaml.safe_load(data_file_url.read())
 
-            data_config = yaml.safe_load(data_file_url.read())
+        path = data_config.get("path")
+        splits = [key for key in data_config if key != "path"]
 
-            path = data_config.get("path")
-            splits = [key for key in data_config if key != "path"]
-
-            LOGGER.info(f"{TLC_COLORSTR}Using tables in 3LC YAML file: {data_file_url}")
-            for split in splits:
-                # Handle :latest at the end
-                if data_config[split].endswith(":latest"):
-                    latest = True
-                    split_path = data_config[split].rstrip(":latest")
-                else:
-                    latest = False
-                    split_path = data_config[split]
-
-                if split_path.startswith("./"):
-                    LOGGER.info(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
-                    split_path = split_path[2:]
-                elif split_path.startswith("/"):
-                    LOGGER.info(f"{TLC_COLORSTR}{split} split path starts with '/', removing it.")
-                    split_path = split_path[1:]
-
-                table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
-
-                table = get_tlc_table_from_url(table_url=table_url, split=split, latest=latest)
-
-                tables[split] = table
-        # Regular YAML file
-        else:
-            data_dict = check_det_dataset(data)
-
-            # Get or create tables
-            LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from {data}")
-
-            for key in ("train", "val", "test"):
-                if data_dict.get(key) is not None:
-                    name = Path(data).stem
-                    project_name = f"{name}-YOLOv8" if project_name is None else project_name
-
-                    # Check for original table for backwards compatibility
-                    table_url_backcompatible = tlc.Table._resolve_table_url(
-                        table_url=None,
-                        root_url=None,
-                        project_name=project_name,
-                        dataset_name=f"{name}-{key}",
-                        table_name="original",
-                    )
-
-                    if table_url_backcompatible.exists():
-                        table = tlc.Table.from_yolo(
-                            dataset_yaml_file=data_dict["yaml_file"],
-                            split=key,
-                            override_split_path=data_dict[key],
-                            structure=None,
-                            table_url=table_url_backcompatible,
-                            if_exists='reuse',
-                            description=f"Original {key} dataset for {data}, created with YOLOv8",
-                        )
-                    else:
-                        table = tlc.Table.from_yolo(
-                            dataset_yaml_file=data_dict["yaml_file"],
-                            split=key,
-                            override_split_path=data_dict[key],
-                            structure=None,
-                            table_name="initial",
-                            dataset_name=f"{name}-{key}",
-                            project_name=project_name,
-                            if_exists='reuse',
-                            description=f"Initial {key} dataset for {data}, created with YOLOv8",
-                        )
-
-                    tables[key] = table.latest()
-
-                    if tables[key] != table:
-                        LOGGER.info(f"   {colorstr(key)}: Using latest version of table {table.url} -> {tables[key].url}")
-                    else:
-                        LOGGER.info(f"   {colorstr(key)}: Using initial version of table {tables[key].url}")
-    
-    else:
-        LOGGER.info(f"{TLC_COLORSTR}Using data provided directly through `tables`.")
-        for key, table in tables.items():
-            if isinstance(table, (str, Path, tlc.Url)):
-                table_url = tlc.Url(table)
-                tables[key] = tlc.Table.from_url(table_url)
-            elif isinstance(table, tlc.Table):
-                tables[key] = table
+        LOGGER.info(f"{TLC_COLORSTR}Using tables in 3LC YAML file: {data_file_url}")
+        for split in splits:
+            # Handle :latest at the end
+            if data_config[split].endswith(":latest"):
+                latest = True
+                split_path = data_config[split].rstrip(":latest")
             else:
-                raise ValueError(
-                    f"Invalid type {type(table)} for split {key} provided through `tables`."
-                    "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table."
-                )
+                latest = False
+                split_path = data_config[split]
 
-            LOGGER.info(f"   - {key}: {tables[key].url}")
+            if split_path.startswith("./"):
+                LOGGER.info(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
+                split_path = split_path[2:]
+            elif split_path.startswith("/"):
+                LOGGER.info(f"{TLC_COLORSTR}{split} split path starts with '/', removing it.")
+                split_path = split_path[1:]
+
+            table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
+
+            table = get_tlc_table_from_url(table_url=table_url, split=split, latest=latest)
+
+            tables[split] = table
+
+        first_split = next(iter(tables.keys()))
+        value_map = tables[first_split].get_value_map(label_column_name)
+        names = {int(k): v['internal_name'] for k, v in value_map.items()}
+
+        return {**tables, "names": names, "nc": len(names)}
+
+    else:
+        return check_tlc_dataset(
+            data,
+            tables,
+            image_column_name,
+            label_column_name,
+            dataset_checker=check_det_dataset,
+            table_creator=get_or_create_det_table,
+            project_name=project_name,
+            check_backwards_compatible_table_name=False
+        )
     
-    first_split = next(iter(tables.keys()))
-    value_map = tables[first_split].get_value_map("bbs.bb_list.label")
-    names = {int(k): v['internal_name'] for k, v in value_map.items()}
+def get_or_create_det_table(
+    key: str,
+    data_dict: dict[str, object],
+    image_column_name: str,
+    label_column_name: str,
+    project_name: str,
+    dataset_name: str,
+    table_name: str,
+) -> tlc.Table:
+    """ Get or create a detection table from a dataset dictionary.
 
-    return {**tables, "names": names, "nc": len(names)}
+    :param data_dict: Dictionary of dataset information
+    :param project_name: Name of the project
+    :param dataset_name: Name of the dataset
+    :param table_name: Name of the table
+    :param image_column_name: Name of the column containing image paths
+    :param label_column_name: Name of the column containing labels
+    :return: A tlc.Table.from_image_folder() table
+    """
+    return tlc.Table.from_yolo(
+        dataset_yaml_file=data_dict["yaml_file"],
+        split=key,
+        override_split_path=data_dict[key],
+        project_name=project_name,
+        dataset_name=dataset_name,
+        table_name=table_name,
+        if_exists="reuse",
+        add_weight_column=True,
+        description="Created with 3LC YOLOv8 integration"
+    )
 
 def build_tlc_yolo_dataset(
         cfg,

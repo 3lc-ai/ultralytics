@@ -8,6 +8,7 @@ from pathlib import Path
 from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
 from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.constants import TLC_COLORSTR
+from ultralytics.utils.tlc.utils import check_tlc_dataset
 
 def tlc_check_cls_dataset(
         data: str,
@@ -25,60 +26,45 @@ def tlc_check_cls_dataset(
     :param project_name: Name of the project
     :return: Dictionary of tables and class names, with keys for each split and "names"
     """
-    if tables is None:
-        tables = {}
-        # If no tables exist, get the data
-        data_dict = check_cls_dataset(data)
+    return check_tlc_dataset(
+        data,
+        tables,
+        image_column_name,
+        label_column_name,
+        dataset_checker=check_cls_dataset,
+        table_creator=get_or_create_cls_table,
+        project_name=project_name,
+        check_backwards_compatible_table_name=False
+    )
 
-        # Get or create tables
-        LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from {data}")
-
-        for key in ("train", "val", "test"):
-            if data_dict.get(key) is not None:
-                name = Path(data).name
-
-                if project_name is None:
-                    project_name = f"{name}-YOLOv8"
-
-                table = tlc.Table.from_image_folder(
-                    root=data_dict[key],
-                    image_column_name=image_column_name,
-                    label_column_name=label_column_name,
-                    extensions=IMG_FORMATS,
-                    table_name="initial",
-                    dataset_name=f"{name}-{key}",
-                    project_name=project_name,
-                    if_exists="reuse",
-                    description=f"Initial {key} dataset for {data}, created with YOLOv8",
-                )
-
-                # Get the latest version when inferring
-                tables[key] = table.latest()
-
-                if tables[key] != table:
-                    LOGGER.info(f"   {colorstr(key)}:: Using latest version of table {table.url} -> {tables[key].url}")
-                else:
-                    LOGGER.info(f"   {colorstr(key)}:: Using initial version of table {tables[key].url}")
-
-    else:
-        # Get existing tables if Urls are provided
-        LOGGER.info(f"{TLC_COLORSTR}Using data provided directly through `tables`.")
-        for key, table in tables.items():
-            if isinstance(table, (str, Path, tlc.Url)):
-                table_url = tlc.Url(table)
-                tables[key] = tlc.Table.from_url(table_url)
-            elif isinstance(table, tlc.Table):
-                tables[key] = table
-            else:
-                raise ValueError(
-                    f"Invalid type {type(table)} for split {key} provided through `tables`."
-                    "Must be a location (string, pathlib.Path or tlc.Url) of a tlc.Table or a tlc.Table object."
-                )
-            
-            LOGGER.info(f"   - {key}: {tables[key].url}")
-        
-    first_split = next(iter(tables.keys()))
-    value_map = tables[first_split].get_value_map(label_column_name)
-    names = {k: v["internal_name"] for k, v in value_map.items()}
-
-    return {**tables, "nc": len(names), "names": names}
+def get_or_create_cls_table(
+        key: str,
+        data_dict: dict[str, object],
+        image_column_name: str,
+        label_column_name: str,
+        project_name: str,
+        dataset_name: str,
+        table_name: str,
+    ) -> tlc.Table:
+    """ Get or create a classification table from a dataset dictionary.
+    
+    :param data_dict: Dictionary of dataset information
+    :param project_name: Name of the project
+    :param dataset_name: Name of the dataset
+    :param table_name: Name of the table
+    :param image_column_name: Name of the column containing image paths
+    :param label_column_name: Name of the column containing labels
+    :return: A tlc.Table.from_image_folder() table
+    """
+    return tlc.Table.from_image_folder(
+        root=data_dict[key],
+        image_column_name=image_column_name,
+        label_column_name=label_column_name,
+        project_name=project_name,
+        dataset_name=dataset_name,
+        table_name=table_name,
+        extensions=IMG_FORMATS,
+        if_exists="reuse",
+        add_weight_column=True,
+        description="Created with 3LC YOLOv8 integration"
+    )

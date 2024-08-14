@@ -8,16 +8,16 @@ import weakref
 from ultralytics.data import build_dataloader
 from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import metrics, ops
-from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME
-from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_dataset
+from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_COLUMN_NAME
+from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_det_dataset
 from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
 
 class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
     _default_image_column_name = IMAGE_COLUMN_NAME
-    _default_label_column_name = "bbs"
+    _default_label_column_name = DETECTION_LABEL_COLUMN_NAME
 
     def check_dataset(self, *args, **kwargs):
-        return tlc_check_dataset(*args, **kwargs)
+        return tlc_check_det_dataset(*args, **kwargs)
 
     def get_dataloader(self, dataset_path, batch_size):
         """Builds and returns a data loader with given parameters."""

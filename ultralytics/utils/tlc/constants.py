@@ -7,6 +7,7 @@ from ultralytics.utils import colorstr
 TRAINING_PHASE = "Training Phase"
 IMAGE_COLUMN_NAME = tlc.IMAGE
 CLASSIFY_LABEL_COLUMN_NAME = tlc.LABEL
+DETECTION_LABEL_COLUMN_NAME = "bbs.bb_list.label"
 
 TLC_PREFIX = "3LC://"
 TLC_COLORSTR = colorstr("3lc: ")

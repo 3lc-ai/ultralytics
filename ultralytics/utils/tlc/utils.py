@@ -3,12 +3,112 @@ from __future__ import annotations
 
 import tlc
 
+from packaging import version
+from pathlib import Path
+
 from .constants import TRAINING_PHASE
 
-from ultralytics.utils import LOGGER
+from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION
 
-from packaging import version
+from typing import Callable
+
+def check_tlc_dataset(
+    data: str,
+    tables: dict[str, tlc.Table | tlc.Url | str] | None,
+    image_column_name: str,
+    label_column_name: str,
+    dataset_checker: Callable[[str], dict[str, object]] | None = None,
+    table_creator: Callable[[str, dict[str, object], str, str, str, str, str], tlc.Table] | None = None,
+    project_name: str | None = None,
+    check_backwards_compatible_table_name: bool = False,
+) -> dict[str, tlc.Table | dict[float, str] | int]:
+    """ Get or create tables for YOLOv8 datasets. data is ignored when tables is provided.
+
+    :param data: Path to a dataset
+    :param tables: Dictionary of tables, if already created
+    :param image_column_name: Name of the column containing image paths
+    :param label_column_name: Name of the column containing labels
+    :param dataset_checker: Function to check the dataset (yolo)
+    :param table_creator: Function to create the table
+    :param project_name: Name of the project
+    :param check_backwards_compatible_table_name: Whether to check for a backwards compatible table name
+    :return: Dictionary of tables and class names
+    """
+    if tables is None:
+        tables = {}
+
+        data_dict = dataset_checker(data)
+
+        # Get or create tables
+        LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from data={data}")
+
+        for key in ("train", "val", "test", "minival"):
+            if data_dict.get(key) is not None:
+                name = Path(data).stem
+                dataset_name = f"{name}-{key}"
+                table_name = "initial"
+
+                if project_name is None:
+                    project_name = f"{name}-YOLOv8"
+
+                # Previously the table name was "original" and now it is "initial", so we need to check for backwards compatibility
+                if check_backwards_compatible_table_name:
+                    table_url_backcompatible = tlc.Table._resolve_table_url(
+                        table_url=None,
+                        root_url=None,
+                        project_name=project_name,
+                        dataset_name=dataset_name,
+                        table_name="original",
+                    )
+
+                    if table_url_backcompatible.exists():
+                        table_name = "original"
+
+                table = table_creator(
+                    key,
+                    data_dict,
+                    image_column_name=image_column_name,
+                    label_column_name=label_column_name,
+                    project_name=project_name,
+                    dataset_name=dataset_name,
+                    table_name=table_name
+                )
+
+                # Get the latest version when inferring
+                tables[key] = table.latest()
+
+                if tables[key] != table:
+                    LOGGER.info(f"   {colorstr(key)}:: Using latest version of table {table.url} -> {tables[key].url}")
+                else:
+                    LOGGER.info(f"   {colorstr(key)}:: Using initial version of table {tables[key].url}")
+
+    else:
+        LOGGER.info(f"{TLC_COLORSTR}Using data provided directly through `tables`.")
+        for key, table in tables.items():
+            if isinstance(table, (str, Path, tlc.Url)):
+                try:
+                    table_url = tlc.Url(table)
+                    tables[key] = tlc.Table.from_url(table_url)
+                except Exception as e:
+                    raise ValueError(
+                        f"Error loading table from {table} for split '{key}' provided through `tables`."
+                    ) from e
+            elif isinstance(table, tlc.Table):
+                tables[key] = table
+            else:
+                raise ValueError(
+                    f"Invalid type {type(table)} for split {key} provided through `tables`."
+                    "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table."
+                )
+
+            LOGGER.info(f"   - {key}: {tables[key].url}")
+    
+    first_split = next(iter(tables.keys()))
+    value_map = tables[first_split].get_value_map(label_column_name)
+    names = {int(k): v['internal_name'] for k, v in value_map.items()}
+
+    return {**tables, "names": names, "nc": len(names)}
 
 def training_phase_schema() -> tlc.Schema:
     """Create a 3LC schema for the training phase.
