@@ -39,9 +39,8 @@ def tlc_check_dataset(
             path = data_config.get("path")
             splits = [key for key in data_config if key != "path"]
 
-            LOGGER.info(f"{TLC_COLORSTR}Parsing 3LC YAML file: {data_file_url}")
+            LOGGER.info(f"{TLC_COLORSTR}Using tables in 3LC YAML file: {data_file_url}")
             for split in splits:
-            
                 # Handle :latest at the end
                 if data_config[split].endswith(":latest"):
                     latest = True
@@ -49,6 +48,13 @@ def tlc_check_dataset(
                 else:
                     latest = False
                     split_path = data_config[split]
+
+                if split_path.startswith("./"):
+                    LOGGER.info(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
+                    split_path = split_path[2:]
+                elif split_path.startswith("/"):
+                    LOGGER.info(f"{TLC_COLORSTR}{split} split path starts with '/', removing it.")
+                    split_path = split_path[1:]
 
                 table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
 
