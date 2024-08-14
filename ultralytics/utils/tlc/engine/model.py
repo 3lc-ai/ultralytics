@@ -46,7 +46,7 @@ class TLCYOLO(YOLO):
         tables: dict[str, str | tlc.Url | tlc.Table] | None = None,
         settings: Settings | None = None,
         **kwargs
-    ):
+    ) -> dict[str, dict[str, float]]:
         """ Perform calls to model.val() to collect metrics on a set of splits, all under one tlc.Run.
         If enabled, embeddings are reduced at the end of validation.
          
@@ -55,6 +55,7 @@ class TLCYOLO(YOLO):
         :param tables: Dictionary of splits to tables to collect metrics for. Mutually exclusive with data and splits.
         :param settings: 3LC settings to use for collecting metrics. If None, default settings are used.
         :param kwargs: Additional keyword arguments are forwarded as model.val(**kwargs).
+        :return: Dictionary of split names to results returned by model.val().
         """
         # Verify only data+splits or tables are provided
         if not ( (data and splits ) or tables):
@@ -63,13 +64,14 @@ class TLCYOLO(YOLO):
         if settings is None:
             settings = Settings()
 
+        results_dict = {}
         # Call val for each split or table
         if data and splits:
             for split in splits:
-                self.val(data=data, split=split, settings=settings, **kwargs)
+                results_dict[split] = self.val(data=data, split=split, settings=settings, **kwargs)
         elif tables:
             for split in tables:
-                self.val(table=tables[split], settings=settings, **kwargs)
+                results_dict[split] = self.val(table=tables[split], settings=settings, **kwargs)
 
         # Reduce embeddings
         if settings and settings.image_embeddings_dim > 0:
@@ -80,4 +82,6 @@ class TLCYOLO(YOLO):
                 method=settings.image_embeddings_reducer,
                 n_components=settings.image_embeddings_dim,
             )
+
+        return results_dict
         
