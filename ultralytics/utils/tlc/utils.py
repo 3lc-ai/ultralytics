@@ -79,9 +79,9 @@ def check_tlc_dataset(
                 tables[key] = table.latest()
 
                 if tables[key] != table:
-                    LOGGER.info(f"   {colorstr(key)}:: Using latest version of table {table.url} -> {tables[key].url}")
+                    LOGGER.info(f"   {colorstr(key)}: Using latest version of table {table.url} -> {tables[key].url}")
                 else:
-                    LOGGER.info(f"   {colorstr(key)}:: Using initial version of table {tables[key].url}")
+                    LOGGER.info(f"   {colorstr(key)}: Using initial version of table {tables[key].url}")
 
     else:
         LOGGER.info(f"{TLC_COLORSTR}Using data provided directly through `tables`.")
