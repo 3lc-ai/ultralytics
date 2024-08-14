@@ -61,7 +61,6 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         # Call mixin
         self._post_init(sampling_weights=sampling_weights)
 
-        self._indices = np.arange(len(self.example_ids))
         assert len(self._indices) == len(self.samples)
 
     def verify_schema(self,image_column_name, label_column_name):

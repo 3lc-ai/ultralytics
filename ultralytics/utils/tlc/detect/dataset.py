@@ -82,7 +82,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         if nc == 0:
             self._write_scanned_marker()
         
-        self._example_ids = example_ids
+        self.example_ids = example_ids
         self.im_files = im_files
         self.labels = labels
 
