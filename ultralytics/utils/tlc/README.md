@@ -113,9 +113,7 @@ Use the method `model.collect()` to perform metrics collection only. Either pass
 
 The following code snippet shows how to collect metrics on the train and validation splits of the `coco128` dataset with `yolov8m.pt`:
 ```python
-from ultralytics.utils.tlc.detect.model import TLCYOLO
-from ultralytics.utils.tlc.detect.settings import Settings
-from ultralytics.utils.tlc.detect.utils import reduce_all_embeddings
+from ultralytics.utils.tlc import Settings, TLCYOLO
 
 model = TLCYOLO("yolov8m.pt")
 
