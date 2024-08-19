@@ -21,8 +21,14 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.table = table
         self.display_name = table.dataset_name
 
-        from ultralytics.utils.tlc.detect.utils import infer_table_format
-        self._table_format = infer_table_format(table)
+        from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
+        if is_yolo_table(self.table):
+            self._table_format = "YOLO"
+        elif is_coco_table(self.table):
+            self._table_format = "COCO"
+        else:
+            raise ValueError(f"Unsupported table format for table {table.url}")
+
         self._exclude_zero_weight=exclude_zero_weight
 
         self.example_ids = []

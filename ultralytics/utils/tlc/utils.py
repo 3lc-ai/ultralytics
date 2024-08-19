@@ -106,7 +106,7 @@ def check_tlc_dataset(
             
             # Check that the table is compatible with the current task
             if table_checker is not None:
-                table_checker(key, tables[key])
+                table_checker(tables[key], image_column_name, label_column_name)
 
             LOGGER.info(f"   - {key}: {tables[key].url}")
     

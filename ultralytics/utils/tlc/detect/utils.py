@@ -153,14 +153,15 @@ def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
 
     return tables
 
-def check_det_table(split: str, table: tlc.Table):
+def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
     """ Check that a table is compatible with the detection task in the 3LC YOLOv8 integration.
     
     :param split: The split of the table.
     :param table: The table to check.
     :raises: ValueError if the table is not compatible with the detection task.
     """
-    return
+    if not (is_yolo_table(table) or is_coco_table(table)):
+        raise ValueError(f'Table {table.url} is not compatible with YOLOv8, needs to be a YOLO or COCO table.')
 
 def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema:
     """ Create a 3LC bounding box schema for YOLOv8
@@ -249,20 +250,7 @@ def construct_bbox_struct(
 
     return bbox_struct
 
-def infer_table_format(table: tlc.Table) -> str:
-    """ Infer the format of a table.
-
-    :param table: The table to infer the format of.
-    :returns: The format of the table.
-    """
-    if _check_if_yolo_table(table):
-        return "YOLO"
-    elif _check_if_coco_table(table):
-        return "COCO"
-    else:
-        raise ValueError(f'Table {table.url} is not compatible with YOLOv8, needs to be a YOLO or COCO table.')
-
-def _check_if_yolo_table(table: tlc.Table) -> tuple[bool, str]:
+def is_yolo_table(table: tlc.Table) -> tuple[bool, str]:
     """Check if the table is a YOLO table.
 
     :param table: The table to check.
@@ -303,7 +291,7 @@ def _check_if_yolo_table(table: tlc.Table) -> tuple[bool, str]:
 
     return True
 
-def _check_if_coco_table(table: tlc.Table) -> bool:
+def is_coco_table(table: tlc.Table) -> bool:
     """Check if the table is a COCO table.
 
     :param table: The table to check.
@@ -338,34 +326,3 @@ def _check_if_coco_table(table: tlc.Table) -> bool:
         return False
 
     return True
-
-
-def write_3lc_yaml(data_file: str, tables: dict[str, tlc.Table]):
-    """ Write a 3LC YAML file for the given tables.
-
-    :param data_file: The path to the original YOLO YAML file.
-    :param tables: The 3LC tables.
-    """
-    new_yaml_url = tlc.Url(data_file.replace('.yaml', '_3lc.yaml'))
-    if new_yaml_url.exists():
-        LOGGER.info(f'{TLC_COLORSTR}3LC YAML file already exists: {str(new_yaml_url)}. To use this file,'
-                    f' add a 3LC prefix: "3LC://{str(new_yaml_url)}".')
-        return
-
-    # Common path for train, val, test tables:
-    #                                        v           <--          <--          *
-    # projects / yolov8-<dataset_name> / datasets / <dataset_name> / tables / <table_url> / files
-    path = tables['train'].url.parent.parent.parent
-
-    # Get relative paths for each table to write to YAML file
-    split_paths = {split: str(tlc.Url.relative_from(tables[split].url, path).apply_aliases()) for split in tables}
-
-    # Add :latest to each
-    split_paths_latest = {split: f'{path}:latest' for split, path in split_paths.items()}
-
-    # Create 3LC yaml file
-    data_config = {'path': str(path), **split_paths_latest}
-    new_yaml_url.write(yaml.dump(data_config, sort_keys=False, encoding='utf-8'))
-
-    LOGGER.info(f'{TLC_COLORSTR}Created 3LC YAML file: {str(new_yaml_url)}. To use this file,'
-                f' add a 3LC prefix: "3LC://{str(new_yaml_url)}".')

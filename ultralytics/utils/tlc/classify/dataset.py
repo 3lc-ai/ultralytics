@@ -30,8 +30,8 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
             args,
             augment=False,
             prefix="",
-            image_column_name="Image",
-            label_column_name="Label",
+            image_column_name=tlc.IMAGE,
+            label_column_name=tlc.LABEL,
             exclude_zero_weight=False,
             sampling_weights=False
         ):
@@ -62,17 +62,8 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
         assert len(self._indices) == len(self.samples)
 
-    def verify_schema(self,image_column_name, label_column_name):
-        """ Verify that the provided Table has the desired schema and entries """
-        row_schema = self.table.row_schema.values
-
-        # Check for image and label columns in schema
-        assert image_column_name in row_schema, f"Image column '{image_column_name}' not found in schema for Table {self.table.url}."
-        assert label_column_name in row_schema, f"Label column '{label_column_name}' not found in schema for Table {self.table.url}."
-
-        # Check for desired roles
-        assert row_schema[image_column_name].value.string_role == tlc.STRING_ROLE_IMAGE_URL, f"Image column '{image_column_name}' must have role tlc.STRING_ROLE_IMAGE_URL={tlc.STRING_ROLE_IMAGE_URL}."
-        assert row_schema[label_column_name].value.number_role == tlc.LABEL, f"Label column '{label_column_name}' must have role tlc.LABEL={tlc.LABEL}."
+    def verify_schema(self, image_column_name, label_column_name):
+        """ Verify that the provided Table has the desired entries """
 
         # Check for data in columns
         assert len(self.table) > 0, f"Table {self.root.to_str()} has no rows."
