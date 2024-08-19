@@ -6,8 +6,6 @@ import tlc
 from pathlib import Path
 
 from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
-from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 
 def tlc_check_cls_dataset(
