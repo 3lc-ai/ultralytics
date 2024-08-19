@@ -20,6 +20,7 @@ def check_tlc_dataset(
     label_column_name: str,
     dataset_checker: Callable[[str], dict[str, object]] | None = None,
     table_creator: Callable[[str, dict[str, object], str, str, str, str, str], tlc.Table] | None = None,
+    table_checker: Callable[[str, tlc.Table], bool] | None = None,
     project_name: str | None = None,
     check_backwards_compatible_table_name: bool = False,
 ) -> dict[str, tlc.Table | dict[float, str] | int]:
@@ -29,8 +30,9 @@ def check_tlc_dataset(
     :param tables: Dictionary of tables, if already created
     :param image_column_name: Name of the column containing image paths
     :param label_column_name: Name of the column containing labels
-    :param dataset_checker: Function to check the dataset (yolo)
-    :param table_creator: Function to create the table
+    :param dataset_checker: Function to check the dataset (yolo implementation, download and checks)
+    :param table_creator: Function to create the tables for the YOLO dataset
+    :param table_checker: Function to check that a table is compatible with the current task
     :param project_name: Name of the project
     :param check_backwards_compatible_table_name: Whether to check for a backwards compatible table name
     :return: Dictionary of tables and class names
@@ -84,7 +86,7 @@ def check_tlc_dataset(
                     LOGGER.info(f"   {colorstr(key)}: Using initial version of table {tables[key].url}")
 
     else:
-        LOGGER.info(f"{TLC_COLORSTR}Using data provided directly through `tables`.")
+        LOGGER.info(f"{TLC_COLORSTR}Using data directly from tables")
         for key, table in tables.items():
             if isinstance(table, (str, Path, tlc.Url)):
                 try:
@@ -101,6 +103,10 @@ def check_tlc_dataset(
                     f"Invalid type {type(table)} for split {key} provided through `tables`."
                     "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table."
                 )
+            
+            # Check that the table is compatible with the current task
+            if table_checker is not None:
+                table_checker(key, tables[key])
 
             LOGGER.info(f"   - {key}: {tables[key].url}")
     

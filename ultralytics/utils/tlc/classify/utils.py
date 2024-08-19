@@ -31,6 +31,7 @@ def tlc_check_cls_dataset(
         label_column_name,
         dataset_checker=check_cls_dataset,
         table_creator=get_or_create_cls_table,
+        table_checker=check_cls_table,
         project_name=project_name,
         check_backwards_compatible_table_name=False
     )
@@ -66,3 +67,7 @@ def get_or_create_cls_table(
         add_weight_column=True,
         description="Created with 3LC YOLOv8 integration"
     )
+
+def check_cls_table(split: str, table: tlc.Table) -> None:
+    """ Check that a table is compatible with the current task."""
+    return

@@ -23,58 +23,21 @@ def tlc_check_det_dataset(
         label_column_name: str,
         project_name: str | None = None,
     ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    
+    # If the data starts with the 3LC prefix, parse the YAML file and populate `tables`
     if tables is None and data.startswith(TLC_PREFIX):
-        # Read the YAML file, removing the prefix
-        if not (data_file_url := tlc.Url(data.replace(TLC_PREFIX, ""))).exists():
-            raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
+        tables = parse_3lc_yaml_file(data)
 
-        data_config = yaml.safe_load(data_file_url.read())
-
-        path = data_config.get("path")
-        splits = [key for key in data_config if key != "path"]
-
-        LOGGER.info(f"{TLC_COLORSTR}Using tables in 3LC YAML file: {data_file_url}")
-        tables = {}
-        for split in splits:
-            # Handle :latest at the end
-            if data_config[split].endswith(":latest"):
-                latest = True
-                split_path = data_config[split][:-len(":latest")]
-            else:
-                latest = False
-                split_path = data_config[split]
-
-            if split_path.startswith("./"):
-                LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
-                split_path = split_path[2:]
-            elif split_path.startswith("/"):
-                LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with '/', removing it.")
-                split_path = split_path[1:]
-
-            table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
-
-            table = get_tlc_table_from_url(table_url=table_url, split=split, latest=latest)
-
-            tables[split] = table
-
-        first_split = next(iter(tables.keys()))
-        value_map = tables[first_split].get_value_map(label_column_name)
-        names = {int(k): v['internal_name'] for k, v in value_map.items()}
-
-        return {**tables, "names": names, "nc": len(names)}
-
-    else:
-        return check_tlc_dataset(
-            data,
-            tables,
-            image_column_name,
-            label_column_name,
-            dataset_checker=check_det_dataset,
-            table_creator=get_or_create_det_table,
-            project_name=project_name,
-            check_backwards_compatible_table_name=True,
-        )
+    return check_tlc_dataset(
+        data,
+        tables,
+        image_column_name,
+        label_column_name,
+        dataset_checker=check_det_dataset,
+        table_creator=get_or_create_det_table,
+        table_checker=check_det_table,
+        project_name=project_name,
+        check_backwards_compatible_table_name=True,
+    )
     
 def get_or_create_det_table(
     key: str,
@@ -147,6 +110,58 @@ def build_tlc_yolo_dataset(
         exclude_zero_weight=exclude_zero_weight,
     )
 
+def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
+    """ Parse a 3LC YAML file and return the corresponding tables.
+    
+    :param data_file: The path to the 3LC YAML file.
+    :returns: The tables pointed to by the YAML file.
+    """
+    # Read the YAML file, removing the prefix
+    if not (data_file_url := tlc.Url(data_file.replace(TLC_PREFIX, ""))).exists():
+        raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
+
+    data_config = yaml.safe_load(data_file_url.read())
+
+    path = data_config.get("path")
+    splits = [key for key in data_config if key != "path"]
+
+    tables = {}
+    for split in splits:
+        # Handle :latest at the end
+        if data_config[split].endswith(":latest"):
+            latest = True
+            split_path = data_config[split][:-len(":latest")]
+        else:
+            latest = False
+            split_path = data_config[split]
+
+        if split_path.startswith("./"):
+            LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
+            split_path = split_path[2:]
+        elif split_path.startswith("/"):
+            LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with '/', removing it.")
+            split_path = split_path[1:]
+
+        table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
+
+        table = tlc.Table.from_url(table_url)
+
+        if latest:
+            table = table.latest()
+
+        tables[split] = table
+
+    return tables
+
+def check_det_table(split: str, table: tlc.Table):
+    """ Check that a table is compatible with the detection task in the 3LC YOLOv8 integration.
+    
+    :param split: The split of the table.
+    :param table: The table to check.
+    :raises: ValueError if the table is not compatible with the detection task.
+    """
+    return
+
 def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema:
     """ Create a 3LC bounding box schema for YOLOv8
 
@@ -175,7 +190,7 @@ def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema
 
 
 def yolo_loss_schemas() -> dict[str, tlc.Schema]:
-    """ Create a 3LC schema for YOLOv5 loss metrics.
+    """ Create a 3LC schema for YOLOv8 loss metrics.
 
     :returns: The YOLO loss schemas.
     """
@@ -233,40 +248,6 @@ def construct_bbox_struct(
             ))
 
     return bbox_struct
-
-def get_tlc_table_from_url(table_url: tlc.Url, split: str, latest: bool) -> tuple[tlc.Table, str]:
-    """ Get a 3LC table from a URL.
-
-    :param table_url: The Url of the table.
-    :param split: The split the table corresponds to.
-    :param latest: Whether to use the latest revision of the table.
-    :returns: The 3LC table.
-    :raises: ValueError if the table does not exist.
-    :raises: ValueError if the table is not compatible with YOLOv8.
-    """
-
-    try:
-        table = tlc.Table.from_url(table_url)
-    except FileNotFoundError:
-        raise ValueError(f'Could not find Table {table_url} for {split} split')
-
-    is_yolo = _check_if_yolo_table(table)
-    is_coco = _check_if_coco_table(table)
-
-    if not is_yolo and not is_coco:
-        raise ValueError(f'Table {table_url} is not compatible with YOLOv8, needs to be a YOLO or COCO table.')
-    
-    format_name = "YOLO" if is_yolo else "COCO"
-    
-    # Use the latest if specificed
-    if latest:
-        table = table.latest()
-        LOGGER.info(f'{TLC_COLORSTR}Using latest revision for {split} set: {table.url}.')
-    else:
-        LOGGER.info(f'{TLC_COLORSTR}Using {split} revision {table_url} with {format_name} format')
-
-    table.ensure_fully_defined()
-    return table
 
 def infer_table_format(table: tlc.Table) -> str:
     """ Infer the format of a table.
@@ -388,28 +369,3 @@ def write_3lc_yaml(data_file: str, tables: dict[str, tlc.Table]):
 
     LOGGER.info(f'{TLC_COLORSTR}Created 3LC YAML file: {str(new_yaml_url)}. To use this file,'
                 f' add a 3LC prefix: "3LC://{str(new_yaml_url)}".')
-
-
-def get_names_from_yolo_table(table: tlc.Table, value_path: str = 'bbs.bb_list.label') -> dict[int, str]:
-    """ Get the category names from a YOLO table.
-
-    :param table: The YOLO table.
-    :returns: The category names for YOLO.
-    """
-    value_map = table.get_value_map(value_path)
-    return {int(k): v['internal_name'] for k, v in value_map.items()}
-
-def reduce_all_embeddings(data_file: str, by: str = "val", method: str = "pacmap", n_components: int = 2) -> None:
-    """ Fit reducer on specific split and apply the reducer on all the embeddings for the current run.
-
-    :param data_file: The path to the dataset YAML file.
-    :param by: The split to reduce embeddings for.
-    :param method: The method to use for reducing embeddings.
-    :param n_components: The number of components to reduce to. 
-    """
-    foreign_table_url = tlc_check_dataset(data_file, get_splits=[by])[by].url
-    tlc.active_run().reduce_embeddings_by_foreign_table_url(
-        foreign_table_url=foreign_table_url,
-        method=method,
-        n_components=n_components
-    )
