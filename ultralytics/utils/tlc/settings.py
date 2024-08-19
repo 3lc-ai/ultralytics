@@ -97,7 +97,8 @@ class Settings:
                                              3), f'Invalid image embeddings dimension {self.image_embeddings_dim}.'
         assert self.image_embeddings_reducer in (
             'pacmap', 'umap'), f'Invalid image embeddings reducer {self.image_embeddings_reducer}.'
-        self._check_reducer_available()
+        if self.image_embeddings_dim > 0:
+            self._check_reducer_available()
 
         # Train / collect specific settings
         self._verify_training() if training else self._verify_collection()
@@ -161,7 +162,8 @@ class Settings:
             reducer_to_package = {'pacmap': 'pacmap', 'umap': 'umap-learn'}
             package = reducer_to_package[self.image_embeddings_reducer]
             raise ValueError(
-                f'Missing {self.image_embeddings_reducer} dependency, run `pip install {package}` to enable embeddings collection.'
+                f"Embeddings collection enabled, but missing {self.image_embeddings_reducer} dependency. "
+                f"Run `pip install {package}` to enable embeddings collection."
             )
 
     @staticmethod
