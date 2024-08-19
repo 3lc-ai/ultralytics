@@ -4,7 +4,6 @@ from __future__ import annotations
 import tlc
 
 from multiprocessing.pool import ThreadPool
-import numpy as np
 from pathlib import Path
 from itertools import repeat
 
