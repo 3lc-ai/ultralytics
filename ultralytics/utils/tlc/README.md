@@ -156,7 +156,7 @@ Use `project_name`, `run_name` and `run_description` to customize the `tlc.Run` 
 Use `sampling_weights=True` to enable the usage of sampling weights. This resamples the data presented to the model according to the weight column in the `Table`. If a sample has weight 2.0, it is twice as likely to appear as a particular sample with weight 1.0. Any given sample can occur multiple times in one epoch. This setting only applies to training.
 
 ### Exclude zero weight samples
-Use `exclude_zero_weight_training=True` (only applies to training) and `exclude_zero_weight_collection=True` to eliminate rows with weight 0.0. If your table has samples with weight 0.0, this will effectively reduce the size of the dataset (i.e. shorten the number of iterations per epoch).
+Use `exclude_zero_weight_training=True` (only applies to training) and `exclude_zero_weight_collection=True` to eliminate rows with weight 0.0. If your table has samples with weight 0.0, this will effectively reduce the size of the dataset (i.e. reduce the number of iterations per epoch).
 
 ### Metrics collection settings
 Use `collection_val_only=True` to disable metrics collection on the training set. This only applies to training.
