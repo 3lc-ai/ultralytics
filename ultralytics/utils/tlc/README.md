@@ -31,7 +31,7 @@ In order to create a `tlc.Run` with the integration, instantiate `TLCYOLO` (inst
 <details open>
 <summary>Code Example</summary>
 The following code example shows basic usage of the 3LC integration. The `Settings` object can be used to specify 3LC specific settings. For more details, see the
-customization section.
+section called 3LC Settings.
 
 ```python
 from ultralytics.utils.tlc import Settings, TLCYOLO
@@ -127,7 +127,7 @@ model.collect(
 
 ## 3LC Settings
 
-The integration offers a rich set of settings and features which can be set through an instance of `Settings`. They allow specifying which metrics to collect, how often to collect them, and whether to use sampling weights during training.
+The integration offers a rich set of settings and features which can be set through an instance of `Settings`, which are in addition to the regular YOLOv8 settings. They allow specifying which metrics to collect, how often to collect them, and whether to use sampling weights during training.
 
 The available 3LC settings can be seen in the `Settings` class in [settings.py](settings.py).
 
