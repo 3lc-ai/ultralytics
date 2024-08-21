@@ -49,7 +49,7 @@ model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset S
 ```
 </details>
 
-In the background, 3LC will create `tlc.Table`s and collect metrics with the trained mode after training completes, which can be opened in the 3LC Dashboard.
+In the background, 3LC will create `tlc.Table`s and collect metrics with the trained model after training completes, which can be opened in the 3LC Dashboard.
 
 ## Dataset specification
 
@@ -57,7 +57,7 @@ In the background, 3LC will create `tlc.Table`s and collect metrics with the tra
 
 A good starting point for using the integration is usually to use the dataset you are already using with YOLOv8. In this case, you can get started by setting `data=<path to your dataset>` like you are already doing. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/) to learn more. 3LC parses these datasets and creates a table for each split, which can be viewed in the Dashboard. Once you make some new versions of your data in the 3LC Dashboard you can use the same command with `data=<path to your dataset>`, and the latest version will be used automatically.
 
-As an alternative, if you would like to train again with a specific version, or have your own `tlc.Table`s you would like to use, there are two ways to specify this.
+As an alternative, if you would like to train again with a specific version, or have your own `tlc.Table`s you would like to use, there are two ways to specify this:
 
 1. When calling `model.train()`, `model.val()` or `model.collect()`, provide a keyword argument `tables` which is a dictionary mapping split names to `tlc.Table` instances or `tlc.Url`s to tables. For example, for table instances it could look like this: `tables={"train": my_train_table, "val": my_val_table}`. When `tables` is provided, any value of `data` is ignored. In training the table for the key `"train"` is used for training, and `"val"` or `"test"`for validation (val takes precedence). 
 
