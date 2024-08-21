@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import tlc
+import yaml
 
 from packaging import version
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 from .constants import TRAINING_PHASE
 
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION
+from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION, TLC_PREFIX
 
 from typing import Callable
 
@@ -37,6 +38,10 @@ def check_tlc_dataset(
     :param check_backwards_compatible_table_name: Whether to check for a backwards compatible table name
     :return: Dictionary of tables and class names
     """
+    # If the data starts with the 3LC prefix, parse the YAML file and populate `tables`
+    if tables is None and data.startswith(TLC_PREFIX):
+        tables = parse_3lc_yaml_file(data)
+
     if tables is None:
         tables = {}
 
@@ -180,3 +185,43 @@ def check_tlc_version():
             f"3LC version {tlc.__version__} is too old to use the YOLOv8 integration. "
             f"Please upgrade to version {TLC_REQUIRED_VERSION} or later by running 'pip install --upgrade 3lc'."
     )
+
+def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
+    """ Parse a 3LC YAML file and return the corresponding tables.
+    
+    :param data_file: The path to the 3LC YAML file.
+    :returns: The tables pointed to by the YAML file.
+    """
+    # Read the YAML file, removing the prefix
+    if not (data_file_url := tlc.Url(data_file.replace(TLC_PREFIX, ""))).exists():
+        raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
+
+    data_config = yaml.safe_load(data_file_url.read())
+
+    path = data_config.get("path")
+    splits = [key for key in data_config if key != "path"]
+
+    tables = {}
+    for split in splits:
+        # Handle :latest at the end
+        if data_config[split].endswith(":latest"):
+            latest = True
+            split_path = data_config[split][:-len(":latest")]
+        else:
+            latest = False
+            split_path = data_config[split]
+
+        if split_path.startswith("./"):
+            LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
+            split_path = split_path[2:]
+
+        table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
+
+        table = tlc.Table.from_url(table_url)
+
+        if latest:
+            table = table.latest()
+
+        tables[split] = table
+
+    return tables

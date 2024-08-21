@@ -4,15 +4,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import tlc
-import yaml
 from tlc.client.torch.metrics.metrics_collectors.bounding_box_metrics_collector import (
     _TLCPredictedBoundingBox,
     _TLCPredictedBoundingBoxes,
 )
 
 from ultralytics.data.utils import check_det_dataset
-from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
+from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 
@@ -23,10 +21,6 @@ def tlc_check_det_dataset(
         label_column_name: str,
         project_name: str | None = None,
     ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    # If the data starts with the 3LC prefix, parse the YAML file and populate `tables`
-    if tables is None and data.startswith(TLC_PREFIX):
-        tables = parse_3lc_yaml_file(data)
-
     return check_tlc_dataset(
         data,
         tables,
@@ -109,49 +103,6 @@ def build_tlc_yolo_dataset(
         sampling_weights=sampling_weights,
         exclude_zero_weight=exclude_zero_weight,
     )
-
-def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
-    """ Parse a 3LC YAML file and return the corresponding tables.
-    
-    :param data_file: The path to the 3LC YAML file.
-    :returns: The tables pointed to by the YAML file.
-    """
-    # Read the YAML file, removing the prefix
-    if not (data_file_url := tlc.Url(data_file.replace(TLC_PREFIX, ""))).exists():
-        raise FileNotFoundError(f"Could not find YAML file {data_file_url}")
-
-    data_config = yaml.safe_load(data_file_url.read())
-
-    path = data_config.get("path")
-    splits = [key for key in data_config if key != "path"]
-
-    tables = {}
-    for split in splits:
-        # Handle :latest at the end
-        if data_config[split].endswith(":latest"):
-            latest = True
-            split_path = data_config[split][:-len(":latest")]
-        else:
-            latest = False
-            split_path = data_config[split]
-
-        if split_path.startswith("./"):
-            LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
-            split_path = split_path[2:]
-        elif split_path.startswith("/"):
-            LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with '/', removing it.")
-            split_path = split_path[1:]
-
-        table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
-
-        table = tlc.Table.from_url(table_url)
-
-        if latest:
-            table = table.latest()
-
-        tables[split] = table
-
-    return tables
 
 def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
     """ Check that a table is compatible with the detection task in the 3LC YOLOv8 integration.
