@@ -61,7 +61,7 @@ As an alternative, if you would like to train again with a specific version, or 
 
 1. When calling `model.train()`, `model.val()` or `model.collect()`, provide a keyword argument `tables` which is a dictionary mapping split names to `tlc.Table` instances or `tlc.Url`s to tables. For example, for table instances it could look like this: `tables={"train": my_train_table, "val": my_val_table}`. When `tables` is provided, any value of `data` is ignored. In training the table for the key `"train"` is used for training, and `"val"` or `"test"`for validation (val takes precedence). 
 
-2. Use a so-called 3LC YAML file. To signal that you are providing a 3LC YAML file, add a `3LC://`-prefix to the path to the file. If, for example, you create a 3LC YAML file named `my_3lc_yaml_file.yaml`, pass it as `model.train(data="3LC://my_3lc_yaml_file.yaml")`. A dataset YAML file should look something like the following:
+2. Use a so-called 3LC YAML file. To signal that you are providing a 3LC YAML file, add a `3LC://`-prefix to the path to the file. If, for example, you create a 3LC YAML file named `my_3lc_yaml_file.yaml`, pass it as `model.train(data="3LC://my_3lc_yaml_file.yaml")`. A 3LC YAML file should look something like the following:
 ```yaml
 train: /path/to/train/table
 val: s3://path/to/val/table # The table is on s3
@@ -81,7 +81,7 @@ For image classification, it is possible to provide `image_column_name` and `lab
 
 <details>
 <summary>Object Detection</summary>
-In addition to tables created with `Table.from_yolo()`, it is also possible to use tables with the COCO format used in the 3LC Detectron2 integration. If you have created 3LC tables in the Detectron2 integration, you can also use this `tlc.Table` in this integration!
+In addition to tables created with `Table.from_yolo()` (which is called internally when you provide a yolo dataset), it is also possible to use tables with the COCO format used in the 3LC Detectron2 integration. If you have created 3LC tables in the Detectron2 integration, you can also use this `tlc.Table` in this integration!
 </details>
 
 <details>
