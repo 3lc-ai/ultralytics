@@ -55,54 +55,48 @@ In the background, 3LC will create `tlc.Table`s and collect metrics with the tra
 
 ![Banner image with tasks](https://raw.githubusercontent.com/ultralytics/assets/main/im/banner-tasks.png)
 
-Different tasks require datasets with different formats. This section outlines how to register your dataset with 3LC for the different Ultralytics tasks.
+A good starting point for using the integration is usually to use the dataset you are already using with YOLOv8. In this case, you can get started by setting `data=<path to your dataset>` like you are already doing. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/) to learn more. 3LC parses these datasets and creates a table for each split, which can be viewed in the Dashboard. Once you make some new versions of your data in the 3LC Dashboard you can use the same command with `data=<path to your dataset>`, and the latest version will be used automatically.
 
+As an alternative, if you would like to train again with a specific version, or have your own `tlc.Table`s you would like to use, there are two ways to specify this.
+
+1. When calling `model.train()`, `model.val()` or `model.collect()`, provide a keyword argument `tables` which is a dictionary mapping split names to `tlc.Table` instances or `tlc.Url`s to tables. For example, for table instances it could look like this: `tables={"train": my_train_table, "val": my_val_table}`. When `tables` is provided, any value of `data` is ignored. In training the table for the key `"train"` is used for training, and `"val"` or `"test"`for validation (val takes precedence). 
+
+2. Use a so-called 3LC YAML file. To signal that you are providing a 3LC YAML file, add a `3LC://`-prefix to the path to the file. If, for example, you create a 3LC YAML file named `my_3lc_yaml_file.yaml`, pass it as `model.train(data="3LC://my_3lc_yaml_file.yaml")`. A dataset YAML file should look something like the following:
+```yaml
+train: /path/to/train/table
+val: s3://path/to/val/table # The table is on s3
+```
+It is also possible to specify that the latest version of your dataset should be used by attaching `:latest` to the end of your path:
+```yaml
+train: /path/to/train/table:latest # Use the latest version of this data
+val: s3://path/to/val/table # The table is on s3
+```
+`names` and `nc` are not needed since the `tlc.Table`s themselves contain the category names and indices.
+
+There are some specific settings and options for the different tasks, check out the relevant dropdowns for this:
 <details>
 <summary>Classification</summary>
-For image classification, there are two ways to specify which data to use during training and metrics collection.
-
-1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/classify/). This will create `tlc.Table`s for each split, with the dataset name set to the last part of the dataset path. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
-
-1. Using the argument `tables` when calling `model.train(tables={"train": my_train_table, "val": my_val_table})`. Here `my_train_table` and `my_val_table` need to be instances of `tlc.Table` or paths to tables in the form of a `tlc.Url`, `pathlib.Path` or `str`. In this case the provided `tlc.Table`s will be used as provided. If `"val"` and `"test"` splits are provided, `"val"` will be used for validation. This way of specifying the data is useful when you would like to use specific versions of your data (i.e. not necessarily 'latest'), or if you have created your own `tlc.Table`s and would like to use them instead.
-
-If your `tlc.Table`s have custom column names for your image and label columns, you can provide these as additional arguments `image_column_name` and `label_column_name`. The defaults are `Image` and `Label`.
+For image classification, it is possible to provide `image_column_name` and `label_column_name` when calling `model.train()`, `model.val()` and `model.collect()` if you are providing your own table which has different column names to those expected by 3LC.
 </details>
 
 <details>
 <summary>Object Detection</summary>
-For object detection, there are three ways to specify which data to use during training and metrics collection.
-
-1. Using the argument `data` like usual when calling `model.train(data=path/to/dataset.yaml)`. See the [Ultralytics Documentation](https://docs.ultralytics.com/datasets/detect/). This will create `tlc.Table`s for each split. On rerunning the same command, the same `Table`s will be used. If new revisions have been created for these `Table`s in the 3LC Dashboard, the latest versions will be used instead. This way of specifying the data is useful when you are using the 3LC integration for the first time.
-
-1. Using the argument `tables`. Here `my_train_table` and `my_val_table` need to be instances of `tlc.Table` or paths to tables in the form of a `tlc.Url`, `pathlib.Path` or `str`. In this case the provided `tlc.Table`s will be used as provided. If `"val"` and `"test"` splits are provided, `"val"` will be used for validation. This way of specifying the data is useful when you would like to use specific versions of your data (i.e. not necessarily `'latest'`), or if you have created your own `tlc.Table`s and would like to use them instead.
-
-1. Using the argument `data` like usual, but providing the path to a 3LC Dataset YAML file. The way to specify this is by adding a prefix `3LC://` to the path. A 3LC Dataset YAML file specifies the locations of 3LC Tables instead of the locations of images or labels on your disk. An example 3LC YAML looks like this:
-```yaml
-train: path/to/train/table
-val: s3://path/to/val/table
-```
-
-It is even possible to specify that you would like to use the latest revision of these tables, by attaching `:latest` at the end of a path:
-```yaml
-train: path/to/train/table:latest
-val: s3://path/to/val/table:latest
-```
-
+In addition to tables created with `Table.from_yolo()`, it is also possible to use tables with the COCO format used in the 3LC Detectron2 integration. If you have created 3LC tables in the Detectron2 integration, you can also use this `tlc.Table` in this integration!
 </details>
 
 <details>
 <summary>Segmentation (not supported)</summary>
-The 3LC integration does not yet support the Segmentation task. Let us know on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) if you would like us to add it.
+The 3LC integration does not yet support the Segmentation task. Let us know on Discord if you would like us to add it.
 </details>
 
 <details>
 <summary>Pose Estimation (not supported)</summary>
-The 3LC integration does not yet support the Pose Estimation task. Let us know on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) if you would like us to add it.
+The 3LC integration does not yet support the Pose Estimation task. Let us know on Discord if you would like us to add it.
 </details>
 
 <details>
 <summary>OBB (oriented object detection) (not supported)</summary>
-The 3LC integration does not yet support the Oriented Object Detection task. Let us know on [Discord](https://discord.com/channels/1236027984150794290/1236118620002586655) if you would like us to add it.
+The 3LC integration does not yet support the Oriented Object Detection task. Let us know on Discord if you would like us to add it.
 </details>
 
 ## Metrics collection only
