@@ -40,7 +40,6 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         assert isinstance(table, tlc.Table)
         self.table = table
         self.root = table.url
-        self.display_name = table.dataset_name
         self._exclude_zero_weight = exclude_zero_weight
 
         self.verify_schema(image_column_name, label_column_name)

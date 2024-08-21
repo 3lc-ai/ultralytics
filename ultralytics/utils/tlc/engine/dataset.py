@@ -11,6 +11,7 @@ from ultralytics.utils import LOGGER
 # Assume there is an attribute self.table that is a tlc.Table, and self._example_ids
 class TLCDatasetMixin:
     def _post_init(self, sampling_weights=False):
+        self.display_name = self.table.dataset_name
         # Checks
         if sampling_weights and tlc.SAMPLE_WEIGHT not in self.table.table_rows[0]:
             raise ValueError("Cannot use sampling weights with no sample weight column in the table.")

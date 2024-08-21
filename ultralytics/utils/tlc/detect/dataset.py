@@ -19,7 +19,6 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
     def __init__(self, table, data=None, task="detect", exclude_zero_weight=None, sampling_weights=None, **kwargs):
         assert task == "detect", f"Unsupported task: {task} for TLCYOLODataset. Only 'detect' is supported."
         self.table = table
-        self.display_name = table.dataset_name
 
         from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
         if is_yolo_table(self.table):

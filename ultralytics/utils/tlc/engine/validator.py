@@ -93,7 +93,7 @@ class TLCValidatorMixin(BaseValidator):
         """ Add the split name next to the validation description"""
         desc = super().get_desc()
 
-        split = self.dataloader.dataset.display_name.split("-")[-1]
+        split = self.dataloader.dataset.display_name.split("-")[-1] # get final part
         initial_spaces = len(desc) - len(desc.lstrip())
         split_centered = split.center(initial_spaces)
         split_str = f"{colorstr(split_centered)}"
@@ -181,7 +181,6 @@ class TLCValidatorMixin(BaseValidator):
         self._metrics_writer = tlc.MetricsTableWriter(
             run_url=self._run.url,
             foreign_table_url=self.dataloader.dataset.table.url,
-            foreign_table_display_name=self.dataloader.dataset.display_name,
             column_schemas=column_schemas
         )
 
