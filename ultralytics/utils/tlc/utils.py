@@ -40,6 +40,7 @@ def check_tlc_dataset(
     """
     # If the data starts with the 3LC prefix, parse the YAML file and populate `tables`
     if tables is None and data.startswith(TLC_PREFIX):
+        LOGGER.info(f"{TLC_COLORSTR}Parsing 3LC YAML file data={data} and populating tables")
         tables = parse_3lc_yaml_file(data)
 
     if tables is None:
