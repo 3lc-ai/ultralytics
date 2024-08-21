@@ -161,7 +161,7 @@ def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
     :raises: ValueError if the table is not compatible with the detection task.
     """
     if not (is_yolo_table(table) or is_coco_table(table)):
-        raise ValueError(f'Table {table.url} is not compatible with YOLOv8, needs to be a YOLO or COCO table.')
+        raise ValueError(f'Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table.')
 
 def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema:
     """ Create a 3LC bounding box schema for YOLOv8
