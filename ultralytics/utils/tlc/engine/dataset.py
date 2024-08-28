@@ -31,7 +31,8 @@ class TLCDatasetMixin:
 
     def resample_indices(self):
         # Sample from available indices
-        self._indices[:] = np.random.choice(self.example_ids, len(self.example_ids), p=self._sample_probabilities)
+        indices = np.arange(len(self.example_ids))
+        self._indices[:] = np.random.choice(indices, len(indices), p=self._sample_probabilities)
 
     def __getitem__(self, index):
         i = self._indices[index]
