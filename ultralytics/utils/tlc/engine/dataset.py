@@ -17,10 +17,10 @@ class TLCDatasetMixin:
             raise ValueError("Cannot use sampling weights with no sample weight column in the table.")
 
         assert hasattr(self, "table") and isinstance(self.table, tlc.Table), "TLCDatasetMixin requires an attribute `table` which is a tlc.Table."
-        # Assume instance has self._indices (live sampled indices of the dataset)
         # Assume instance has self._example_ids (index -> example_id mapping)
 
         if not hasattr(self, "_indices"):
+            # Sequentially iterate over the samples by default
             self._indices = np.arange(len(self.example_ids))
 
         sample_weights = [
