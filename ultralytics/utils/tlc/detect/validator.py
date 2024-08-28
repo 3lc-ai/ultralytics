@@ -9,6 +9,7 @@ from ultralytics.data import build_dataloader
 from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import metrics, ops
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_COLUMN_NAME
+from ultralytics.utils.tlc.detect.loss import v8UnreducedDetectionLoss
 from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_det_dataset
 from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
 
@@ -33,6 +34,9 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         }
     
     def _compute_3lc_metrics(self, preds, batch):
+
+        loss_tensors = self.loss_fn(self.curr_raw_preds, batch)
+
         processed_predictions = self._process_detection_predictions(preds, batch)
         return {
             tlc.PREDICTED_BOUNDING_BOXES: processed_predictions,
@@ -95,7 +99,33 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
         return predicted_boxes
     
+    def postprocess(self, preds):
+        # compute per box loss
+        self.curr_raw_preds = preds
+
+        preds, indices = ops.non_max_suppression(
+            preds,
+            self.args.conf,
+            self.args.iou,
+            labels=self.lb,
+            multi_label=True,
+            agnostic=self.args.single_cls or self.args.agnostic_nms,
+            max_det=self.args.max_det,
+            return_indices=True,
+        )
+
+        # select loss values for only the selected boxes
+        self.indices = indices
+
+        return preds
+    
+    def _prepare_loss_fn(self, model):
+        if hasattr(model, "model"):
+            _model = model
+        self.loss_fn = v8UnreducedDetectionLoss(_model)
+    
     def _add_embeddings_hook(self, model) -> int:
+
         if hasattr(model.model, "model"):
             model = model.model
 

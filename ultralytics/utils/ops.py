@@ -174,6 +174,7 @@ def non_max_suppression(
     max_wh=7680,
     in_place=True,
     rotated=False,
+    return_indices=False,
 ):
     """
     Perform non-maximum suppression (NMS) on a set of boxes, with support for masks and multiple labels per box.
@@ -242,6 +243,10 @@ def non_max_suppression(
 
     t = time.time()
     output = [torch.zeros((0, 6 + nm), device=prediction.device)] * bs
+
+    if return_indices:
+        indices = []
+
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
@@ -304,9 +309,15 @@ def non_max_suppression(
         #         i = i[iou.sum(1) > 1]  # require redundancy
 
         output[xi] = x[i]
+
+        if return_indices:
+            indices.append(i)
         if (time.time() - t) > time_limit:
             LOGGER.warning(f"WARNING ⚠️ NMS time limit {time_limit:.3f}s exceeded")
             break  # time limit exceeded
+
+    if return_indices:
+        return output, indices
 
     return output
 
