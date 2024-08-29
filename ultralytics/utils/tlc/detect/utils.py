@@ -142,24 +142,20 @@ def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema
 
 
 def yolo_loss_schemas() -> dict[str, tlc.Schema]:
-    """ Create a 3LC schema for YOLOv8 loss metrics.
+    """ Create a 3LC schema for YOLOv8 per-sample loss metrics.
 
-    :returns: The YOLO loss schemas.
+    :returns: The YOLO loss schemas for each of the three components.
     """
     schemas = {}
-    schemas['loss'] = tlc.Schema(description='Sample loss',
-                                 writable=False,
-                                 value=tlc.Float32Value(),
-                                 display_importance=3003)
-    schemas['box_loss'] = tlc.Schema(description='Box loss',
+    schemas['box_loss'] = tlc.Schema(description='Box Loss',
                                      writable=False,
                                      value=tlc.Float32Value(),
                                      display_importance=3004)
-    schemas['obj_loss'] = tlc.Schema(description='Object loss',
+    schemas['dfl_loss'] = tlc.Schema(description='Distribution Focal Loss',
                                      writable=False,
                                      value=tlc.Float32Value(),
                                      display_importance=3005)
-    schemas['cls_loss'] = tlc.Schema(description='Classification loss',
+    schemas['cls_loss'] = tlc.Schema(description='Classification Loss',
                                      writable=False,
                                      value=tlc.Float32Value(),
                                      display_importance=3006)

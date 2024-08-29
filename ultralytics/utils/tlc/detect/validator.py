@@ -10,7 +10,7 @@ from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import metrics, ops
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_COLUMN_NAME
 from ultralytics.utils.tlc.detect.loss import v8UnreducedDetectionLoss
-from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_det_dataset
+from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_det_dataset, yolo_loss_schemas
 from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
 
 class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
@@ -27,19 +27,23 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
     def build_dataset(self, table, mode="val", batch=None):
         return build_tlc_yolo_dataset(self.args, table, batch, self.data, mode=mode, stride=self.stride, settings=self._settings)
+    
+    def postprocess(self, preds):
+        self._curr_raw_preds = preds
+        return super().postprocess(preds)
 
     def _get_metrics_schemas(self):
         return {
             tlc.PREDICTED_BOUNDING_BOXES: yolo_predicted_bounding_box_schema(self.data["names"]),
+            **yolo_loss_schemas(),
         }
     
     def _compute_3lc_metrics(self, preds, batch):
-
-        loss_tensors = self.loss_fn(self.curr_raw_preds, batch)
-
+        losses = self.loss_fn(self._curr_raw_preds, batch)
         processed_predictions = self._process_detection_predictions(preds, batch)
         return {
             tlc.PREDICTED_BOUNDING_BOXES: processed_predictions,
+            **{k: tensor.mean(dim=1).cpu().numpy() for k, tensor in losses.items()}
         }
     
     def _process_detection_predictions(self, preds, batch):
@@ -99,30 +103,8 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
         return predicted_boxes
     
-    def postprocess(self, preds):
-        # compute per box loss
-        self.curr_raw_preds = preds
-
-        preds, indices = ops.non_max_suppression(
-            preds,
-            self.args.conf,
-            self.args.iou,
-            labels=self.lb,
-            multi_label=True,
-            agnostic=self.args.single_cls or self.args.agnostic_nms,
-            max_det=self.args.max_det,
-            return_indices=True,
-        )
-
-        # select loss values for only the selected boxes
-        self.indices = indices
-
-        return preds
-    
     def _prepare_loss_fn(self, model):
-        if hasattr(model, "model"):
-            _model = model
-        self.loss_fn = v8UnreducedDetectionLoss(_model)
+        self.loss_fn = v8UnreducedDetectionLoss(model.model if hasattr(model.model, "model") else model)
     
     def _add_embeddings_hook(self, model) -> int:
 

@@ -39,7 +39,7 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
     def __call__(self, preds, batch):
         """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
-        feats = preds[1] if isinstance(preds, tuple) else preds
+        feats = preds[1] if isinstance(preds, (list, tuple)) else preds # 3lc: list when using detectionmodel
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
             (self.reg_max * 4, self.nc), 1
         )
@@ -100,6 +100,15 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
         box_loss_full[fg_mask] = box_loss.to(cls_loss.dtype)
         dfl_loss_full[fg_mask] = dfl_loss.to(cls_loss.dtype)
 
-        return {"cls": cls_loss, "box": box_loss_full, "dfl": dfl_loss_full}
+        # Dict if not training
+        cls_weight = self.hyp.cls if hasattr(self.hyp, "cls") else self.hyp["cls"]
+        box_weight = self.hyp.box if hasattr(self.hyp, "box") else self.hyp["box"]
+        dfl_weight = self.hyp.dfl if hasattr(self.hyp, "dfl") else self.hyp["dfl"]
+
+        return {
+            "cls_loss": cls_loss * cls_weight,
+            "box_loss": box_loss_full * box_weight,
+            "dfl_loss": dfl_loss_full * dfl_weight
+        }
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
