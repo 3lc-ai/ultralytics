@@ -88,7 +88,8 @@ class TLCSegmentationValidator(TLCValidatorMixin, SegmentationValidator):
             with io.BytesIO(buffer) as io_buffer:
                 segmentation_url.write(io_buffer.getvalue())
 
-            segmentation_urls.append(segmentation_url.to_str())
+            segmentation_url_relative = segmentation_url.to_relative(self._metrics_writer.url)
+            segmentation_urls.append(segmentation_url_relative.to_str())
 
         return {
             tlc.PREDICTED_MASK: segmentation_urls,
