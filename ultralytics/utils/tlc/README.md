@@ -85,8 +85,8 @@ In addition to tables created with `Table.from_yolo()` (which is called internal
 </details>
 
 <details>
-<summary>Segmentation (not supported)</summary>
-The 3LC integration does not yet support the Segmentation task. Let us know on Discord if you would like us to add it.
+<summary>Segmentation</summary>
+Segmentation is now supported! There are no specific settings or options for segmentation.
 </details>
 
 <details>
