@@ -14,11 +14,14 @@ from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 
+from typing import Iterable
+
 def tlc_check_det_dataset(
         data: str,
         tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
         image_column_name: str,
         label_column_name: str,
+        splits: Iterable[str] | None = ("train", "val", "test", "minival"),
         project_name: str | None = None,
     ) -> dict[str, tlc.Table | dict[float, str] | int]:
     return check_tlc_dataset(
@@ -26,6 +29,7 @@ def tlc_check_det_dataset(
         tables,
         image_column_name,
         label_column_name,
+        splits=splits,
         dataset_checker=check_det_dataset,
         table_creator=get_or_create_det_table,
         table_checker=check_det_table,

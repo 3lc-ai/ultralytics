@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from ultralytics.models.yolo.detect import DetectionTrainer
 
+from ultralytics.utils import LOGGER
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_COLUMN_NAME
 from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, tlc_check_det_dataset
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
@@ -22,8 +23,17 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
             self._tables,
             self._image_column_name,
             self._label_column_name,
+            splits=("train", "val", "test"),
             project_name=self._settings.project_name,
         )
+        # Need at least a 'val' or 'test' split for validation during training
+        if not any(key in self.data for key in ("val", "test")):
+            # Check for 'validation' to match ultralytics/utils.py equivalent check_det_dataset
+            if "validation" in self.data:
+                LOGGER.info("WARNING ⚠️ renaming data YAML 'validation' key to 'val' to match YOLO format.")
+                self.data["val"] = self.data.pop("validation")  # replace 'validation' key with 'val' key
+            else:
+                raise ValueError("A 'val' or 'test' split is required for detection training.")
         return self.data["train"], self.data.get("val") or self.data.get("test")
     
     def build_dataset(self, table, mode="train", batch=None):

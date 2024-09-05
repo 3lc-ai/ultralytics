@@ -7,18 +7,17 @@ import yaml
 from packaging import version
 from pathlib import Path
 
-from .constants import TRAINING_PHASE
-
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION, TLC_PREFIX
+from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION, TLC_PREFIX, TRAINING_PHASE
 
-from typing import Callable
+from typing import Callable, Iterable
 
 def check_tlc_dataset(
     data: str,
     tables: dict[str, tlc.Table | tlc.Url | str] | None,
     image_column_name: str,
     label_column_name: str,
+    splits: Iterable[str] = ("train", "val", "test", "minival"),
     dataset_checker: Callable[[str], dict[str, object]] | None = None,
     table_creator: Callable[[str, dict[str, object], str, str, str, str, str], tlc.Table] | None = None,
     table_checker: Callable[[str, tlc.Table], bool] | None = None,
@@ -51,7 +50,7 @@ def check_tlc_dataset(
         # Get or create tables
         LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from data={data}")
 
-        for key in ("train", "val", "test", "minival"):
+        for key in splits:
             if data_dict.get(key):
                 name = Path(data).stem
                 dataset_name = f"{name}-{key}"
@@ -73,15 +72,20 @@ def check_tlc_dataset(
                     if table_url_backcompatible.exists():
                         table_name = "original"
 
-                table = table_creator(
-                    key,
-                    data_dict,
-                    image_column_name=image_column_name,
-                    label_column_name=label_column_name,
-                    project_name=project_name,
-                    dataset_name=dataset_name,
-                    table_name=table_name
-                )
+                try:
+                    table = table_creator(
+                        key,
+                        data_dict,
+                        image_column_name=image_column_name,
+                        label_column_name=label_column_name,
+                        project_name=project_name,
+                        dataset_name=dataset_name,
+                        table_name=table_name
+                    )
+                except Exception:
+                    # If the table creation fails, log a warning and skip the split
+                    LOGGER.warning(f"Failed to create table for split '{key}', skipping.")
+                    continue
 
                 # Get the latest version when inferring
                 tables[key] = table.latest()
