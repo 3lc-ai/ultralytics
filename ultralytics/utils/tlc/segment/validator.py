@@ -4,6 +4,8 @@ import io
 import numpy as np
 import pathlib
 import tlc
+import torch
+import weakref
 
 from ultralytics.data import build_dataloader
 from ultralytics.models.yolo.segment.val import SegmentationValidator
@@ -95,6 +97,32 @@ class TLCSegmentationValidator(TLCValidatorMixin, SegmentationValidator):
             tlc.PREDICTED_MASK: segmentation_urls,
             tlc.PREDICTED_BOUNDING_BOXES: bb_list,
         }
+
+    def _add_embeddings_hook(self, model) -> int:
+        if hasattr(model.model, "model"):
+            model = model.model
+
+        # Find index of the SPPF layer
+        sppf_index = next((i for i, m in enumerate(model.model) if "SPPF" in m.type), -1)
+
+        if sppf_index == -1:
+            raise ValueError("No SPPF layer found in model, cannot collect embeddings.")
+        
+        weak_self = weakref.ref(self) # Avoid circular reference (self <-> hook_fn)
+        def hook_fn(module, input, output):
+            # Store embeddings
+            self_ref = weak_self()
+            flattened_output = torch.nn.functional.adaptive_avg_pool2d(output, (1, 1)).squeeze(-1).squeeze(-1)
+            embeddings = flattened_output.detach().cpu().numpy()
+            self_ref.embeddings = embeddings
+
+        # Add forward hook to collect embeddings
+        for i, module in enumerate(model.model):
+            if i == sppf_index:
+                self._hook_handles.append(module.register_forward_hook(hook_fn))
+
+        activation_size = model.model[sppf_index]._modules['cv2']._modules['conv'].out_channels
+        return activation_size
 
     def _infer_batch_size(self, preds, batch) -> int:
         return len(batch['im_file'])
