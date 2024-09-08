@@ -35,6 +35,15 @@ class TLCSegmentationValidator(TLCValidatorMixin, SegmentationValidator):
         segmentation_urls = []
         bb_list = []
         for si, (pred, proto) in enumerate(zip(preds[0], preds[1])):
+            img = batch["img"][si]
+            original_image = batch["im_file"][si]
+            original_image_shape = batch["ori_shape"][si]
+            pred[:, :4] = ops.scale_boxes(img.shape[1:], pred[:, :4], original_image_shape)
+            masks = ops.process_mask_native(proto, pred[:, 6:], pred[:, :4], original_image_shape[:2])  # HWC
+            
+            from ultralytics.engine.results import Masks
+
+            result_masks = Masks(masks, original_image_shape)
             pbatch = self._prepare_batch(si, batch)
             cls, bbox = pbatch.pop("cls"), pbatch.pop("bbox")
             predn, pred_masks = self._prepare_pred(pred, pbatch, proto)
@@ -42,20 +51,20 @@ class TLCSegmentationValidator(TLCValidatorMixin, SegmentationValidator):
             conf = predn[:, 4]
             pred_cls = predn[:, 5]
 
-            pred_masks = ops.process_mask_native(proto, pred[:, 6:], pred[:, :4], shape=pbatch["imgsz"])
-            scaled_masks = ops.scale_image(
-                pred_masks.permute(1, 2, 0).contiguous().cpu().numpy(),
-                pbatch["ori_shape"],
-                ratio_pad=batch["ratio_pad"][si],
-            )
+            # pred_masks = ops.process_mask_native(proto, pred[:, 6:], pred[:, :4], shape=pbatch["imgsz"])
+            # scaled_masks = ops.scale_image(
+            #     pred_masks.permute(1, 2, 0).contiguous().cpu().numpy(),
+            #     pbatch["ori_shape"],
+            #     ratio_pad=batch["ratio_pad"][si],
+            # )
 
             shape = batch["ori_shape"][si]
             h, w = shape
 
             pred_boxes_xyxy = predn[:, :4]
             pred_boxes_xywhn = ops.xyxy2xywhn(pred_boxes_xyxy, w=w, h=h)
+            
             bbs = []
-
             output_segmentation = np.zeros(shape=shape, dtype=np.uint8)
             for j in range(len(conf)):
                 if conf[j] > 0.1: # TODO: use setting
@@ -71,15 +80,20 @@ class TLCSegmentationValidator(TLCValidatorMixin, SegmentationValidator):
                     )
 
                     # Segmentation
-                    mh, mw = scaled_masks[...,j].shape
-                    assert mh == h and mw == w, "Mask shape should now be the same as image shape"
-                    mask = scaled_masks[...,j].astype(bool)
-                    output_segmentation[mask] = category # Add one to leave 0 as background
+                    # output_segmentation = cv2.polylines(
+                    #     output_segmentation,
+                    #     pts=[]
+                    # )
+                    # mh, mw = scaled_masks[...,j].shape
+                    # assert mh == h and mw == w, "Mask shape should now be the same as image shape"
+                    # mask = scaled_masks[...,j].astype(bool)
+                    # output_segmentation[mask] = category # Add one to leave 0 as background
         
             # add bbs
             bb_list.append(construct_bbox_struct(bbs, image_width=w, image_height=h))
 
             # write seg to desired location and write the location
+            
             epoch_str = f"epoch_{self._epoch}" if self._epoch is not None else "after"
             image_path = batch['im_file'][si]
             bulk_data_url = self._run.bulk_data_url
