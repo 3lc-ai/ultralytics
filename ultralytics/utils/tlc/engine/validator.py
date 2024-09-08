@@ -142,11 +142,9 @@ class TLCValidatorMixin(BaseValidator):
     def _update_metrics(self, preds, batch):
         """ Update 3LC metrics with common and task-specific metrics"""
         batch_size = self._infer_batch_size(preds, batch)
-        example_indices = list(range(self._seen, self._seen + batch_size))
-        example_ids = [int(self.dataloader.dataset.example_ids[i]) for i in example_indices]
 
         batch_metrics = {
-            tlc.EXAMPLE_ID: example_ids,
+            tlc.EXAMPLE_ID: [int(example_id) for example_id in batch["example_id"]],
             **self._compute_3lc_metrics(preds, batch) # Task specific metrics
         }
 

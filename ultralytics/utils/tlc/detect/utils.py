@@ -72,17 +72,9 @@ def build_tlc_yolo_dataset(
         mode="train",
         rect=False,
         stride=32,
-        multi_modal=False,
-        settings=None,):
+        multi_modal=False):
     if multi_modal:
         return ValueError("Multi-modal datasets are not supported in the 3LC YOLOv8 integration.")
-    
-    if mode=="train":
-        sampling_weights = settings.sampling_weights
-        exclude_zero_weight = settings.exclude_zero_weight_training
-    else:
-        sampling_weights = False # Never use sampling weights for validation
-        exclude_zero_weight = settings.exclude_zero_weight_collection
 
     return TLCYOLODataset(
         table,
@@ -100,8 +92,6 @@ def build_tlc_yolo_dataset(
         classes=cfg.classes,
         data=data,
         fraction=cfg.fraction if mode == "train" else 1.0,
-        sampling_weights=sampling_weights,
-        exclude_zero_weight=exclude_zero_weight,
     )
 
 def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:

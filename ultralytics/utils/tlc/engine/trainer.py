@@ -50,8 +50,6 @@ class TLCTrainerMixin(BaseTrainer):
             self._log_3lc_parameters()
 
             self._print_metrics_collection_epochs()
-
-        self.add_callback("on_train_epoch_start", resample_indices) # Run on all ranks
         
     def _log_3lc_parameters(self):
         """ Log various data as parameters to the tlc.Run. """
@@ -164,8 +162,3 @@ class TLCTrainerMixin(BaseTrainer):
 
     def _process_metrics(self, metrics):
         return metrics
-
-# CALLBACKS ##############################################################################################################
-def resample_indices(trainer):
-    if trainer._settings.sampling_weights:
-        trainer.train_loader.dataset.resample_indices()
