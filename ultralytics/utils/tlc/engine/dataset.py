@@ -33,9 +33,8 @@ class TLCDatasetMixin:
             if not content.get("zero_excluded", True):
                 LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} already verified, skipping scan.")
                 return True
-            elif content.get("zero_excluded", True) and self._exclude_zero_weight:
-                LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} already verified (excluding zero weight samples), skipping scan.")
-                return True
+            elif content.get("zero_excluded", True):
+                LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} only verified for zero weight samples, need to rescan.")
             else:
                 LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} already verified, but scan was not on all images. Re-scanning.")
         
@@ -43,10 +42,9 @@ class TLCDatasetMixin:
     
     def _write_scanned_marker(self):
         verified_marker_url = self.table.url / "cache.yolo"
-        possible_subset_str = "All non-zero weight images" if self._exclude_zero_weight else "All images"
-        LOGGER.info(f"{self.prefix}{possible_subset_str} in {self.table.url.to_str()} are verified. Writing marker file to {verified_marker_url.to_str()} to skip future verification.")
+        LOGGER.info(f"{self.prefix}Images in {self.table.url.to_str()} are verified. Writing marker file to {verified_marker_url.to_str()} to skip future verification.")
         verified_marker_url.write(
-            content=json.dumps({"verified": True, "zero_excluded": self._exclude_zero_weight}),
+            content=json.dumps({"verified": True}),
             mode="s",
             if_exists="overwrite",
         )
