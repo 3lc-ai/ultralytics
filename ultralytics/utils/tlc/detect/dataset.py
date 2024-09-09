@@ -1,13 +1,14 @@
 # Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
 from __future__ import annotations
 
+import cv2
 from multiprocessing.pool import ThreadPool
 import numpy as np
 import tlc
 from itertools import repeat
 
 from ultralytics.data.dataset import YOLODataset
-from ultralytics.data.utils import verify_image
+from ultralytics.data.utils import segments2boxes, verify_image
 from ultralytics.utils import ops
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
 
@@ -17,18 +18,22 @@ from typing import Any
 
 class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
     def __init__(self, table, data=None, task="detect", exclude_zero_weight=None, sampling_weights=None, **kwargs):
-        assert task == "detect", f"Unsupported task: {task} for TLCYOLODataset. Only 'detect' is supported."
+        assert task in ("detect", "segment"), f"Unsupported task: {task} for TLCYOLODataset. 'detect' and 'segment' are supported."
         self.table = table
+        self.task = task
 
-        from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
-        if is_yolo_table(self.table):
-            self._table_format = "YOLO"
-        elif is_coco_table(self.table):
-            self._table_format = "COCO"
+        if task == "detect":
+            from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
+            if is_yolo_table(self.table):
+                self._table_format = "YOLO"
+            elif is_coco_table(self.table):
+                self._table_format = "COCO"
+            else:
+                raise ValueError(f"Unsupported table format for table {table.url}")
         else:
-            raise ValueError(f"Unsupported table format for table {table.url}")
+            self._table_format = None
 
-        self._exclude_zero_weight=exclude_zero_weight
+        self._exclude_zero_weight = exclude_zero_weight
 
         self.example_ids = []
 
@@ -47,7 +52,12 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         for example_id, row in rows:
             self.example_ids.append(example_id)
             self.im_files.append(tlc.Url(row[tlc.IMAGE]).to_absolute().to_str())
-            self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format))
+            if self.task == "detect":
+                self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format))
+            elif self.task == "segment":
+                self.labels.append(tlc_table_row_to_segment_label(row))
+            else:
+                raise ValueError(f"Unsupported task: {self.task} for TLCYOLODataset. 'detect' and 'segment' are supported.")
 
         # Scan images if not already scanned
         if not self._is_scanned():
@@ -118,7 +128,9 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
         self.batch_shapes = np.ceil(np.array(shapes) * self.imgsz / self.stride + self.pad).astype(int) * self.stride
         self.batch = bi  # batch index of image
-    
+
+# Helpers
+
 def unpack_box(bbox: dict[str, int | float]) -> tuple[int | float]:
     return bbox[tlc.LABEL], [bbox[tlc.X0], bbox[tlc.Y0], bbox[tlc.X1], bbox[tlc.Y1]]
 
@@ -156,3 +168,53 @@ def tlc_table_row_to_yolo_label(row, table_format: str) -> dict[str, Any]:
         normalized=True,
         bbox_format="xywh",
     )
+
+def tlc_table_row_to_segment_label(row) -> dict[str, Any]:
+
+    mask = cv2.imread(row["segmentation"], cv2.IMREAD_GRAYSCALE)
+    height, width = mask.shape
+
+    classes, segments = mask_to_polygons(mask)
+
+    # Compute bounding boxes from segments
+    if segments:
+        bboxes = segments2boxes(segments)
+    else:
+        bboxes = np.zeros((0, 4), dtype=np.float32)
+
+    return dict(
+        im_file=tlc.Url(row[tlc.IMAGE]).to_absolute().to_str(),
+        shape=(height, width),  # format: (height, width)
+        cls=np.array(classes).reshape(-1, 1),
+        bboxes=bboxes,
+        segments=segments,
+        keypoints=None,
+        normalized=True,
+        bbox_format="xywh",
+    )
+
+def mask_to_polygons(mask: np.ndarray):
+    unique_classes = np.unique(mask)
+    unique_classes = unique_classes[unique_classes != 0] # Remove background class (zero)
+
+    classes = []
+    segments = []
+    # Keep track of which class is being processed
+    for cls in unique_classes:
+        # Find all contours for the current class
+        contours, _ = cv2.findContours((mask == cls).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            # If area is too small, skip
+            if cv2.contourArea(contour) <= 10:
+                continue
+
+            # To relative
+            contour = contour.squeeze().astype(np.float32)
+            contour[:,0] /= mask.shape[1]
+            contour[:,1] /= mask.shape[0]
+
+            segments.append(contour)
+            classes.append(cls-1) # Subtract one since 0 is background and yolo classes start from 0
+    
+    return classes, segments
+    

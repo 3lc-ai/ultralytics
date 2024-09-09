@@ -117,7 +117,12 @@ def check_tlc_dataset(
             LOGGER.info(f"   - {key}: {tables[key].url}")
     
     first_split = next(iter(tables.keys()))
-    value_map = tables[first_split].get_value_map(label_column_name)
+    # TODO: get_value_map() doesn't work for this segmentation ds?
+    if label_column_name == "segmentation":
+        value_map = tables[first_split].rows_schema.values['segmentation'].value.map
+        value_map = {k - 1: v for k, v in value_map.items()}
+    else:
+        value_map = tables[first_split].get_value_map(label_column_name)
     names = {int(k): v['internal_name'] for k, v in value_map.items()}
 
     return {**tables, "names": names, "nc": len(names)}
