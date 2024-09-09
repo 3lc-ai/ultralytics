@@ -42,7 +42,7 @@ tlc.TableIndexingTable.instance().add_scan_url(
 
 def test_detect_training() -> None:
     # End-to-end test of detection
-    overrides = {"data": "coco8.yaml", "epochs": 1, "device": "cpu", "save": False, "plots": False}
+    overrides = {"data": "coco8.yaml", "epochs": 1, "batch": 4, "device": "cpu", "save": False, "plots": False}
 
     # Compare results from 3LC with ultralytics
     model_ultralytics = YOLO("yolov8n.pt")
