@@ -15,7 +15,7 @@ class TLCDatasetMixin:
 
         assert hasattr(self, "table") and isinstance(self.table, tlc.Table), "TLCDatasetMixin requires an attribute `table` which is a tlc.Table."
         if not hasattr(self, "example_ids"):
-            self.example_ids = np.arange(len(self.table.table_rows))
+            self.example_ids = np.arange(len(self.table))
 
     def __getitem__(self, index):
         sample = super().__getitem__(index)
