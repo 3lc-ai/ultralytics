@@ -24,7 +24,7 @@ import pandas as pd
 import pytest
 import tlc
 
-from ultralytics.utils.tlc import TLCYOLO, Settings
+from ultralytics.utils.tlc import Settings, TLCYOLO
 from ultralytics.models.yolo import YOLO
 
 from tests import TMP
@@ -87,6 +87,16 @@ def test_detect_training() -> None:
 
     assert 0 in metrics_df["Training Phase"], "Expected metrics from during training"
     assert 1 in metrics_df["Training Phase"], "Expected metrics from after training"
+
+def test_detect_metrics_collection() -> None:
+    overrides = {"device": "cpu"}
+    model = TLCYOLO("yolov8n.pt")
+    settings = Settings()
+
+    splits = ("train", "val")
+    results_dict = model.collect(data="coco8.yaml", splits=splits, settings=settings, **overrides)
+    assert all(results_dict[split] for split in splits), "Metrics collection failed"
+    # TODO: Test run created and looks as expected
 
 def test_illegal_reducer() -> None:
     settings = Settings(image_embeddings_dim=2, image_embeddings_reducer="illegal_reducer")
