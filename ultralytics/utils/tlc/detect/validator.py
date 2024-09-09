@@ -28,7 +28,7 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1, sampler=sampler)
 
     def build_dataset(self, table, mode="val", batch=None):
-        return build_tlc_yolo_dataset(self.args, table, batch, self.data, mode=mode, stride=self.stride, settings=self._settings)
+        return build_tlc_yolo_dataset(self.args, table, batch, self.data, mode=mode, stride=self.stride)
 
     def _get_metrics_schemas(self):
         return {
