@@ -110,7 +110,7 @@ class Settings:
         if self.collection_epoch_start is None:
             return []
 
-        if self.collection_epoch_start >= epochs:
+        if self.collection_epoch_start > epochs:
             return []
 
         # If start is less than one, we don't collect during training
