@@ -130,6 +130,18 @@ def test_classify_training() -> None:
     assert embeddings_column_name in metrics_df.columns, "Expected embeddings column missing"
     assert len(metrics_df[embeddings_column_name][0]) == settings.image_embeddings_dim, "Embeddings dimension mismatch"
 
+    # Test metrics collection only here with the same weights (since there are no readily available pretrained weights for the ten-class case)
+    best = results_3lc.save_dir / "weights" / "best.pt"
+    best_model = TLCYOLO(best)
+    results_dict = best_model.collect(
+        data=TASK2DATASET["classify"],
+        splits=("train", "val"),
+        settings=settings,
+    )
+
+    assert results_dict[
+        "val"].results_dict == results_ultralytics.results_dict, "Results validation metrics collection onlywith  3LC different from Ultralytics"
+
 
 @pytest.mark.parametrize("task", ["detect"])
 def test_metrics_collection_only(task) -> None:
