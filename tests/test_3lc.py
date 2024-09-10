@@ -254,9 +254,9 @@ def test_sampling_weights() -> None:
     # Check other samples are sampled within [0.45, 0.55] of the time of the first
     counts = np.bincount(sampled_example_ids)
     relative_counts = counts[1:] / counts[0]
-    assert np.isclose(
-        relative_counts[0],
-        0.5,
+    assert np.allclose(
+        relative_counts,
+        np.ones_like(relative_counts) * 0.5,
         atol=0.05,
     ), f"First sample should be sampled twice as often as others, got {counts}"
 
