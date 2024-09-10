@@ -4,6 +4,7 @@ import pytest
 import tlc
 
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCDetectionTrainer
+from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION
 from ultralytics.models.yolo import YOLO
 
 from tests import TMP
@@ -109,6 +110,7 @@ def test_classify_training() -> None:
     run = _get_run_from_settings(settings)
 
     assert run.status == tlc.RUN_STATUS_COMPLETED, "Run status not set to completed after training"
+    assert not run.description, "Description mismatch, default should be empty string"
 
     assert len(run.metrics_tables) == 6  # Two passes after epochs 2 and 3, and after training
 
@@ -147,12 +149,15 @@ def test_classify_training() -> None:
 def test_metrics_collection_only(task) -> None:
     overrides = {"device": "cpu"}
     model = TLCYOLO(TASK2MODEL[task])
-    settings = Settings(project_name=f"test_{task}_collect", )
+    settings = Settings(project_name=f"test_{task}_collect", run_name=f"test_{task}_collect")
 
     splits = ("train", "val")
     results_dict = model.collect(data=TASK2DATASET[task], splits=splits, settings=settings, **overrides)
     assert all(results_dict[split] for split in splits), "Metrics collection failed"
-    # TODO: Test run created and looks as expected
+
+    run = _get_run_from_settings(settings)
+    assert run.status == tlc.RUN_STATUS_COMPLETED, "Run status not set to completed after training"
+    assert run.description == DEFAULT_COLLECT_RUN_DESCRIPTION, "Description mismatch"
 
 
 def test_train_collection_val_only() -> None:

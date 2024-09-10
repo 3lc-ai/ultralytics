@@ -5,7 +5,7 @@ import tlc
 
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR
+from ultralytics.utils.tlc.constants import TLC_COLORSTR, DEFAULT_COLLECT_RUN_DESCRIPTION
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
 
@@ -86,7 +86,7 @@ class TLCValidatorMixin(BaseValidator):
                 self._run = tlc.init(
                     project_name=project_name,
                     description=self._settings.run_description
-                    if self._settings.run_description else "Created with 3LC Ultralytics Integration",
+                    if self._settings.run_description else DEFAULT_COLLECT_RUN_DESCRIPTION,
                     run_name=self._settings.run_name,
                 )
 
