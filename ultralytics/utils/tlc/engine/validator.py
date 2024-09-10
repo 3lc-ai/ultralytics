@@ -80,9 +80,14 @@ class TLCValidatorMixin(BaseValidator):
                     f"{TLC_COLORSTR}Reusing active run named '{self._run.url.parts[-1]}' in project {self._run.project_name}."
                 )
             else:
-                first_split = list(self.data.keys())[0]
-                project_name = self._settings.project_name if self._settings.project_name else self.data[
-                    first_split].project_name
+                if self._settings.project_name:
+                    project_name = self._settings.project_name
+                else:
+                    first_split = list(self.data.keys())[0]
+                    project_name = self.data[first_split].project_name
+                    LOGGER.info(
+                        f"{TLC_COLORSTR}Using project name '{project_name}' from the provided table to create run.")
+
                 self._run = tlc.init(
                     project_name=project_name,
                     description=self._settings.run_description

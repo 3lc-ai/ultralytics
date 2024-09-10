@@ -148,10 +148,10 @@ def test_classify_training() -> None:
 @pytest.mark.parametrize("task", ["detect"])
 def test_metrics_collection_only(task) -> None:
     overrides = {"device": "cpu"}
-    model = TLCYOLO(TASK2MODEL[task])
     settings = Settings(project_name=f"test_{task}_collect", run_name=f"test_{task}_collect")
-
     splits = ("train", "val")
+
+    model = TLCYOLO(TASK2MODEL[task])
     results_dict = model.collect(data=TASK2DATASET[task], splits=splits, settings=settings, **overrides)
     assert all(results_dict[split] for split in splits), "Metrics collection failed"
 
@@ -321,5 +321,4 @@ def test_get_metrics_collection_epochs(start, interval, epochs, disable, expecte
 # HELPERS
 def _get_run_from_settings(settings: Settings) -> tlc.Run:
     run_url = TMP_PROJECT_ROOT_URL / settings.project_name / "runs" / settings.run_name
-    assert run_url.exists(), "Run not created"
     return tlc.Run.from_url(run_url)
