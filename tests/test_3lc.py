@@ -235,6 +235,7 @@ def test_sampling_weights() -> None:
     # Test that sampling weights are correctly applied, with worker processes enabled
     settings = Settings(project_name="test_sampling_weights", sampling_weights=True)
     trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 4})
+    epochs = 1000
 
     # Create edited table where one sample has weight increased to 2
     edited_table = tlc.EditedTable(
@@ -247,7 +248,7 @@ def test_sampling_weights() -> None:
     dataloader = trainer.get_dataloader(edited_table, batch_size=2, rank=-1)
 
     sampled_example_ids = []
-    for epoch in range(1000):
+    for epoch in range(epochs):
         for batch in dataloader:
             sampled_example_ids.extend(batch["example_id"])
 
@@ -256,9 +257,10 @@ def test_sampling_weights() -> None:
     relative_counts = counts[1:] / counts[0]
     assert np.allclose(
         relative_counts,
-        np.ones_like(relative_counts) * 0.5,
+        np.full_like(relative_counts, 0.5),
         atol=0.05,
     ), f"First sample should be sampled twice as often as others, got {counts}"
+    assert len(sampled_example_ids) == len(edited_table) * epochs, "Expected no change in the number of samples"
 
 
 def test_exclude_zero_weight() -> None:
