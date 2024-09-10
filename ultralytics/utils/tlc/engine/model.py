@@ -85,4 +85,6 @@ class TLCYOLO(YOLO):
                 n_components=settings.image_embeddings_dim,
             )
 
+        tlc.active_run().set_status_completed()
+
         return results_dict
