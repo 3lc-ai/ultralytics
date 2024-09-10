@@ -83,17 +83,6 @@ def test_detect_training() -> None:
     assert 1 in metrics_df["Training Phase"], "Expected metrics from after training"
 
 
-def test_detect_metrics_collection() -> None:
-    overrides = {"device": "cpu"}
-    model = TLCYOLO("yolov8n.pt")
-    settings = Settings(project="test_detect_project", )
-
-    splits = ("train", "val")
-    results_dict = model.collect(data=TASK2DATASET["detect"], splits=splits, settings=settings, **overrides)
-    assert all(results_dict[split] for split in splits), "Metrics collection failed"
-    # TODO: Test run created and looks as expected
-
-
 def test_classify_training() -> None:
     model = TASK2MODEL["classify"]
     overrides = {"data": TASK2DATASET["classify"], "device": "cpu", "epochs": 3, "batch": 64, "imgsz": 32}
@@ -142,6 +131,18 @@ def test_classify_training() -> None:
     assert len(metrics_df[embeddings_column_name][0]) == settings.image_embeddings_dim, "Embeddings dimension mismatch"
 
 
+@pytest.mark.parametrize("task", ["detect"])
+def test_metrics_collection_only(task) -> None:
+    overrides = {"device": "cpu"}
+    model = TLCYOLO(TASK2MODEL[task])
+    settings = Settings(project_name=f"test_{task}_collect", )
+
+    splits = ("train", "val")
+    results_dict = model.collect(data=TASK2DATASET[task], splits=splits, settings=settings, **overrides)
+    assert all(results_dict[split] for split in splits), "Metrics collection failed"
+    # TODO: Test run created and looks as expected
+
+
 def test_train_collection_val_only() -> None:
     task = "classify"
     model_arg = TASK2MODEL[task]
@@ -170,8 +171,8 @@ def test_train_collection_disabled() -> None:
 
     settings = Settings(
         collection_disable=True,
-        project_name="test_train_collect_val_only",
-        run_name="test_train_collect_val_only",
+        project_name="test_train_collection_disabled",
+        run_name="test_train_collection_disabled",
     )
     model.train(**overrides, settings=settings)
 
