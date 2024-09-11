@@ -1,6 +1,7 @@
 # Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
 from __future__ import annotations
 
+import numpy as np
 import tlc
 
 from ultralytics.engine.validator import BaseValidator
@@ -234,13 +235,26 @@ class TLCValidatorMixin(BaseValidator):
         self._final_validation = None
 
     def _write_per_class_metrics_tables(self) -> None:
-        class_schema = tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema
+        if self.args.task != "detect":
+            # Per-class metrics currently only supported for detection task
+            return
+
+        split_schema = tlc.Schema(
+            value=tlc.Int32Value(
+                value_min=0,
+                value_max=0,
+                value_map={
+                    0.0: tlc.MapElement(url=self.dataloader.dataset.table.url.to_str()),
+                },
+            )
+        )
+
         metrics_writer = tlc.MetricsTableWriter(
             run_url=self._run.url,
             column_schemas={
                 "training_phase": training_phase_schema(),
-                "split": split_schema(),
-                "class": class_schema,
+                "table": split_schema,
+                "class": tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema,
                 "num_images": tlc.Schema(
                     value=tlc.Int32Value(),
                     description="Number of images with at least one instance of the class",
@@ -271,7 +285,6 @@ class TLCValidatorMixin(BaseValidator):
         epoch = self._epoch + 1 if self._epoch is not None else -1
         num_classes = self.nc + 1  # all classes plus "all"
         training_phase = 1 if self._final_validation else 0
-        split = 0 if "train" in self.dataloader.dataset.table.dataset_name else 1
 
         precisions = []
         recalls = []
@@ -298,7 +311,7 @@ class TLCValidatorMixin(BaseValidator):
         metrics_batch = {
             "epoch": [epoch] * num_classes,
             "training_phase": [training_phase] * num_classes,
-            "split": [split] * num_classes,
+            "table": [0] * num_classes,
             "class": list(range(num_classes)),
             "precision": [float(p) for p in precisions],
             "recall": [float(r) for r in recalls],
