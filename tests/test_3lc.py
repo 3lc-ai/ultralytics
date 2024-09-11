@@ -43,6 +43,7 @@ def test_detect_training() -> None:
 
     settings = Settings(
         collection_epoch_start=1,
+        collect_loss=True,
         image_embeddings_dim=2,
         image_embeddings_reducer="pacmap",
         project_name="test_detect_project",
@@ -148,7 +149,7 @@ def test_classify_training() -> None:
 @pytest.mark.parametrize("task", ["detect"])
 def test_metrics_collection_only(task) -> None:
     overrides = {"device": "cpu"}
-    settings = Settings(project_name=f"test_{task}_collect", run_name=f"test_{task}_collect")
+    settings = Settings(project_name=f"test_{task}_collect", run_name=f"test_{task}_collect", collect_loss=True)
     splits = ("train", "val")
 
     model = TLCYOLO(TASK2MODEL[task])

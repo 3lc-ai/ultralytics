@@ -33,16 +33,19 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         return build_tlc_yolo_dataset(self.args, table, batch, self.data, mode=mode, stride=self.stride)
 
     def postprocess(self, preds):
-        self._curr_raw_preds = preds
+        self._curr_raw_preds = preds if self._settings.collect_loss else None
         return super().postprocess(preds)
 
     def _get_metrics_schemas(self):
+        loss_schemas = yolo_loss_schemas(training=self._training) if self._settings.collect_loss else {}
+
         return {
             tlc.PREDICTED_BOUNDING_BOXES: yolo_predicted_bounding_box_schema(self.data["names"]),
-            **yolo_loss_schemas(), }
+            **loss_schemas, }
 
     def _compute_3lc_metrics(self, preds, batch):
-        losses = self.loss_fn(self._curr_raw_preds, batch)
+        losses = self.loss_fn(self._curr_raw_preds, batch) if self._settings.collect_loss else {}
+
         processed_predictions = self._process_detection_predictions(preds, batch)
         return {
             tlc.PREDICTED_BOUNDING_BOXES: processed_predictions,
@@ -108,7 +111,8 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         return predicted_boxes
 
     def _prepare_loss_fn(self, model):
-        self.loss_fn = v8UnreducedDetectionLoss(model.model if hasattr(model.model, "model") else model)
+        self.loss_fn = v8UnreducedDetectionLoss(model.model if hasattr(model.model, "model") else model,
+                                                training=self._training)
 
     def _add_embeddings_hook(self, model) -> int:
 

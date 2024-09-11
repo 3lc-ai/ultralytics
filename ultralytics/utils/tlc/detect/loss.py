@@ -6,7 +6,9 @@ from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from ultralytics.utils.metrics import bbox_iou
 from ultralytics.utils.tal import bbox2dist, make_anchors
 
+
 class UnreducedBboxLoss(BboxLoss):
+
     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
         """IoU loss."""
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
@@ -28,21 +30,23 @@ class UnreducedBboxLoss(BboxLoss):
 
         return loss_iou, loss_dfl
 
+
 class v8UnreducedDetectionLoss(v8DetectionLoss):
-    def __init__(self, model, tal_topk=10):
+
+    def __init__(self, model, tal_topk=10, training=False):
         super().__init__(model, tal_topk=tal_topk)
-        
+
         # Override with unreduced BboxLoss
         m = model.model[-1]  # Detect() module
         self.bbox_loss = UnreducedBboxLoss(m.reg_max)
+        self.training = training
 
     def __call__(self, preds, batch):
         """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
-        feats = preds[1] if isinstance(preds, (list, tuple)) else preds # 3lc: list when using detectionmodel
+        feats = preds[1] if isinstance(preds, (list, tuple)) else preds  # 3lc: list when using detectionmodel
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
-            (self.reg_max * 4, self.nc), 1
-        )
+            (self.reg_max * 4, self.nc), 1)
 
         pred_scores = pred_scores.permute(0, 2, 1).contiguous()
         pred_distri = pred_distri.permute(0, 2, 1).contiguous()
@@ -86,29 +90,27 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
             # loss[0], loss[2] = self.bbox_loss(
             #     pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
             # )
-            box_loss, dfl_loss = self.bbox_loss(
-                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
-            )
+            box_loss, dfl_loss = self.bbox_loss(pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores,
+                                                target_scores_sum, fg_mask)
 
         # loss[0] *= self.hyp.box  # box gain
         # loss[1] *= self.hyp.cls  # cls gain
         # loss[2] *= self.hyp.dfl  # dfl gain
-            
+
         box_loss_full = torch.zeros_like(cls_loss)
         dfl_loss_full = torch.zeros_like(cls_loss)
 
-        box_loss_full[fg_mask] = box_loss.to(cls_loss.dtype)
-        dfl_loss_full[fg_mask] = dfl_loss.to(cls_loss.dtype)
+        box_loss_full[fg_mask] = box_loss.to(cls_loss.dtype).squeeze()
+        dfl_loss_full[fg_mask] = dfl_loss.to(cls_loss.dtype).squeeze()
 
-        # Dict if not training
-        cls_weight = self.hyp.cls if hasattr(self.hyp, "cls") else self.hyp["cls"]
-        box_weight = self.hyp.box if hasattr(self.hyp, "box") else self.hyp["box"]
-        dfl_weight = self.hyp.dfl if hasattr(self.hyp, "dfl") else self.hyp["dfl"]
+        losses = {"cls_loss": cls_loss, "box_loss": box_loss_full, "dfl_loss": dfl_loss_full}
 
-        return {
-            "cls_loss": cls_loss * cls_weight,
-            "box_loss": box_loss_full * box_weight,
-            "dfl_loss": dfl_loss_full * dfl_weight
-        }
+        if self.training:
+            cls_weight = self.hyp.cls if hasattr(self.hyp, "cls") else self.hyp["cls"]
+            box_weight = self.hyp.box if hasattr(self.hyp, "box") else self.hyp["box"]
+            dfl_weight = self.hyp.dfl if hasattr(self.hyp, "dfl") else self.hyp["dfl"]
+            losses["loss"] = cls_loss * cls_weight + box_loss_full * box_weight + dfl_loss_full * dfl_weight
 
-        return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
+        return losses
+
+        # return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
