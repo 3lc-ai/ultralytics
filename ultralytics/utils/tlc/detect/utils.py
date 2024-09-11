@@ -147,7 +147,7 @@ def yolo_loss_schemas(training: bool = False) -> dict[str, tlc.Schema]:
                                      value=tlc.Float32Value(),
                                      display_importance=3006)
     if training:
-        schemas['loss'] = tlc.Schema(description='Weighted Sum of Box, DFL, and Classification Losses used in training',
+        schemas['loss'] = tlc.Schema(description='Weighted sum of box, DFL, and classification losses used in training',
                                      writable=False,
                                      value=tlc.Float32Value(),
                                      display_importance=3007)
