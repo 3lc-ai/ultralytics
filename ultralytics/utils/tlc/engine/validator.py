@@ -283,30 +283,10 @@ class TLCValidatorMixin(BaseValidator):
         )
 
         epoch = self._epoch + 1 if self._epoch is not None else -1
-        num_classes = self.nc + 1  # all classes plus "all"
         training_phase = 1 if self._final_validation else 0
+        num_classes = self.nc + 1  # all classes plus "all"
 
-        precisions = []
-        recalls = []
-        mAPs = []
-        mAP50_95s = []
-
-        for i in range(self.nc):
-            if i in self.metrics.ap_class_index:
-                p, r, ap50, ap5090 = self.metrics.class_result(np.where(self.metrics.ap_class_index == i)[0][0])
-            else:
-                p, r, ap50, ap5090 = 0, 0, 0, 0
-
-            precisions.append(p)
-            recalls.append(r)
-            mAPs.append(ap50)
-            mAP50_95s.append(ap5090)
-
-        all_p, all_r, all_mAP50, all_mAP50_95 = self.metrics.mean_results()
-        precisions.append(all_p)
-        recalls.append(all_r)
-        mAPs.append(all_mAP50)
-        mAP50_95s.append(all_mAP50_95)
+        metrics = self._generate_metrics()
 
         metrics_batch = {
             "epoch": [epoch] * num_classes,
@@ -319,11 +299,46 @@ class TLCValidatorMixin(BaseValidator):
             "mAP50-95": [float(m) for m in mAP50_95s],
             "num_instances": np.append(self.nt_per_class, self.nt_per_class.sum()),
             "num_images": np.append(self.nt_per_image, self.seen),
+            **metrics,
         }
 
         metrics_writer.add_batch(metrics_batch)
         metrics_writer.finalize()
         self._run.update_metrics(metrics_writer.get_written_metrics_infos())
+
+    def _generate_metrics(self):
+        """Transform metrics from self.metrics to a format suitable for 3LC"""
+        # Consider moving this to TLCDetectionValidator when supporting other tasks
+        precisions = np.zeros(self.nc + 1)
+        recalls = np.zeros(self.nc + 1)
+        mAPs = np.zeros(self.nc + 1)
+        mAP50_95s = np.zeros(self.nc + 1)
+
+        for i in range(self.nc):
+            if i in self.metrics.ap_class_index:
+                p, r, ap50, ap5095 = self.metrics.class_result(np.where(self.metrics.ap_class_index == i)[0][0])
+            else:
+                p, r, ap50, ap5095 = 0.0, 0.0, 0.0, 0.0
+
+            precisions[i] = p
+            recalls[i] = r
+            mAPs[i] = ap50
+            mAP50_95s[i] = ap5095
+
+        all_p, all_r, all_mAP50, all_mAP50_95 = self.metrics.mean_results()
+
+        precisions[self.nc] = all_p
+        recalls[self.nc] = all_r
+        mAPs[self.nc] = all_mAP50
+        mAP50_95s[self.nc] = all_mAP50_95
+
+        return {
+            "precision": precisions,
+            "recall": recalls,
+            "mAP": mAPs,
+            "mAP50-95": mAP50_95s,
+        }
+
     def _verify_model_data_compatibility(self, model_class_names):
         """ Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
         that the order of the class names match and that they have the same number of classes."""
