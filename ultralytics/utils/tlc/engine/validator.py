@@ -72,29 +72,26 @@ class TLCValidatorMixin(BaseValidator):
 
         # Create a run if not provided
         if self._run is None:
-            if tlc.active_run() is not None:
-                # TODO: Match against provided project name / run name / description
-                self._run = tlc.active_run()
+            # Reuse active run only if it has the same project name (if a different run is active)
+            if self._settings.project_name:
+                project_name = self._settings.project_name
+            else:
+                first_split = list(self.data.keys())[0]
+                project_name = self.data[first_split].project_name
+                LOGGER.info(f"{TLC_COLORSTR}Using project name '{project_name}' from the provided table to create run.")
 
+            if tlc.active_run() and tlc.active_run().project_name == project_name:
+                self._run = tlc.active_run()
                 LOGGER.info(
-                    f"{TLC_COLORSTR}Reusing active run named '{self._run.url.parts[-1]}' in project {self._run.project_name}."
+                    f"{TLC_COLORSTR}Using active run named '{self._run.url.parts[-1]}' in project {self._run.project_name}."
                 )
             else:
-                if self._settings.project_name:
-                    project_name = self._settings.project_name
-                else:
-                    first_split = list(self.data.keys())[0]
-                    project_name = self.data[first_split].project_name
-                    LOGGER.info(
-                        f"{TLC_COLORSTR}Using project name '{project_name}' from the provided table to create run.")
-
                 self._run = tlc.init(
                     project_name=project_name,
                     description=self._settings.run_description
                     if self._settings.run_description else DEFAULT_COLLECT_RUN_DESCRIPTION,
                     run_name=self._settings.run_name,
                 )
-
                 LOGGER.info(
                     f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
