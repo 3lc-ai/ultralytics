@@ -155,7 +155,10 @@ def test_metrics_collection_only(task) -> None:
     results_dict = model.collect(data=TASK2DATASET[task], splits=splits, settings=settings, **overrides)
     assert all(results_dict[split] for split in splits), "Metrics collection failed"
 
-    run = _get_run_from_settings(settings)
+    run_urls = [results_dict[split].run_url for split in splits]
+    assert run_urls[0] == run_urls[1], "Expected same run URL for both splits"
+
+    run = tlc.Run.from_url(run_urls[0])
     assert run.status == tlc.RUN_STATUS_COMPLETED, "Run status not set to completed after training"
     assert run.description == DEFAULT_COLLECT_RUN_DESCRIPTION, "Description mismatch"
 

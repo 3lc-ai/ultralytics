@@ -95,6 +95,8 @@ class TLCValidatorMixin(BaseValidator):
                 LOGGER.info(
                     f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
+        self.metrics.run_url = self._run.url
+
     def __call__(self, trainer=None, model=None):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
 
