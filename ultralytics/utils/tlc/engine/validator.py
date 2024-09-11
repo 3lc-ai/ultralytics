@@ -108,6 +108,7 @@ class TLCValidatorMixin(BaseValidator):
         # Call parent to perform the validation
         out = super().__call__(trainer, model)
 
+        self._write_per_class_metrics_tables()
         self._post_validation()
 
         return out
@@ -232,6 +233,84 @@ class TLCValidatorMixin(BaseValidator):
         self._training_phase = None
         self._final_validation = None
 
+    def _write_per_class_metrics_tables(self) -> None:
+        class_schema = tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema
+        metrics_writer = tlc.MetricsTableWriter(
+            run_url=self._run.url,
+            column_schemas={
+                "training_phase": training_phase_schema(),
+                "split": split_schema(),
+                "class": class_schema,
+                "num_images": tlc.Schema(
+                    value=tlc.Int32Value(),
+                    description="Number of images with at least one instance of the class",
+                ),
+                "num_instances": tlc.Schema(
+                    value=tlc.Int32Value(),
+                    description="Total number of instances of the class in all images",
+                ),
+                "precision": tlc.Schema(
+                    value=tlc.Float32Value(),
+                    description="Precision of the class",
+                ),
+                "recall": tlc.Schema(
+                    value=tlc.Float32Value(),
+                    description="Recall of the class",
+                ),
+                "mAP": tlc.Schema(
+                    value=tlc.Float32Value(),
+                    description="mAP of the class",
+                ),
+                "mAP50-95": tlc.Schema(
+                    value=tlc.Float32Value(),
+                    description="mAP50-95 of the class",
+                ),
+            },
+        )
+
+        epoch = self._epoch + 1 if self._epoch is not None else -1
+        num_classes = self.nc + 1  # all classes plus "all"
+        training_phase = 1 if self._final_validation else 0
+        split = 0 if "train" in self.dataloader.dataset.table.dataset_name else 1
+
+        precisions = []
+        recalls = []
+        mAPs = []
+        mAP50_95s = []
+
+        for i in range(self.nc):
+            if i in self.metrics.ap_class_index:
+                p, r, ap50, ap5090 = self.metrics.class_result(np.where(self.metrics.ap_class_index == i)[0][0])
+            else:
+                p, r, ap50, ap5090 = 0, 0, 0, 0
+
+            precisions.append(p)
+            recalls.append(r)
+            mAPs.append(ap50)
+            mAP50_95s.append(ap5090)
+
+        all_p, all_r, all_mAP50, all_mAP50_95 = self.metrics.mean_results()
+        precisions.append(all_p)
+        recalls.append(all_r)
+        mAPs.append(all_mAP50)
+        mAP50_95s.append(all_mAP50_95)
+
+        metrics_batch = {
+            "epoch": [epoch] * num_classes,
+            "training_phase": [training_phase] * num_classes,
+            "split": [split] * num_classes,
+            "class": list(range(num_classes)),
+            "precision": [float(p) for p in precisions],
+            "recall": [float(r) for r in recalls],
+            "mAP": [float(m) for m in mAPs],
+            "mAP50-95": [float(m) for m in mAP50_95s],
+            "num_instances": np.append(self.nt_per_class, self.nt_per_class.sum()),
+            "num_images": np.append(self.nt_per_image, self.seen),
+        }
+
+        metrics_writer.add_batch(metrics_batch)
+        metrics_writer.finalize()
+        self._run.update_metrics(metrics_writer.get_written_metrics_infos())
     def _verify_model_data_compatibility(self, model_class_names):
         """ Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
         that the order of the class names match and that they have the same number of classes."""
