@@ -23,8 +23,7 @@ cd ultralytics
 python -m venv .venv
 source .venv/bin/activate # or .venv/Scripts/activate in Git Bash / Windows
 pip install -e . # install the local ultralytics fork package
-pip install 3lc # install 3lc
-pip install pacmap # or umap-learn (only required for embeddings collection)
+pip install pacmap # or umap-learn (optional, only required for embeddings collection)
 ```
 
 In order to create a `tlc.Run` with the integration, instantiate `TLCYOLO` (instead of `YOLO`) and call the method `.train()` like usual:
@@ -50,6 +49,8 @@ model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset S
 </details>
 
 In the background, 3LC will create `tlc.Table`s and collect metrics with the trained model after training completes, which can be opened in the 3LC Dashboard.
+
+> **⚠️ NOTE:** Make sure not to have your calling script in the same directory as the cloned `ultralytics` repository. If they are in the same directory, Python will directly import the module instead of the installed package, causing `import ultralytics` to fail.
 
 ## Dataset specification
 

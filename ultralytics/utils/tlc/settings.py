@@ -13,47 +13,53 @@ from ultralytics.utils.tlc.constants import TLC_COLORSTR
 
 @dataclass
 class Settings:
-    """ Settings dataclass for the 3LC integration. Defines and handles user settings for the 3LC integration.
+    """Settings dataclass for the 3LC integration.
 
+    Defines and handles user settings for the 3LC integration.
     Supports parsing values from environment variables.
     """
-    conf_thres: float = field(default=0.1, metadata={'description': 'Confidence threshold for detections'})
-    max_det: int = field(default=300, metadata={'description': 'Maximum number of detections collected per image'})
-    project_name: str | None = field(default=None, metadata={'description': 'The name of the 3LC project'})
-    run_name: str | None = field(default=None, metadata={'description': 'The name of the 3LC run'})
-    run_description: str | None = field(default=None, metadata={'description': 'The description of the 3LC run'})
-    image_embeddings_dim: int = field(
-        default=0,
-        metadata={
-            'description':
-            'Image embeddings dimension. 0 means no embeddings, 2 means 2D embeddings, 3 means 3D embeddings'})
-    image_embeddings_reducer: str = field(
-        default='pacmap',
-        metadata={
-            'description':
-            'Reduction algorithm for image embeddings. Options: pacmap and umap. Only used if IMAGE_EMBEDDINGS_DIM > 0'
-        })
-    sampling_weights: bool = field(default=False, metadata={'description': 'Whether to use 3LC Sampling Weights'})
-    exclude_zero_weight_training: bool = field(
-        default=False, metadata={"description": "Whether to exclude zero-weighted samples in training."}
-    )
-    exclude_zero_weight_collection: bool = field(
-        default=False, metadata={"description": "Whether to exclude zero-weighted samples in metrics collection."}
-    )
-    # TODO: Restore when loss is supported.
-    # collect_loss: bool = field(default=False,
-    #                            metadata={'description': 'Whether to collect loss values during training'})
-    collection_val_only: bool = field(default=False,
-                                      metadata={'description': 'Whether to collect metrics only on the val set'})
-    collection_disable: bool = field(default=False,
-                                     metadata={'description': 'Whether to disable 3LC metrics collection entirely'})
-    collection_epoch_start: int | None = field(default=None,
-                                               metadata={'description': 'Start epoch for collection during training (1 is after the first epoch)'})
-    collection_epoch_interval: int = field(default=1,
-                                           metadata={
-                                               'description':
-                                               'Epoch interval for collection. Only used if a starting epoch is set'})
 
+    conf_thres: float = field(default=0.1)
+    """Confidence threshold for detections. Default: 0.1"""
+
+    max_det: int = field(default=300)
+    """Maximum number of detections collected per image. Default: 300"""
+
+    project_name: str | None = field(default=None)
+    """The name of the 3LC project. Default: None"""
+
+    run_name: str | None = field(default=None)
+    """The name of the 3LC run. Default: None"""
+
+    run_description: str | None = field(default=None)
+    """The description of the 3LC run. Default: None"""
+
+    image_embeddings_dim: int = field(default=0)
+    """Image embeddings dimension. 0 means no embeddings, 2 means 2D embeddings, 3 means 3D embeddings. Default: 0"""
+
+    image_embeddings_reducer: str = field(default="pacmap")
+    """Reduction algorithm for image embeddings. Options: pacmap and umap. Only used if IMAGE_EMBEDDINGS_DIM > 0. Default: 'pacmap'"""
+
+    sampling_weights: bool = field(default=False)
+    """Whether to use 3LC Sampling Weights. Default: False"""
+
+    exclude_zero_weight_training: bool = field(default=False)
+    """Whether to exclude zero-weighted samples in training. Default: False"""
+
+    exclude_zero_weight_collection: bool = field(default=False)
+    """Whether to exclude zero-weighted samples in metrics collection. Default: False"""
+
+    collection_val_only: bool = field(default=False)
+    """Whether to collect metrics only on the val set. Default: False"""
+
+    collection_disable: bool = field(default=False)
+    """Whether to disable 3LC metrics collection entirely. Default: False"""
+
+    collection_epoch_start: int | None = field(default=None)
+    """Start epoch for collection during training (1 is after the first epoch). Default: None"""
+
+    collection_epoch_interval: int = field(default=1)
+    """Epoch interval for collection. Only used if a starting epoch is set. Default: 1"""
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -110,17 +116,19 @@ class Settings:
         if self.collection_epoch_start is None:
             return []
 
-        if self.collection_epoch_start >= epochs:
+        if self.collection_epoch_start > epochs:
             return []
 
         # If start is less than one, we don't collect during training
         if self.collection_epoch_start < 1:
-            return []
+            raise ValueError(
+                f"Invalid collection start epoch {self.collection_epoch_start}, must be at least 1 (after first epoch)."
+            )
 
         if self.collection_epoch_interval <= 0:
             raise ValueError(f'Invalid interval {self.collection_epoch_interval}, must be non-zero')
         else:
-            return list(range(self.collection_epoch_start, epochs, self.collection_epoch_interval))
+            return list(range(self.collection_epoch_start, epochs + 1, self.collection_epoch_interval))
 
     def _verify_training(self) -> None:
         """ Verify that the settings are valid for training.
@@ -146,7 +154,7 @@ class Settings:
             f'Invalid collection epoch interval {self.collection_epoch_interval}.')
 
     def _verify_collection(self) -> None:
-        """ Verify that the settings are valid for metrics collection only (val.py --task collect).
+        """ Verify that the settings are valid for metrics collection only (no training).
 
         :raises: AssertionError if the settings are invalid.
         """
@@ -157,14 +165,18 @@ class Settings:
 
         :raises: ValueError if the selected reducer is not available.
         """
-        reducer_spec = importlib.util.find_spec(self.image_embeddings_reducer)
-        if reducer_spec is None:
-            reducer_to_package = {'pacmap': 'pacmap', 'umap': 'umap-learn'}
+        reducer_to_package = {'pacmap': 'pacmap', 'umap': 'umap-learn'}
+        if self.image_embeddings_reducer not in reducer_to_package:
+            raise ValueError(f"Invalid image embeddings reducer {self.image_embeddings_reducer}. "
+                             "Valid options are 'pacmap' and 'umap'.")
+
+        try:
+            importlib.import_module(self.image_embeddings_reducer)
+        except Exception as e:
             package = reducer_to_package[self.image_embeddings_reducer]
             raise ValueError(
-                f"Embeddings collection enabled, but missing {self.image_embeddings_reducer} dependency. "
-                f"Run `pip install {package}` to enable embeddings collection."
-            )
+                f"Embeddings collection enabled, but failed to import {self.image_embeddings_reducer} dependency. "
+                f"Run `pip install {package}` to enable embeddings collection.") from e
 
     @staticmethod
     def _field_to_env_var(_field: field) -> None:

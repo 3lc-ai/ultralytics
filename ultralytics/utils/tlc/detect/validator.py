@@ -12,6 +12,8 @@ from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_C
 from ultralytics.utils.tlc.detect.loss import v8UnreducedDetectionLoss
 from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_det_dataset, yolo_loss_schemas
 from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
+from ultralytics.utils.tlc.utils import create_sampler
+
 
 class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
     _default_image_column_name = IMAGE_COLUMN_NAME
@@ -23,11 +25,13 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
     def get_dataloader(self, dataset_path, batch_size):
         """Builds and returns a data loader with given parameters."""
         dataset = self.build_dataset(dataset_path, batch=batch_size, mode="val")
-        return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1)
+
+        sampler = create_sampler(dataset.table, mode="val", settings=self._settings)
+        return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1, sampler=sampler)
 
     def build_dataset(self, table, mode="val", batch=None):
-        return build_tlc_yolo_dataset(self.args, table, batch, self.data, mode=mode, stride=self.stride, settings=self._settings)
-    
+        return build_tlc_yolo_dataset(self.args, table, batch, self.data, mode=mode, stride=self.stride)
+
     def postprocess(self, preds):
         self._curr_raw_preds = preds
         return super().postprocess(preds)
@@ -35,17 +39,17 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
     def _get_metrics_schemas(self):
         return {
             tlc.PREDICTED_BOUNDING_BOXES: yolo_predicted_bounding_box_schema(self.data["names"]),
-            **yolo_loss_schemas(),
-        }
-    
+            **yolo_loss_schemas(), }
+
     def _compute_3lc_metrics(self, preds, batch):
         losses = self.loss_fn(self._curr_raw_preds, batch)
         processed_predictions = self._process_detection_predictions(preds, batch)
         return {
             tlc.PREDICTED_BOUNDING_BOXES: processed_predictions,
-            **{k: tensor.mean(dim=1).cpu().numpy() for k, tensor in losses.items()}
-        }
-    
+            **{
+                k: tensor.mean(dim=1).cpu().numpy()
+                for k, tensor in losses.items()}}
+
     def _process_detection_predictions(self, preds, batch):
         predicted_boxes = []
         for i, predictions in enumerate(preds):
@@ -102,10 +106,10 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
             ))
 
         return predicted_boxes
-    
+
     def _prepare_loss_fn(self, model):
         self.loss_fn = v8UnreducedDetectionLoss(model.model if hasattr(model.model, "model") else model)
-    
+
     def _add_embeddings_hook(self, model) -> int:
 
         if hasattr(model.model, "model"):
@@ -116,8 +120,9 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
         if sppf_index == -1:
             raise ValueError("No SPPF layer found in model, cannot collect embeddings.")
-        
-        weak_self = weakref.ref(self) # Avoid circular reference (self <-> hook_fn)
+
+        weak_self = weakref.ref(self)  # Avoid circular reference (self <-> hook_fn)
+
         def hook_fn(module, input, output):
             # Store embeddings
             self_ref = weak_self()
@@ -132,6 +137,6 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
         activation_size = model.model[sppf_index]._modules['cv2']._modules['conv'].out_channels
         return activation_size
-    
+
     def _infer_batch_size(self, preds, batch) -> int:
         return len(batch['im_file'])
