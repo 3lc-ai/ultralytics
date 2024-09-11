@@ -78,11 +78,8 @@ def segment2box(segment, width=640, height=640):
     inside = (x >= 0) & (y >= 0) & (x <= width) & (y <= height)
     x = x[inside]
     y = y[inside]
-    return (
-        np.array([x.min(), y.min(), x.max(), y.max()], dtype=segment.dtype)
-        if any(x)
-        else np.zeros(4, dtype=segment.dtype)
-    )  # xyxy
+    return (np.array([x.min(), y.min(), x.max(), y.max()], dtype=segment.dtype)
+            if any(x) else np.zeros(4, dtype=segment.dtype))  # xyxy
 
 
 def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None, padding=True, xywh=False):
@@ -151,7 +148,7 @@ def nms_rotated(boxes, scores, threshold=0.45):
     Returns:
     """
     if len(boxes) == 0:
-        return np.empty((0,), dtype=np.int8)
+        return np.empty((0, ), dtype=np.int8)
     sorted_idx = torch.argsort(scores, descending=True)
     boxes = boxes[sorted_idx]
     ious = batch_probiou(boxes, boxes).triu_(diagonal=1)
@@ -174,7 +171,6 @@ def non_max_suppression(
     max_wh=7680,
     in_place=True,
     rotated=False,
-    return_indices=False,
 ):
     """
     Perform non-maximum suppression (NMS) on a set of boxes, with support for masks and multiple labels per box.
@@ -244,9 +240,6 @@ def non_max_suppression(
     t = time.time()
     output = [torch.zeros((0, 6 + nm), device=prediction.device)] * bs
 
-    if return_indices:
-        indices = []
-
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
@@ -309,16 +302,9 @@ def non_max_suppression(
         #         i = i[iou.sum(1) > 1]  # require redundancy
 
         output[xi] = x[i]
-
-        if return_indices:
-            indices.append(i)
         if (time.time() - t) > time_limit:
             LOGGER.warning(f"WARNING ⚠️ NMS time limit {time_limit:.3f}s exceeded")
             break  # time limit exceeded
-
-    if return_indices:
-        return output, indices
-
     return output
 
 
@@ -570,14 +556,11 @@ def xywhr2xyxyxyxy(x):
     Returns:
         (numpy.ndarray | torch.Tensor): Converted corner points of shape (n, 4, 2) or (b, n, 4, 2).
     """
-    cos, sin, cat, stack = (
-        (torch.cos, torch.sin, torch.cat, torch.stack)
-        if isinstance(x, torch.Tensor)
-        else (np.cos, np.sin, np.concatenate, np.stack)
-    )
+    cos, sin, cat, stack = ((torch.cos, torch.sin, torch.cat, torch.stack) if isinstance(x, torch.Tensor) else
+                            (np.cos, np.sin, np.concatenate, np.stack))
 
     ctr = x[..., :2]
-    w, h, angle = (x[..., i : i + 1] for i in range(2, 5))
+    w, h, angle = (x[..., i:i + 1] for i in range(2, 5))
     cos_value, sin_value = cos(angle), sin(angle)
     vec1 = [w / 2 * cos_value, w / 2 * sin_value]
     vec2 = [-h / 2 * sin_value, h / 2 * cos_value]
@@ -638,9 +621,8 @@ def resample_segments(segments, n=1000):
         s = np.concatenate((s, s[0:1, :]), axis=0)
         x = np.linspace(0, len(s) - 1, n)
         xp = np.arange(len(s))
-        segments[i] = (
-            np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)], dtype=np.float32).reshape(2, -1).T
-        )  # segment xy
+        segments[i] = (np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)],
+                                      dtype=np.float32).reshape(2, -1).T)  # segment xy
     return segments
 
 
