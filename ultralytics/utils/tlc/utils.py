@@ -263,6 +263,6 @@ def create_sampler(table: tlc.Table,
         if distributed:
             raise NotImplementedError("Distributed validation and exclusion by weight is not yet supported.")
 
-        # Exclude zero weight is handled in the dataset
+        # Exclude zero weight is handled in the dataset for validation
         return None
     return sampler

@@ -3,7 +3,9 @@ import pandas as pd
 import pytest
 import tlc
 
-from ultralytics.utils.tlc import Settings, TLCYOLO, TLCDetectionTrainer
+from unittest.mock import Mock
+
+from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
 from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION
 from ultralytics.models.yolo import YOLO
 
@@ -288,10 +290,16 @@ def test_exclude_zero_weight() -> None:
     assert len(sampled_example_ids) == len(edited_table) - 1, "Expected one sample to be excluded"
 
 
-def test_exclude_zero_weight_collection() -> None:
+@pytest.mark.parametrize("task,trainer_class", [("detect", TLCDetectionTrainer),
+                                                ("classify", TLCClassificationTrainer)])
+def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     # Test that sampling weights are correctly applied during metrics collection
     settings = Settings(project_name="test_sampling_weights_collection", exclude_zero_weight_collection=True)
-    trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 2})
+    trainer = trainer_class(overrides={"data": TASK2DATASET[task], "settings": settings, "workers": 2})
+
+    # Classification trainer needs a model object to create dataloader
+    if task == "classify":
+        trainer.model = Mock()
 
     # Create edited table where several samples have weight 0
     edited_table = tlc.EditedTable(
