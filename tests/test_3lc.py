@@ -294,7 +294,7 @@ def test_exclude_zero_weight() -> None:
                                                 ("classify", TLCClassificationTrainer)])
 def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     # Test that sampling weights are correctly applied during metrics collection
-    settings = Settings(project_name="test_sampling_weights_collection", exclude_zero_weight_collection=True)
+    settings = Settings(project_name=f"test_sampling_weights_collection_{task}", exclude_zero_weight_collection=True)
     trainer = trainer_class(overrides={"data": TASK2DATASET[task], "settings": settings, "workers": 2})
 
     # Classification trainer needs a model object to create dataloader
