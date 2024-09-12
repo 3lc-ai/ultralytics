@@ -290,7 +290,7 @@ def test_exclude_zero_weight() -> None:
 
 def test_exclude_zero_weight_collection() -> None:
     # Test that sampling weights are correctly applied during metrics collection
-    settings = Settings(project_name="test_sampling_weights", exclude_zero_weight_collection=True)
+    settings = Settings(project_name="test_sampling_weights_collection", exclude_zero_weight_collection=True)
     trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 2})
 
     # Create edited table where several samples have weight 0
