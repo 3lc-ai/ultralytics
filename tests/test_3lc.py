@@ -288,6 +288,29 @@ def test_exclude_zero_weight() -> None:
     assert len(sampled_example_ids) == len(edited_table) - 1, "Expected one sample to be excluded"
 
 
+def test_exclude_zero_weight_collection() -> None:
+    # Test that sampling weights are correctly applied during metrics collection
+    settings = Settings(project_name="test_sampling_weights", exclude_zero_weight_collection=True)
+    trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 2})
+
+    # Create edited table where several samples have weight 0
+    edited_table = tlc.EditedTable(
+        url=trainer.trainset.url.create_sibling("erna"),
+        input_table_url=trainer.trainset,
+        edits={tlc.SAMPLE_WEIGHT: {
+            "runs_and_values": [[0, 3], 0.0]}},
+    )
+
+    dataloader = trainer.get_dataloader(edited_table, batch_size=2, rank=-1, mode="val")
+    sampled_example_ids = []
+    for batch in dataloader:
+        sampled_example_ids.extend(batch["example_id"])
+
+    assert 0 not in sampled_example_ids, "Sample with zero weight should not be included in collection"
+    assert 3 not in sampled_example_ids, "Sample with zero weight should not be included in collection"
+    assert len(sampled_example_ids) == len(edited_table) - 2, "Expected two samples to be excluded"
+
+
 def test_illegal_reducer() -> None:
     settings = Settings(image_embeddings_dim=2, image_embeddings_reducer="illegal_reducer")
     with pytest.raises(Exception):
