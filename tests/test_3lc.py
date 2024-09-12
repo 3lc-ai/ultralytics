@@ -268,7 +268,7 @@ def test_sampling_weights() -> None:
     assert len(sampled_example_ids) == len(edited_table) * epochs, "Expected no change in the number of samples"
 
 
-def test_exclude_zero_weight() -> None:
+def test_exclude_zero_weight_training() -> None:
     # Test that sampling weights are correctly applied, with worker processes enabled
     settings = Settings(project_name="test_sampling_weights", exclude_zero_weight_training=True)
     trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 4})
