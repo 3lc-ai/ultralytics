@@ -270,7 +270,7 @@ def test_sampling_weights() -> None:
 
 def test_exclude_zero_weight_training() -> None:
     # Test that sampling weights are correctly applied, with worker processes enabled
-    settings = Settings(project_name="test_sampling_weights", exclude_zero_weight_training=True)
+    settings = Settings(project_name="test_exclude_zero_weight_training", exclude_zero_weight_training=True)
     trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 4})
 
     # Create edited table where one sample has weight increased to 2
@@ -303,7 +303,7 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
 
     # Create edited table where several samples have weight 0
     edited_table = tlc.EditedTable(
-        url=trainer.trainset.url.create_sibling("erna"),
+        url=trainer.trainset.url.create_sibling(f"erna_{task}"),
         input_table_url=trainer.trainset,
         edits={tlc.SAMPLE_WEIGHT: {
             "runs_and_values": [[0, 3], 0.0]}},
