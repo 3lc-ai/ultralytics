@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
 from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION
+from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
 from ultralytics.models.yolo import YOLO
 
 from tests import TMP
@@ -352,6 +353,47 @@ def test_get_metrics_collection_epochs(start, interval, epochs, disable, expecte
     else:
         with pytest.raises(expected):
             settings.get_metrics_collection_epochs(epochs)
+
+
+def test_arbitrary_class_indices_detection() -> None:
+    # Test that arbitrary class indices can be used for detection
+    settings = Settings(project_name="test_arbitrary_class_indices_detection",
+                        run_name="test_arbitrary_class_indices_detection")
+
+    data_dict = tlc_check_det_dataset(
+        data=TASK2DATASET["detect"],
+        tables=None,
+        image_column_name="image",
+        label_column_name="bbs.bb_list.label",
+        project_name=settings.project_name,
+    )
+
+    # Create edited table where class indices are changed
+    train_table = data_dict["train"]
+    train_table_value_map = train_table.get_value_map("bbs.bb_list.label")
+    label_map = {k: -k ** 2 for k in train_table_value_map.keys()}  # 0, 1, 2, ... -> 0, -1, -4, ...
+    edited_value_map = {label_map[k]: v for k, v in train_table_value_map.items()}
+    edited_schema_table = train_table.set_value_map("bbs.bb_list.label", edited_value_map)
+
+    bbs_edits = []
+    for i, row in enumerate(edited_schema_table.table_rows):
+        bb_list_override = []
+        for bb in row["bbs"]["bb_list"]:
+            bb_list_override.append({**bb, "label": label_map[bb["label"]]})
+
+        bbs_edits.append([i])
+        bbs_edits.append({**row["bbs"], "bb_list": bb_list_override})
+
+    edited_train_table = tlc.EditedTable(
+        url=edited_schema_table.url.create_sibling("edited_value_map_and_values"),
+        input_table_url=edited_schema_table,
+        edits={"bbs": {
+            "runs_and_values": bbs_edits}},
+    )
+
+    # Check that the edited table can be used for training and validation
+    model = TLCYOLO(TASK2MODEL["detect"])
+    results = model.train(tables={"train": edited_train_table, "val": data_dict["val"]}, settings=settings, epochs=1, device="cpu")
 
 
 # HELPERS

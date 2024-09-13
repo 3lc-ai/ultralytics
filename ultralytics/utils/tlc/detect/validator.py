@@ -37,6 +37,7 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
             mode=mode,
             stride=self.stride,
             exclude_zero=self._settings.exclude_zero_weight_collection,
+            class_mapping=self.data["value_map_map"],
         )
 
     def _get_metrics_schemas(self):

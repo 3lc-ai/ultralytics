@@ -119,7 +119,19 @@ def check_tlc_dataset(
     value_map = tables[first_split].get_value_map(label_column_name)
     names = {int(k): v['internal_name'] for k, v in value_map.items()}
 
-    return {**tables, "names": names, "nc": len(names)}
+    # Map name indices to 0, 1, ..., n-1
+    names_yolo = dict(enumerate(names.values()))
+    range_to_3lc_class = dict(enumerate(names))
+
+    return {
+        **tables,
+        "names": names_yolo,
+        "names_3lc": names,
+        "nc": len(names),
+        "range_to_3lc_class": range_to_3lc_class,
+        "3lc_class_to_range": {
+            v: k
+            for k, v in range_to_3lc_class.items()}, }
 
 
 def training_phase_schema() -> tlc.Schema:
