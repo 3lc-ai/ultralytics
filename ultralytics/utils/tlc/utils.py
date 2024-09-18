@@ -105,9 +105,10 @@ def check_tlc_dataset(
             elif isinstance(table, tlc.Table):
                 tables[key] = table
             else:
-                raise ValueError(
-                    f"Invalid type {type(table)} for split {key} provided through `tables`."
-                    "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table.")
+                msg = (f"Invalid type {type(table)} for split {key} provided through `tables`."
+                       "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table.")
+
+                raise ValueError(msg)
 
             # Check that the table is compatible with the current task
             if table_checker is not None:
@@ -118,6 +119,8 @@ def check_tlc_dataset(
     first_split = next(iter(tables.keys()))
     value_map = tables[first_split].get_value_map(label_column_name)
     names = {int(k): v['internal_name'] for k, v in value_map.items()}
+
+    # TODO: Verify that the tables have the same categories
 
     # Map name indices to 0, 1, ..., n-1
     names_yolo = dict(enumerate(names.values()))

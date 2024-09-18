@@ -7,7 +7,9 @@ from unittest.mock import Mock
 
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
 from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION
+from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
+from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
 
 from tests import TMP
@@ -22,6 +24,8 @@ tlc.TableIndexingTable.instance().add_scan_url({
 
 TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10"}
 TASK2MODEL = {"detect": "yolov8n.pt", "classify": "yolov8n-cls.pt"}
+TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label"}
+TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted"}
 
 try:
     import umap
@@ -355,45 +359,109 @@ def test_get_metrics_collection_epochs(start, interval, epochs, disable, expecte
             settings.get_metrics_collection_epochs(epochs)
 
 
-def test_arbitrary_class_indices_detection() -> None:
-    # Test that arbitrary class indices can be used for detection
-    settings = Settings(project_name="test_arbitrary_class_indices_detection",
-                        run_name="test_arbitrary_class_indices_detection")
-
-    data_dict = tlc_check_det_dataset(
-        data=TASK2DATASET["detect"],
-        tables=None,
-        image_column_name="image",
-        label_column_name="bbs.bb_list.label",
-        project_name=settings.project_name,
+@pytest.mark.parametrize("task", ["detect", "classify"])
+def test_arbitrary_class_indices(task) -> None:
+    # Test that arbitrary class indices can be used
+    settings = Settings(
+        project_name=f"test_arbitrary_class_indices_{task}",
+        run_name=f"test_arbitrary_class_indices_{task}",
     )
 
-    # Create edited table where class indices are changed
-    train_table = data_dict["train"]
-    train_table_value_map = train_table.get_value_map("bbs.bb_list.label")
-    label_map = {k: -k ** 2 for k in train_table_value_map.keys()}  # 0, 1, 2, ... -> 0, -1, -4, ...
-    edited_value_map = {label_map[k]: v for k, v in train_table_value_map.items()}
-    edited_schema_table = train_table.set_value_map("bbs.bb_list.label", edited_value_map)
+    label_column_name = TASK2LABEL_COLUMN_NAME[task]
+    predicted_label_column_name = TASK2PREDICTED_LABEL_COLUMN_NAME[task]
 
-    bbs_edits = []
-    for i, row in enumerate(edited_schema_table.table_rows):
-        bb_list_override = []
-        for bb in row["bbs"]["bb_list"]:
-            bb_list_override.append({**bb, "label": label_map[bb["label"]]})
+    if task == "detect":
+        data_dict = tlc_check_det_dataset(
+            data=TASK2DATASET["detect"],
+            tables=None,
+            image_column_name="image",
+            label_column_name=label_column_name,
+            project_name=settings.project_name,
+        )
+    elif task == "classify":
+        data_dict = tlc_check_cls_dataset(
+            data=TASK2DATASET["classify"],
+            tables=None,
+            image_column_name="image",
+            label_column_name=label_column_name,
+            project_name=settings.project_name,
+        )
 
-        bbs_edits.append([i])
-        bbs_edits.append({**row["bbs"], "bb_list": bb_list_override})
+    # Create edited tables where class indices are changed
+    edited_tables = {}
+    for split in ("train", "val"):
+        table = data_dict[split]
+        train_table_value_map = table.get_value_map(label_column_name)
+        label_map = {k: -k ** 2 for k in train_table_value_map.keys()}  # 0, 1, 2, ... -> 0, -1, -4, ...
+        edited_value_map = {label_map[k]: v for k, v in train_table_value_map.items()}
+        edited_schema_table = table.set_value_map(label_column_name, edited_value_map)
 
-    edited_train_table = tlc.EditedTable(
-        url=edited_schema_table.url.create_sibling("edited_value_map_and_values"),
-        input_table_url=edited_schema_table,
-        edits={"bbs": {
-            "runs_and_values": bbs_edits}},
-    )
+        if task == "detect":
+            bbs_edits = []
+            for i, row in enumerate(edited_schema_table.table_rows):
+                bb_list_override = []
+                for bb in row["bbs"]["bb_list"]:
+                    bb_list_override.append({**bb, "label": label_map[bb["label"]]})
+
+                bbs_edits.append([i])
+                bbs_edits.append({**row["bbs"], "bb_list": bb_list_override})
+
+            edited_tables[split] = tlc.EditedTable(
+                url=edited_schema_table.url.create_sibling(f"edited_value_map_and_values_{task}"),
+                input_table_url=edited_schema_table,
+                edits={"bbs": {
+                    "runs_and_values": bbs_edits}},
+            )
+        elif task == "classify":
+            edits = []
+            for i, row in enumerate(edited_schema_table.table_rows):
+                edits.append([i])
+                edits.append(label_map[row[label_column_name]])
+
+            edited_tables[split] = tlc.EditedTable(
+                url=edited_schema_table.url.create_sibling(f"edited_value_map_and_values_{task}"),
+                input_table_url=edited_schema_table,
+                edits={label_column_name: {
+                    "runs_and_values": edits}},
+            )
 
     # Check that the edited table can be used for training and validation
-    model = TLCYOLO(TASK2MODEL["detect"])
-    results = model.train(tables={"train": edited_train_table, "val": data_dict["val"]}, settings=settings, epochs=1, device="cpu")
+    model = TLCYOLO(TASK2MODEL[task])
+    results = model.train(tables=edited_tables, settings=settings, epochs=1, device="cpu")
+
+    assert results, f"{task} training with arbitrary class indices failed"
+
+    run = _get_run_from_settings(settings)
+
+    # Verify metrics have the expected class indices
+    metrics_df = pd.concat([metrics_table.to_pandas() for metrics_table in run.metrics_tables], ignore_index=True)
+
+    if task == "detect":
+        for i in range(len(metrics_df)):
+            assert all(bb["label"] <= 0 for bb in metrics_df["bbs_predicted"][i]["bb_list"])
+    elif task == "classify":
+        assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
+
+    # Verify that the metrics schema is correct
+    label_value_map = edited_tables["train"].get_value_map(label_column_name)
+    predicted_label_value_map = run.metrics_tables[0].get_value_map(predicted_label_column_name)
+    assert label_value_map == predicted_label_value_map, "Predicted label value map mismatch"
+
+
+def test_check_tlc_dataset_bad_tables() -> None:
+    # Test that an error is raised if tables or urls are not provided properly
+    tables = {"train": [1, 2, 3], "val": [4, 5, 6]}
+
+    with pytest.raises(ValueError):
+        check_tlc_dataset(data="", tables=tables, image_column_name="a", label_column_name="b")
+
+
+def test_check_tlc_dataset_bad_url() -> None:
+    # Test that an error is raised if a non-valid url is provided
+    tables = {"train": "some_url", "val": "some_other_url"}
+
+    with pytest.raises(ValueError):
+        check_tlc_dataset(data="", tables=tables, image_column_name="a", label_column_name="b")
 
 
 # HELPERS
