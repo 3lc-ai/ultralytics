@@ -28,7 +28,7 @@ def check_tlc_dataset(
     project_name: str | None = None,
     check_backwards_compatible_table_name: bool = False,
 ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    """ Get or create tables for YOLOv8 datasets. data is ignored when tables is provided.
+    """Get or create tables for YOLOv8 datasets. data is ignored when tables is provided.
 
     :param data: Path to a dataset
     :param tables: Dictionary of tables, if already created
@@ -120,7 +120,10 @@ def check_tlc_dataset(
     value_map = tables[first_split].get_value_map(label_column_name)
     names = {int(k): v['internal_name'] for k, v in value_map.items()}
 
-    # TODO: Verify that the tables have the same categories
+    for split in tables:
+        if tables[split].get_value_map(label_column_name) != value_map:
+            msg = f"All splits must have the same categories, but {split} has different categories from {first_split}."
+            raise ValueError(msg)
 
     # Map name indices to 0, 1, ..., n-1
     names_yolo = dict(enumerate(names.values()))
@@ -159,7 +162,7 @@ def training_phase_schema() -> tlc.Schema:
 
 
 def image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
-    """ Create a 3LC schema for YOLOv8 image embeddings.
+    """Create a 3LC schema for YOLOv8 image embeddings.
 
     :param activation_size: The size of the activation tensor.
     :returns: The YOLO image embeddings schema.
@@ -206,7 +209,7 @@ def check_tlc_version():
 
 
 def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
-    """ Parse a 3LC YAML file and return the corresponding tables.
+    """Parse a 3LC YAML file and return the corresponding tables.
     
     :param data_file: The path to the 3LC YAML file.
     :returns: The tables pointed to by the YAML file.

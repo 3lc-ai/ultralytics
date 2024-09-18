@@ -448,6 +448,41 @@ def test_arbitrary_class_indices(task) -> None:
     assert label_value_map == predicted_label_value_map, "Predicted label value map mismatch"
 
 
+def test_check_tlc_dataset_different_categories() -> None:
+    # Test that an error is raised if the categories of the tables are different
+    project_name = "test_check_tlc_dataset_different_categories"
+
+    train_structure = {"image": tlc.ImagePath("image"), "label": tlc.CategoricalLabel("label", classes=["a", "b", "c"])}
+    val_structure = {"image": tlc.ImagePath("image"), "label": tlc.CategoricalLabel("label", classes=["a", "b", "d"])}
+
+    train_table = tlc.Table.from_dict(
+        {
+            "image": ["a.jpg", "b.jpg"],
+            "label": [0, 1]},
+        structure=train_structure,
+        project_name=project_name,
+        dataset_name="train",
+    )
+    val_table = tlc.Table.from_dict(
+        {
+            "image": ["c.jpg", "d.jpg"],
+            "label": [0, 1]},
+        structure=val_structure,
+        project_name=project_name,
+        dataset_name="val",
+    )
+
+    with pytest.raises(ValueError):
+        check_tlc_dataset(
+            data="",
+            tables={
+                "train": train_table,
+                "val": val_table, },
+            image_column_name="image",
+            label_column_name="label",
+        )
+
+
 def test_check_tlc_dataset_bad_tables() -> None:
     # Test that an error is raised if tables or urls are not provided properly
     tables = {"train": [1, 2, 3], "val": [4, 5, 6]}
