@@ -34,7 +34,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         image_column_name=tlc.IMAGE,
         label_column_name=tlc.LABEL,
         exclude_zero=False,
-        class_mapping=None,
+        class_map=None,
     ):
         # Populate self.samples with image paths and labels
         # Each is a tuple of (image_path, label)
