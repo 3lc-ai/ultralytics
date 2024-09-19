@@ -53,7 +53,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
             self.example_ids.append(example_id)
             image_path = Path(tlc.Url(row[image_column_name]).to_absolute().to_str())
-            category = class_mapping[row[label_column_name]] if class_mapping else row[label_column_name]
+            category = class_map[row[label_column_name]] if class_map else row[label_column_name]
             self.samples.append((image_path, category))
 
         # Initialize attributes (calls self.verify_images())
