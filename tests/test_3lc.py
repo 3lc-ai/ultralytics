@@ -401,9 +401,9 @@ def test_arbitrary_class_indices(task) -> None:
     edited_tables = {}
     for split in ("train", "val"):
         table = data_dict[split]
-        train_table_value_map = table.get_value_map(label_column_name)
-        label_map = {k: -k ** 2 for k in train_table_value_map.keys()}  # 0, 1, 2, ... -> 0, -1, -4, ...
-        edited_value_map = {label_map[k]: v for k, v in train_table_value_map.items()}
+        table_value_map = table.get_value_map(label_column_name)
+        label_map = {k: -k ** 2 for k in table_value_map.keys()}  # 0, 1, 2, ... -> 0, -1, -4, ...
+        edited_value_map = {label_map[k]: v for k, v in table_value_map.items()}
         edited_schema_table = table.set_value_map(label_column_name, edited_value_map)
 
         if task == "detect":
@@ -449,6 +449,10 @@ def test_arbitrary_class_indices(task) -> None:
     if task == "detect":
         for i in range(len(metrics_df)):
             assert all(bb["label"] <= 0 for bb in metrics_df["bbs_predicted"][i]["bb_list"])
+
+            # Verify that a giraffe is predicted in the second image
+            predicted_label = np.sqrt(-metrics_df["bbs_predicted"][1]["bb_list"][0]["label"])
+            assert table_value_map[predicted_label] == "giraffe"
     elif task == "classify":
         assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
 
