@@ -6,13 +6,12 @@ import tlc
 
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, DEFAULT_COLLECT_RUN_DESCRIPTION
+from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION, TLC_COLORSTR
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
 
 
 def execute_when_collecting(method):
-
     def wrapper(self, *args, **kwargs):
         if self._should_collect:
             return method(self, *args, **kwargs)
@@ -21,18 +20,18 @@ def execute_when_collecting(method):
 
 
 class TLCValidatorMixin(BaseValidator):
-
-    def __init__(self,
-                 dataloader=None,
-                 save_dir=None,
-                 pbar=None,
-                 args=None,
-                 _callbacks=None,
-                 run=None,
-                 image_column_name=None,
-                 label_column_name=None,
-                 settings=None):
-
+    def __init__(
+        self,
+        dataloader=None,
+        save_dir=None,
+        pbar=None,
+        args=None,
+        _callbacks=None,
+        run=None,
+        image_column_name=None,
+        label_column_name=None,
+        settings=None,
+    ):
         # Called by trainer (Get run and settings from trainer)
         if run is not None:
             self._run = run
@@ -90,11 +89,13 @@ class TLCValidatorMixin(BaseValidator):
                 self._run = tlc.init(
                     project_name=project_name,
                     description=self._settings.run_description
-                    if self._settings.run_description else DEFAULT_COLLECT_RUN_DESCRIPTION,
+                    if self._settings.run_description
+                    else DEFAULT_COLLECT_RUN_DESCRIPTION,
                     run_name=self._settings.run_name,
                 )
                 LOGGER.info(
-                    f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
+                    f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}."
+                )
 
         self.metrics.run_url = self._run.url
 
@@ -102,7 +103,9 @@ class TLCValidatorMixin(BaseValidator):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
 
         if trainer:
-            self._should_collect = not self._settings.collection_disable and self._epoch + 1 in trainer._metrics_collection_epochs
+            self._should_collect = (
+                not self._settings.collection_disable and self._epoch + 1 in trainer._metrics_collection_epochs
+            )
         else:
             self._should_collect = not self._settings.collection_disable
 
@@ -115,14 +118,14 @@ class TLCValidatorMixin(BaseValidator):
         return out
 
     def get_desc(self):
-        """ Add the split name next to the validation description"""
+        """Add the split name next to the validation description"""
         desc = super().get_desc()
 
         split = self.dataloader.dataset.display_name.split("-")[-1]  # get final part
         initial_spaces = len(desc) - len(desc.lstrip())
         split_centered = split.center(initial_spaces)
         split_str = f"{colorstr(split_centered)}"
-        desc = split_str + desc[len(split_centered):]
+        desc = split_str + desc[len(split_centered) :]
 
         return desc
 
@@ -133,34 +136,34 @@ class TLCValidatorMixin(BaseValidator):
         self._pre_validation(model)
 
     def build_dataset(self, table):
-        """ Build a dataset from a table """
+        """Build a dataset from a table"""
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _verify_model_data_compatibility(self, names):
-        """ Verify that the model being validated is compatible with the data"""
+        """Verify that the model being validated is compatible with the data"""
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _get_metrics_schemas(self) -> dict[str, tlc.Schema]:
-        """ Get the metrics schemas for the 3LC metrics data """
+        """Get the metrics schemas for the 3LC metrics data"""
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _compute_3lc_metrics(self, preds, batch) -> dict[str, tlc.MetricData]:
-        """ Compute 3LC metrics for a batch of predictions and targets """
+        """Compute 3LC metrics for a batch of predictions and targets"""
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _add_embeddings_hook(self, model) -> int:
-        """ Add a hook to extract embeddings from the model, and infer the activation size """
+        """Add a hook to extract embeddings from the model, and infer the activation size"""
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _infer_batch_size(self, preds) -> int:
-        """ Infer the batch size from the predictions """
+        """Infer the batch size from the predictions"""
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _prepare_loss_fn(self, model):
         pass
 
     def update_metrics(self, preds, batch):
-        """ Collect 3LC metrics """
+        """Collect 3LC metrics"""
         self._update_metrics(preds, batch)
 
         # Let parent collect its own metrics
@@ -168,12 +171,12 @@ class TLCValidatorMixin(BaseValidator):
 
     @execute_when_collecting
     def _update_metrics(self, preds, batch):
-        """ Update 3LC metrics with common and task-specific metrics"""
+        """Update 3LC metrics with common and task-specific metrics"""
         batch_size = self._infer_batch_size(preds, batch)
 
         batch_metrics = {
             tlc.EXAMPLE_ID: [int(example_id) for example_id in batch["example_id"]],
-            **self._compute_3lc_metrics(preds, batch)  # Task specific metrics
+            **self._compute_3lc_metrics(preds, batch),  # Task specific metrics
         }
 
         if self._settings.image_embeddings_dim > 0:
@@ -189,7 +192,7 @@ class TLCValidatorMixin(BaseValidator):
 
     @execute_when_collecting
     def _pre_validation(self, model):
-        """ Prepare the validator for metrics collection """
+        """Prepare the validator for metrics collection"""
         column_schemas = {}
         column_schemas.update(self._get_metrics_schemas())  # Add task-specific metrics schema
 
@@ -206,15 +209,15 @@ class TLCValidatorMixin(BaseValidator):
 
         self._run.set_status_collecting()
 
-        self._metrics_writer = tlc.MetricsTableWriter(run_url=self._run.url,
-                                                      foreign_table_url=self.dataloader.dataset.table.url,
-                                                      column_schemas=column_schemas)
+        self._metrics_writer = tlc.MetricsTableWriter(
+            run_url=self._run.url, foreign_table_url=self.dataloader.dataset.table.url, column_schemas=column_schemas
+        )
 
         self._seen = 0
 
     @execute_when_collecting
     def _post_validation(self):
-        """ Clean up the validator after one validation pass """
+        """Clean up the validator after one validation pass"""
         # Write metrics data to 3LC run
         self._metrics_writer.finalize()
         metrics_infos = self._metrics_writer.get_written_metrics_infos()
@@ -244,22 +247,14 @@ class TLCValidatorMixin(BaseValidator):
             # Per-class metrics currently only supported for detection task
             return
 
-        split_schema = tlc.Schema(
-            value=tlc.Int32Value(
-                value_min=0,
-                value_max=0,
-                value_map={
-                    0.0: tlc.MapElement(url=self.dataloader.dataset.table.url.to_str()),
-                },
-            )
-        )
+        foreign_table_id_schema = tlc.ForeignTableIdSchema(self.dataloader.dataset.table.url.to_str())
 
         metrics_writer = tlc.MetricsTableWriter(
             run_url=self._run.url,
             column_schemas={
                 "training_phase": training_phase_schema(),
-                "table": split_schema,
-                "class": tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema,
+                tlc.FOREIGN_TABLE_ID: foreign_table_id_schema,
+                tlc.LABEL: tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema,
                 "num_images": tlc.Schema(
                     value=tlc.Int32Value(),
                     description="Number of images with at least one instance of the class",
@@ -296,8 +291,8 @@ class TLCValidatorMixin(BaseValidator):
         metrics_batch = {
             "epoch": [epoch] * num_classes,
             "training_phase": [training_phase] * num_classes,
-            "table": [0] * num_classes,
-            "class": list(range(num_classes)),
+            tlc.FOREIGN_TABLE_ID: [0] * num_classes,
+            tlc.LABEL: list(range(num_classes)),
             "num_instances": np.append(self.nt_per_class, self.nt_per_class.sum()),
             "num_images": np.append(self.nt_per_image, self.seen),
             **metrics,
@@ -341,7 +336,7 @@ class TLCValidatorMixin(BaseValidator):
         }
 
     def _verify_model_data_compatibility(self, model_class_names):
-        """ Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
+        """Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
         that the order of the class names match and that they have the same number of classes."""
         dataset_class_names = self.data["names"]
 
@@ -351,7 +346,7 @@ class TLCValidatorMixin(BaseValidator):
             )
 
         # Imagenet has a class name transform in YOLOv8 which is not applied on table creation. TODO: Remove when image_folder takes a sparse class name mapping to change these
-        if 'n01440764' not in set(dataset_class_names.values()):
+        if "n01440764" not in set(dataset_class_names.values()):
             if model_class_names != dataset_class_names:
                 raise ValueError(
                     "The model was trained on a different set of classes to the classes in the dataset, or the classes are in a different order."
