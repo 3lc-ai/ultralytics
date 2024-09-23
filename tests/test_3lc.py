@@ -154,7 +154,7 @@ def test_classify_training() -> None:
     preds_3lc = model_3lc.predict(imgsz=320)
     preds_ultralytics = model_ultralytics.predict(imgsz=320)
 
-    assert all(preds_3lc[0].probs.top5 == preds_ultralytics[0].probs.top5), "Predictions mismatch"
+    assert preds_3lc[0].probs.top5 == preds_ultralytics[0].probs.top5, "Predictions mismatch"
 
 
 @pytest.mark.parametrize("task", ["detect"])
