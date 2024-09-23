@@ -454,9 +454,9 @@ def test_arbitrary_class_indices(task) -> None:
         for i in range(len(metrics_df)):
             assert all(bb["label"] <= 0 for bb in metrics_df["bbs_predicted"][i]["bb_list"])
 
-            # Verify that a giraffe is predicted in the second image
-            predicted_label = np.sqrt(-metrics_df["bbs_predicted"][1]["bb_list"][0]["label"])
-            assert table_value_map[predicted_label] == "giraffe"
+        # Verify that a giraffe is predicted in the second image
+        predicted_label = np.sqrt(-metrics_df["bbs_predicted"][1]["bb_list"][0]["label"])
+        assert table_value_map[predicted_label]["internal_name"] == "giraffe"
     elif task == "classify":
         assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
 
