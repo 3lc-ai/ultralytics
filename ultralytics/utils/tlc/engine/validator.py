@@ -6,7 +6,18 @@ import tlc
 
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION, TLC_COLORSTR
+from ultralytics.utils.tlc.constants import (
+    DEFAULT_COLLECT_RUN_DESCRIPTION,
+    MAP,
+    MAP50_95,
+    NUM_IMAGES,
+    NUM_INSTANCES,
+    PER_CLASS_METRICS_STREAM_NAME,
+    PRECISION,
+    RECALL,
+    TLC_COLORSTR,
+    TRAINING_PHASE,
+)
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
 
@@ -35,7 +46,7 @@ class TLCValidatorMixin(BaseValidator):
         # Called by trainer (Get run and settings from trainer)
         if run is not None:
             self._run = run
-            self._settings = settings
+            self._settings: Settings = settings
             self._image_column_name = image_column_name
             self._label_column_name = label_column_name
             self._training = True
@@ -46,7 +57,7 @@ class TLCValidatorMixin(BaseValidator):
                 self._run = args.pop("run")
             else:
                 self._run = None  # Create run
-            self._settings = args.pop("settings", Settings())
+            self._settings: Settings = args.pop("settings", Settings())
             self._image_column_name = args.pop("image_column_name", self._default_image_column_name)
             self._label_column_name = args.pop("label_column_name", self._default_label_column_name)
             self._table = args.pop("table", None)
@@ -182,10 +193,10 @@ class TLCValidatorMixin(BaseValidator):
         if self._settings.image_embeddings_dim > 0:
             batch_metrics["embeddings"] = self.embeddings
 
-        if self._epoch is not None:
+        if self._training:
             batch_metrics[tlc.EPOCH] = [self._epoch + 1] * batch_size
             training_phase = 1 if self._final_validation else 0
-            batch_metrics["Training Phase"] = [training_phase] * batch_size
+            batch_metrics[TRAINING_PHASE] = [training_phase] * batch_size
 
         self._metrics_writer.add_batch(batch_metrics)
         self._seen += batch_size
@@ -205,12 +216,14 @@ class TLCValidatorMixin(BaseValidator):
             column_schemas["embeddings"] = image_embeddings_schema(activation_size=activation_size)
 
         if self._epoch is not None:
-            column_schemas["Training Phase"] = training_phase_schema()
+            column_schemas[TRAINING_PHASE] = training_phase_schema()
 
         self._run.set_status_collecting()
 
         self._metrics_writer = tlc.MetricsTableWriter(
-            run_url=self._run.url, foreign_table_url=self.dataloader.dataset.table.url, column_schemas=column_schemas
+            run_url=self._run.url,
+            foreign_table_url=self.dataloader.dataset.table.url,
+            column_schemas=column_schemas,
         )
 
         self._seen = 0
@@ -247,62 +260,75 @@ class TLCValidatorMixin(BaseValidator):
             # Per-class metrics currently only supported for detection task
             return
 
-        foreign_table_id_schema = tlc.ForeignTableIdSchema(self.dataloader.dataset.table.url.to_str())
-
         metrics_writer = tlc.MetricsTableWriter(
             run_url=self._run.url,
-            column_schemas={
-                "training_phase": training_phase_schema(),
-                tlc.FOREIGN_TABLE_ID: foreign_table_id_schema,
-                tlc.LABEL: tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema,
-                "num_images": tlc.Schema(
-                    value=tlc.Int32Value(),
-                    description="Number of images with at least one instance of the class",
-                ),
-                "num_instances": tlc.Schema(
-                    value=tlc.Int32Value(),
-                    description="Total number of instances of the class in all images",
-                ),
-                "precision": tlc.Schema(
-                    value=tlc.Float32Value(),
-                    description="Precision of the class",
-                ),
-                "recall": tlc.Schema(
-                    value=tlc.Float32Value(),
-                    description="Recall of the class",
-                ),
-                "mAP": tlc.Schema(
-                    value=tlc.Float32Value(),
-                    description="mAP of the class",
-                ),
-                "mAP50-95": tlc.Schema(
-                    value=tlc.Float32Value(),
-                    description="mAP50-95 of the class",
-                ),
-            },
+            column_schemas=self._per_class_metrics_schemas(),
         )
 
         epoch = self._epoch + 1 if self._epoch is not None else -1
         training_phase = 1 if self._final_validation else 0
         num_classes = self.nc + 1  # all classes plus "all"
 
-        metrics = self._generate_metrics()
+        metrics_batch = (
+            {
+                tlc.EPOCH: [epoch] * num_classes,
+                TRAINING_PHASE: [training_phase] * num_classes,
+            }
+            if self._training
+            else {}
+        )
 
-        metrics_batch = {
-            "epoch": [epoch] * num_classes,
-            "training_phase": [training_phase] * num_classes,
-            tlc.FOREIGN_TABLE_ID: [0] * num_classes,
-            tlc.LABEL: list(range(num_classes)),
-            "num_instances": np.append(self.nt_per_class, self.nt_per_class.sum()),
-            "num_images": np.append(self.nt_per_image, self.seen),
-            **metrics,
-        }
+        metrics_batch.update(
+            {
+                tlc.FOREIGN_TABLE_ID: [0] * num_classes,
+                tlc.LABEL: list(range(num_classes)),
+                NUM_INSTANCES: np.append(self.nt_per_class, self.nt_per_class.sum()),
+                NUM_IMAGES: np.append(self.nt_per_image, self.seen),
+                **self._generate_per_class_metrics(),
+            }
+        )
 
         metrics_writer.add_batch(metrics_batch)
         metrics_writer.finalize()
-        self._run.update_metrics(metrics_writer.get_written_metrics_infos())
+        metrics_infos = metrics_writer.get_written_metrics_infos()
+        for m in metrics_infos:
+            # Set the stream name to the per-class metrics stream
+            # TODO: This should be a constructor argument to MetricsTableWriter
+            m["stream_name"] = PER_CLASS_METRICS_STREAM_NAME
+        self._run.update_metrics(metrics_infos)
 
-    def _generate_metrics(self):
+    def _per_class_metrics_schemas(self):
+        return {
+            TRAINING_PHASE: training_phase_schema(),
+            tlc.FOREIGN_TABLE_ID: tlc.ForeignTableIdSchema(self.dataloader.dataset.table.url.to_str()),
+            tlc.LABEL: tlc.CategoricalLabel("class", {**self.names, self.nc: "all"}).schema,
+            NUM_IMAGES: tlc.Schema(
+                value=tlc.Int32Value(),
+                description="Number of images with at least one instance of the class",
+            ),
+            NUM_INSTANCES: tlc.Schema(
+                value=tlc.Int32Value(),
+                description="Total number of instances of the class in all images",
+            ),
+            PRECISION: tlc.Schema(
+                value=tlc.Float32Value(),
+                description="Precision of the class",
+            ),
+            RECALL: tlc.Schema(
+                value=tlc.Float32Value(),
+                description="Recall of the class",
+            ),
+            MAP: tlc.Schema(
+                value=tlc.Float32Value(),
+                description="mAP of the class",
+            ),
+            MAP50_95: tlc.Schema(
+                value=tlc.Float32Value(),
+                description="mAP50-95 of the class",
+            ),
+        }
+
+    def _generate_per_class_metrics(self):
         """Transform metrics from self.metrics to a format suitable for 3LC"""
         # Consider moving this to TLCDetectionValidator when supporting other tasks
         precisions = np.zeros(self.nc + 1)
@@ -329,10 +355,10 @@ class TLCValidatorMixin(BaseValidator):
         mAP50_95s[self.nc] = all_mAP50_95
 
         return {
-            "precision": precisions,
-            "recall": recalls,
-            "mAP": mAPs,
-            "mAP50-95": mAP50_95s,
+            PRECISION: precisions,
+            RECALL: recalls,
+            MAP: mAPs,
+            MAP50_95: mAP50_95s,
         }
 
     def _verify_model_data_compatibility(self, model_class_names):
