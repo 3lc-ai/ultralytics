@@ -1,18 +1,29 @@
+from collections import defaultdict
+from unittest.mock import Mock
+
 import numpy as np
 import pandas as pd
 import pytest
 import tlc
 
-from unittest.mock import Mock
-
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
-from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
 
 from tests import TMP
+from ultralytics.utils.tlc.constants import (
+    DEFAULT_COLLECT_RUN_DESCRIPTION,
+    MAP,
+    MAP50_95,
+    NUM_IMAGES,
+    NUM_INSTANCES,
+    PER_CLASS_METRICS_STREAM_NAME,
+    PRECISION,
+    RECALL,
+    TRAINING_PHASE,
+)
 
 TMP_PROJECT_ROOT_URL = tlc.Url(TMP / "3LC")
 tlc.Configuration.instance().project_root_url = TMP_PROJECT_ROOT_URL
@@ -29,9 +40,20 @@ TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "cl
 
 try:
     import umap
+
     UMAP_AVAILABLE = True
 except Exception:
     UMAP_AVAILABLE = False
+
+
+def get_metrics_tables_from_run(run: tlc.Run) -> dict[str, list[tlc.Table]]:
+    """Return metrics tables grouped by stream name"""
+    metrics_infos = run.metrics
+    metrics_tables = defaultdict(list)
+    for metrics_info in metrics_infos:
+        metrics_table = tlc.Table.from_url(tlc.Url(metrics_info["url"]).to_absolute(run.url))
+        metrics_tables[metrics_info["stream_name"]].append(metrics_table)
+    return metrics_tables
 
 
 def test_detect_training() -> None:
@@ -42,7 +64,7 @@ def test_detect_training() -> None:
         "batch": 4,
         "device": "cpu",
         "save": False,
-        "plots": False}
+        "plots": False, }
 
     # Compare results from 3LC with ultralytics
     model_ultralytics = YOLO("yolov8n.pt")
@@ -63,7 +85,8 @@ def test_detect_training() -> None:
     assert results_3lc, "Detection training failed"
 
     # Compare 3LC integration with ultralytics results
-    assert results_ultralytics.results_dict == results_3lc.results_dict, "Results validation metrics 3LC different from Ultralytics"
+    assert (results_ultralytics.results_dict == results_3lc.results_dict
+            ), "Results validation metrics 3LC different from Ultralytics"
     assert results_ultralytics.names == results_3lc.names, "Results validation names"
 
     # Get 3LC run and inspect the results
@@ -75,26 +98,47 @@ def test_detect_training() -> None:
     assert run.description == settings.run_description, "Description mismatch"
     # Check that hyperparameters and overrides are saved
     for key, value in overrides.items():
-        assert run.constants["parameters"][
-            key] == value, f"Parameter {key} mismatch, {run.constants['parameters'][key]} != {value}"
+        assert (run.constants["parameters"][key] == value
+                ), f"Parameter {key} mismatch, {run.constants['parameters'][key]} != {value}"
 
     # Check that there is a per-epoch value written
     assert len(run.constants["outputs"]) > 0, "No outputs written"
+    metrics_tables = get_metrics_tables_from_run(run)
 
     # Check that the desired metrics were written
-    metrics_df = pd.concat([metrics_table.to_pandas() for metrics_table in run.metrics_tables], ignore_index=True)
+    metrics_df = pd.concat(
+        [m.to_pandas() for m in metrics_tables["default_stream"]],
+        ignore_index=True,
+    )
 
     embeddings_column_name = f"embeddings_{settings.image_embeddings_reducer}"
     assert embeddings_column_name in metrics_df.columns, "Expected embeddings column missing"
     assert len(metrics_df[embeddings_column_name][0]) == settings.image_embeddings_dim, "Embeddings dimension mismatch"
 
     assert "loss" in metrics_df.columns, "Expected loss column to be present, but it is missing"
-    assert 0 in metrics_df["Training Phase"], "Expected metrics from during training"
-    assert 1 in metrics_df["Training Phase"], "Expected metrics from after training"
+    assert 0 in metrics_df[TRAINING_PHASE], "Expected metrics from during training"
+    assert 1 in metrics_df[TRAINING_PHASE], "Expected metrics from after training"
 
     # model.predict() should work and be the same as vanilla ultralytics
     assert all(model_ultralytics.predict(imgsz=320)[0].boxes.cls == model_3lc.predict(
         imgsz=320)[0].boxes.cls), "Predictions mismatch"
+
+    per_class_metrics_tables = metrics_tables[PER_CLASS_METRICS_STREAM_NAME]
+    assert len(per_class_metrics_tables) == 4, "Expected 4 per-class metrics tables to be written"
+    per_class_metrics_df = pd.concat(
+        [m.to_pandas() for m in per_class_metrics_tables],
+        ignore_index=True,
+    )
+    assert TRAINING_PHASE in per_class_metrics_df.columns, "Expected training phase column in per-class metrics"
+    assert tlc.EPOCH in per_class_metrics_df.columns, "Expected epoch column in per-class metrics"
+    assert tlc.FOREIGN_TABLE_ID in per_class_metrics_df.columns, "Expected foreign_table_id column in per-class metrics"
+    assert tlc.LABEL in per_class_metrics_df.columns, "Expected label column in per-class metrics"
+    assert PRECISION in per_class_metrics_df.columns, "Expected precision column in per-class metrics"
+    assert RECALL in per_class_metrics_df.columns, "Expected recall column in per-class metrics"
+    assert MAP in per_class_metrics_df.columns, "Expected mAP column in per-class metrics"
+    assert MAP50_95 in per_class_metrics_df.columns, "Expected mAP50-95 column in per-class metrics"
+    assert NUM_IMAGES in per_class_metrics_df.columns, "Expected num_images column in per-class metrics"
+    assert NUM_INSTANCES in per_class_metrics_df.columns, "Expected num_instances column in per-class metrics"
 
 
 def test_classify_training() -> None:
@@ -118,7 +162,8 @@ def test_classify_training() -> None:
 
     assert results_3lc, "Classification training failed"
 
-    assert results_ultralytics.results_dict == results_3lc.results_dict, "Results validation metrics 3LC different from Ultralytics"
+    assert (results_ultralytics.results_dict == results_3lc.results_dict
+            ), "Results validation metrics 3LC different from Ultralytics"
 
     run = _get_run_from_settings(settings)
 
@@ -128,10 +173,13 @@ def test_classify_training() -> None:
     assert len(run.metrics_tables) == 6  # Two passes after epochs 2 and 3, and after training
 
     # Check that the desired metrics were written
-    metrics_df = pd.concat([metrics_table.to_pandas() for metrics_table in run.metrics_tables], ignore_index=True)
+    metrics_df = pd.concat(
+        [metrics_table.to_pandas() for metrics_table in run.metrics_tables],
+        ignore_index=True,
+    )
 
-    assert 0 in metrics_df["Training Phase"], "Expected metrics from during training"
-    assert 1 in metrics_df["Training Phase"], "Expected metrics from after training"
+    assert 0 in metrics_df[TRAINING_PHASE], "Expected metrics from during training"
+    assert 1 in metrics_df[TRAINING_PHASE], "Expected metrics from after training"
 
     # Aggregate per-sample metrics should match the output aggregate metrics
     val_after_metrics_df = run.metrics_tables[1].to_pandas()  # Val metrics after training should be written last
@@ -154,8 +202,8 @@ def test_classify_training() -> None:
         settings=settings,
     )
 
-    assert results_dict[
-        "val"].results_dict == results_ultralytics.results_dict, "Results validation metrics collection onlywith  3LC different from Ultralytics"
+    assert (results_dict["val"].results_dict == results_ultralytics.results_dict
+            ), "Results validation metrics collection onlywith  3LC different from Ultralytics"
 
     # model.predict() should work and be the same as vanilla ultralytics
     preds_3lc = model_3lc.predict(imgsz=320)
@@ -178,10 +226,23 @@ def test_metrics_collection_only(task) -> None:
     assert run_urls[0] == run_urls[1], "Expected same run URL for both splits"
 
     run = tlc.Run.from_url(run_urls[0])
-    metrics_df = pd.concat([metrics_table.to_pandas() for metrics_table in run.metrics_tables], ignore_index=True)
+    metrics_tables = get_metrics_tables_from_run(run)
+
+    metrics_df = pd.concat(
+        [m.to_pandas() for m in metrics_tables["default_stream"]],
+        ignore_index=True,
+    )
     assert "loss" not in metrics_df.columns, "Expected no loss column"
     assert run.status == tlc.RUN_STATUS_COMPLETED, "Run status not set to completed after training"
     assert run.description == DEFAULT_COLLECT_RUN_DESCRIPTION, "Description mismatch"
+    assert len(metrics_tables[PER_CLASS_METRICS_STREAM_NAME]) == 2, "Expected 2 per-class metrics tables (train, val)"
+
+    per_class_metrics_df = pd.concat(
+        [m.to_pandas() for m in metrics_tables[PER_CLASS_METRICS_STREAM_NAME]],
+        ignore_index=True,
+    )
+    assert TRAINING_PHASE not in per_class_metrics_df.columns, "Expected no training phase column"
+    assert tlc.EPOCH not in per_class_metrics_df.columns, "Expected no epoch column"
 
 
 def test_train_collection_val_only() -> None:
