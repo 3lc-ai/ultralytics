@@ -509,7 +509,11 @@ def test_arbitrary_class_indices(task) -> None:
     run = _get_run_from_settings(settings)
 
     # Verify metrics have the expected class indices
-    metrics_df = pd.concat([metrics_table.to_pandas() for metrics_table in run.metrics_tables], ignore_index=True)
+    sample_metrics_tables = [m for m in run.metrics_tables if "bbs_predicted" in m.columns]
+    metrics_df = pd.concat(
+        [metrics_table.to_pandas() for metrics_table in sample_metrics_tables],
+        ignore_index=True,
+    )
 
     if task == "detect":
         for i in range(len(metrics_df)):
@@ -523,7 +527,7 @@ def test_arbitrary_class_indices(task) -> None:
 
     # Verify that the metrics schema is correct
     label_value_map = edited_tables["train"].get_value_map(label_column_name)
-    predicted_label_value_map = run.metrics_tables[0].get_value_map(predicted_label_column_name)
+    predicted_label_value_map = sample_metrics_tables[0].get_value_map(predicted_label_column_name)
     assert label_value_map == predicted_label_value_map, "Predicted label value map mismatch"
 
 
