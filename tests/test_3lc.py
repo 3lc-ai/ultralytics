@@ -509,7 +509,8 @@ def test_arbitrary_class_indices(task) -> None:
     run = _get_run_from_settings(settings)
 
     # Verify metrics have the expected class indices
-    sample_metrics_tables = [m for m in run.metrics_tables if "bbs_predicted" in m.columns]
+    sample_metrics_tables = [
+        m for m in run.metrics_tables if TASK2PREDICTED_LABEL_COLUMN_NAME[task].split(".")[0] in m.columns]
     metrics_df = pd.concat(
         [metrics_table.to_pandas() for metrics_table in sample_metrics_tables],
         ignore_index=True,
