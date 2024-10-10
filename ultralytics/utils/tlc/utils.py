@@ -44,8 +44,9 @@ def check_tlc_dataset(
     :return: Dictionary of tables and class names
     """
     # If the data starts with the 3LC prefix, parse the YAML file and populate `tables`
-    has_prefix = data.startswith(TLC_PREFIX)
-    if tables is None and has_prefix:
+    has_prefix = False
+    if tables is None and data.startswith(TLC_PREFIX):
+        has_prefix = True
         LOGGER.info(f"{TLC_COLORSTR}Parsing 3LC YAML file data={data} and populating tables")
         tables = parse_3lc_yaml_file(data)
 
@@ -55,8 +56,6 @@ def check_tlc_dataset(
         data_dict = dataset_checker(data)
 
         # Get or create tables
-        # LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from data={data}")
-
         splits = splits or ("train", "val", "test", "minival")
 
         for key in splits:
