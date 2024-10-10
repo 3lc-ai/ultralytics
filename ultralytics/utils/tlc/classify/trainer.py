@@ -27,7 +27,19 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
             self._image_column_name,
             self._label_column_name,
             project_name=self._settings.project_name,
+            splits=("train", "val"),
         )
+        if "val" not in self.data:
+            data_test = tlc_check_cls_dataset(
+                self.args.data,
+                self._tables,
+                self._image_column_name,
+                self._label_column_name,
+                project_name=self._settings.project_name,
+                splits=("test", ),
+            )
+            self.data["test"] = data_test["test"]
+
         return self.data["train"], self.data.get("val") or self.data.get("test")
 
     def build_dataset(self, table, mode="train", batch=None):

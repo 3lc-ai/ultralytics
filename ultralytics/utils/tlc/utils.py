@@ -14,7 +14,7 @@ from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION, TLC_PREFIX
 from ultralytics.utils.tlc.settings import Settings
 
-from typing import Callable, Literal
+from typing import Callable, Literal, Iterable
 
 
 def check_tlc_dataset(
@@ -27,6 +27,7 @@ def check_tlc_dataset(
     table_checker: Callable[[str, tlc.Table], bool] | None = None,
     project_name: str | None = None,
     check_backwards_compatible_table_name: bool = False,
+    splits: Iterable[str] | None = None,
 ) -> dict[str, tlc.Table | dict[float, str] | int]:
     """Get or create tables for YOLOv8 datasets. data is ignored when tables is provided.
 
@@ -39,10 +40,12 @@ def check_tlc_dataset(
     :param table_checker: Function to check that a table is compatible with the current task
     :param project_name: Name of the project
     :param check_backwards_compatible_table_name: Whether to check for a backwards compatible table name
+    :param splits: List of splits to parse.
     :return: Dictionary of tables and class names
     """
     # If the data starts with the 3LC prefix, parse the YAML file and populate `tables`
-    if tables is None and data.startswith(TLC_PREFIX):
+    has_prefix = data.startswith(TLC_PREFIX)
+    if tables is None and has_prefix:
         LOGGER.info(f"{TLC_COLORSTR}Parsing 3LC YAML file data={data} and populating tables")
         tables = parse_3lc_yaml_file(data)
 
@@ -52,9 +55,11 @@ def check_tlc_dataset(
         data_dict = dataset_checker(data)
 
         # Get or create tables
-        LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from data={data}")
+        # LOGGER.info(f"{TLC_COLORSTR}Creating or reusing tables from data={data}")
 
-        for key in ("train", "val", "test", "minival"):
+        splits = splits or ("train", "val", "test", "minival")
+
+        for key in splits:
             if data_dict.get(key):
                 name = Path(data).stem
                 dataset_name = f"{name}-{key}"
@@ -76,25 +81,37 @@ def check_tlc_dataset(
                     if table_url_backcompatible.exists():
                         table_name = "original"
 
-                table = table_creator(key,
-                                      data_dict,
-                                      image_column_name=image_column_name,
-                                      label_column_name=label_column_name,
-                                      project_name=project_name,
-                                      dataset_name=dataset_name,
-                                      table_name=table_name)
+                try:
+                    table = table_creator(
+                        key,
+                        data_dict,
+                        image_column_name=image_column_name,
+                        label_column_name=label_column_name,
+                        project_name=project_name,
+                        dataset_name=dataset_name,
+                        table_name=table_name,
+                    )
 
-                # Get the latest version when inferring
-                tables[key] = table.latest()
+                    # Get the latest version when inferring
+                    tables[key] = table.latest()
 
-                if tables[key] != table:
-                    LOGGER.info(f"   {colorstr(key)}: Using latest version of table {table.url} -> {tables[key].url}")
-                else:
-                    LOGGER.info(f"   {colorstr(key)}: Using initial version of table {tables[key].url}")
+                    if tables[key] != table:
+                        LOGGER.info(
+                            f"{colorstr(key)}: Using latest version of table from {data}: {table.url} -> {tables[key].url}"
+                        )
+                    else:
+                        LOGGER.info(f"{colorstr(key)}: Using initial version of table from {data}: {tables[key].url}")
+
+                except Exception as e:
+                    LOGGER.warning(
+                        f"{colorstr(key)}: Failed to read or create table for split {key} from {data}: {e!s}")
 
     else:
-        LOGGER.info(f"{TLC_COLORSTR}Using data directly from tables")
+        # LOGGER.info(f"{TLC_COLORSTR}Using data directly from tables")
         for key, table in tables.items():
+            if splits is not None and key not in splits:
+                continue
+
             if isinstance(table, (str, Path, tlc.Url)):
                 try:
                     table_url = tlc.Url(table)
@@ -114,7 +131,8 @@ def check_tlc_dataset(
             if table_checker is not None:
                 table_checker(tables[key], image_column_name, label_column_name)
 
-            LOGGER.info(f"   - {key}: {tables[key].url}")
+            source = "3LC YAML file" if has_prefix else "provided tables"
+            LOGGER.info(f"{colorstr(key)}: Using table {tables[key].url} from {source}")
 
     first_split = next(iter(tables.keys()))
     value_map = tables[first_split].get_value_map(label_column_name)
