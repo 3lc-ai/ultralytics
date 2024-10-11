@@ -34,7 +34,7 @@ tlc.TableIndexingTable.instance().add_scan_url({
     "static": True, })
 
 TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10"}
-TASK2MODEL = {"detect": "yolov8n.pt", "classify": "yolov8n-cls.pt"}
+TASK2MODEL = {"detect": "yolov11n.pt", "classify": "yolo11n-cls.pt"}
 TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label"}
 TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted"}
 
