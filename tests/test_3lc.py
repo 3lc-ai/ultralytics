@@ -182,7 +182,8 @@ def test_classify_training() -> None:
     assert 1 in metrics_df[TRAINING_PHASE], "Expected metrics from after training"
 
     # Aggregate per-sample metrics should match the output aggregate metrics
-    val_after_metrics_df = run.metrics_tables[1].to_pandas()  # Val metrics after training should be written last
+    val_after_metrics_df = run.metrics_tables[-1].to_pandas()  # Val metrics after training should be written last
+
     metrics_top1_accuracy = val_after_metrics_df["top1_accuracy"].mean()
     metrics_top5_accuracy = val_after_metrics_df["top5_accuracy"].mean()
 
