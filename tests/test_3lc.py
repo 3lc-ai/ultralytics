@@ -34,7 +34,7 @@ tlc.TableIndexingTable.instance().add_scan_url({
     "static": True, })
 
 TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10"}
-TASK2MODEL = {"detect": "yolov11n.pt", "classify": "yolo11n-cls.pt"}
+TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt"}
 TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label"}
 TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted"}
 
@@ -67,7 +67,7 @@ def test_detect_training() -> None:
         "plots": False, }
 
     # Compare results from 3LC with ultralytics
-    model_ultralytics = YOLO("yolov8n.pt")
+    model_ultralytics = YOLO(TASK2MODEL["detect"])
     results_ultralytics = model_ultralytics.train(**overrides)
 
     settings = Settings(
@@ -80,7 +80,7 @@ def test_detect_training() -> None:
         run_description="Test detection training",
     )
 
-    model_3lc = TLCYOLO("yolov8n.pt")
+    model_3lc = TLCYOLO(TASK2MODEL["detect"])
     results_3lc = model_3lc.train(**overrides, settings=settings)
     assert results_3lc, "Detection training failed"
 
@@ -285,7 +285,7 @@ def test_train_collection_disabled() -> None:
 
 def test_invalid_tables() -> None:
     # Test that an error is raised if the tables are not formatted as desired
-    for model_arg in ("yolov8n.pt", "yolov8n-cls.pt"):
+    for model_arg in TASK2MODEL.values():
         model = TLCYOLO(model_arg)
         table = tlc.Table.from_dict({"a": [1, 2, 3], "b": [4, 5, 6]})
         with pytest.raises(ValueError):
