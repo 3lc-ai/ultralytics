@@ -62,6 +62,7 @@ class TLCTrainerMixin(BaseTrainer):
                 project_name=project_name,
                 description=description,
                 run_name=self._settings.run_name,
+                if_exists="reuse" if self.resume else "rename",
             )
 
             LOGGER.info(
@@ -69,7 +70,8 @@ class TLCTrainerMixin(BaseTrainer):
             )
 
             # Log parameters to 3LC
-            self._log_3lc_parameters()
+            if not self.resume:
+                self._log_3lc_parameters()
             self._run.set_status_running()
             self._print_metrics_collection_epochs()
 
