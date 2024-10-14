@@ -39,19 +39,21 @@ class TLCTrainerMixin(BaseTrainer):
 
             # Create a 3LC run
             description = self._settings.run_description if self._settings.run_description else DEFAULT_TRAIN_RUN_DESCRIPTION
-            project_name = self._settings.project_name if self._settings.project_name else self.data[
-                "train"].project_name
+            project_name = self._settings.project_name if self._settings.project_name else self.data["train"].project_name
+            
             self._run = tlc.init(
                 project_name=project_name,
                 description=description,
                 run_name=self._settings.run_name,
+                if_exists="reuse" if self.resume else "rename"
             )
 
             LOGGER.info(
                 f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
             # Log parameters to 3LC
-            self._log_3lc_parameters()
+            if not self.resume:
+                self._log_3lc_parameters()
             self._run.set_status_running()
             self._print_metrics_collection_epochs()
 
