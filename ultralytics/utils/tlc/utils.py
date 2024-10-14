@@ -120,9 +120,15 @@ def check_tlc_dataset(
     value_map = tables[first_split].get_value_map(label_column_name)
     names = {int(k): v['internal_name'] for k, v in value_map.items()}
 
+    simple_value_map = tlc.SchemaHelper.to_simple_value_map(value_map)
     for split in tables:
-        if tables[split].get_value_map(label_column_name) != value_map:
-            msg = f"All splits must have the same categories, but {split} has different categories from {first_split}."
+        split_value_map = tlc.SchemaHelper.to_simple_value_map(tables[split].get_value_map(label_column_name))
+        if split_value_map != simple_value_map:
+            msg = f"All splits must have the same categories, but {split} has different categories from {first_split}"
+            only_in_split = set(split_value_map.keys()) - set(simple_value_map.keys())
+            only_in_first = set(simple_value_map.keys()) - set(split_value_map.keys())
+            if only_in_split or only_in_first:
+                msg += f"\nOnly in {split}: {only_in_split}\nOnly in {first_split}: {only_in_first}"
             raise ValueError(msg)
 
     # Map name indices to 0, 1, ..., n-1
