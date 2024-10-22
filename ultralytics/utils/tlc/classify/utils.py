@@ -6,8 +6,8 @@ import tlc
 from pathlib import Path
 
 from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
+from ultralytics.utils import ROOT, yaml_load
 from ultralytics.utils.tlc.utils import check_tlc_dataset
-
 
 def tlc_check_cls_dataset(
     data: str,
@@ -55,16 +55,29 @@ def get_or_create_cls_table(
     :param label_column_name: Name of the column containing labels
     :return: A tlc.Table.from_image_folder() table
     """
-    return tlc.Table.from_image_folder(root=data_dict[key],
-                                       image_column_name=image_column_name,
-                                       label_column_name=label_column_name,
-                                       project_name=project_name,
-                                       dataset_name=dataset_name,
-                                       table_name=table_name,
-                                       extensions=IMG_FORMATS,
-                                       if_exists="reuse",
-                                       add_weight_column=True,
-                                       description="Created with 3LC YOLOv8 integration")
+
+    # Special handling for ImageNet
+    is_imagenet = isinstance(data_dict["names"], dict) and isinstance(data_dict["names"][0], str) and data_dict["names"][0].startswith("n0")
+
+    if is_imagenet:
+        label_overrides = yaml_load(ROOT / "cfg/datasets/ImageNet.yaml")["map"]
+        label_overrides = {k: tlc.MapElement(internal_name=k, display_name=v) for k, v in label_overrides.items()}
+    else:
+        label_overrides = None
+
+    return tlc.Table.from_image_folder(
+        root=data_dict[key],
+        image_column_name=image_column_name,
+        label_column_name=label_column_name,
+        project_name=project_name,
+        dataset_name=dataset_name,
+        table_name=table_name,
+        extensions=IMG_FORMATS,
+        if_exists="reuse",
+        add_weight_column=True,
+        description="Created with 3LC YOLOv8 integration",
+        label_overrides=label_overrides,
+    )
 
 
 def check_cls_table(table: tlc.Table, image_column_name: str, label_column_name: str) -> None:

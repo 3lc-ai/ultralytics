@@ -148,7 +148,8 @@ def test_detect_training() -> None:
 
 def test_classify_training() -> None:
     model = TASK2MODEL["classify"]
-    overrides = {"data": TASK2DATASET["classify"], "device": "cpu", "epochs": 3, "batch": 64, "imgsz": 32}
+    data = TASK2DATASET["classify"]
+    overrides = {"data": data, "device": "cpu", "epochs": 3, "batch": 64, "imgsz": 32}
 
     # Compare results from 3LC with ultralytics
     model_ultralytics = YOLO(model)
@@ -174,6 +175,15 @@ def test_classify_training() -> None:
 
     assert run.status == tlc.RUN_STATUS_COMPLETED, "Run status not set to completed after training"
     assert not run.description, "Description mismatch, default should be empty string"
+
+    # Imagenet should get special treatment with label display name overrides
+    input_table = tlc.Table.from_url(run.url / run.constants["inputs"][0]["input_table_url"])
+    value_map = input_table.get_value_map("label")
+    assert all(v.display_name for v in value_map.values()), "Expected display names for all classes"
+    display_names = {v.display_name for v in value_map.values()}
+    assert display_names == {
+        "tench", "goldfish", "great_white_shark", "tiger_shark", "hammerhead", "electric_ray", "stingray", "cock", "hen", "ostrich",
+    }
 
     assert len(run.metrics_tables) == 6  # Two passes after epochs 2 and 3, and after training
 
