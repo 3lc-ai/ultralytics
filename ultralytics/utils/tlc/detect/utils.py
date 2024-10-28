@@ -113,13 +113,12 @@ def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
             f'Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table.')
 
 
-def yolo_predicted_bounding_box_schema(categories: dict[int, str]) -> tlc.Schema:
+def yolo_predicted_bounding_box_schema(label_value_map: dict[float, tlc.MapElement]) -> tlc.Schema:
     """ Create a 3LC bounding box schema for YOLOv8
 
     :param categories: Categories for the current dataset.
     :returns: The YOLO bounding box schema for predicted boxes.
     """
-    label_value_map = {float(i): tlc.MapElement(class_name) for i, class_name in categories.items()}
 
     bounding_box_schema = tlc.BoundingBoxListSchema(
         label_value_map=label_value_map,
