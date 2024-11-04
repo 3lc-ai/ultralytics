@@ -9,31 +9,39 @@ from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
 from ultralytics.utils import ROOT, yaml_load
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 
+from typing import Iterable
+
+
 def tlc_check_cls_dataset(
     data: str,
     tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
     image_column_name: str,
     label_column_name: str,
     project_name: str | None = None,
+    splits: Iterable[str] | None = None,
 ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    """ Get or create tables for YOLOv8 classification datasets. data is ignored when tables is provided.
-    
+    """Get or create tables for YOLOv8 classification datasets. data is ignored when tables is provided.
+
     :param data: Path to an ImageFolder dataset
     :param tables: Dictionary of tables, if already created
     :param image_column_name: Name of the column containing image paths
     :param label_column_name: Name of the column containing labels
     :param project_name: Name of the project
+    :param splits: List of splits to check for
     :return: Dictionary of tables and class names, with keys for each split and "names"
     """
-    return check_tlc_dataset(data,
-                             tables,
-                             image_column_name,
-                             label_column_name,
-                             dataset_checker=check_cls_dataset,
-                             table_creator=get_or_create_cls_table,
-                             table_checker=check_cls_table,
-                             project_name=project_name,
-                             check_backwards_compatible_table_name=False)
+    return check_tlc_dataset(
+        data,
+        tables,
+        image_column_name,
+        label_column_name,
+        dataset_checker=check_cls_dataset,
+        table_creator=get_or_create_cls_table,
+        table_checker=check_cls_table,
+        project_name=project_name,
+        check_backwards_compatible_table_name=False,
+        splits=splits,
+    )
 
 
 def get_or_create_cls_table(
@@ -45,8 +53,8 @@ def get_or_create_cls_table(
     dataset_name: str,
     table_name: str,
 ) -> tlc.Table:
-    """ Get or create a classification table from a dataset dictionary.
-    
+    """Get or create a classification table from a dataset dictionary.
+
     :param data_dict: Dictionary of dataset information
     :param project_name: Name of the project
     :param dataset_name: Name of the dataset
@@ -81,18 +89,23 @@ def get_or_create_cls_table(
 
 
 def check_cls_table(table: tlc.Table, image_column_name: str, label_column_name: str) -> None:
-    """ Check that a table is compatible with the current task."""
+    """Check that a table is compatible with the current task."""
     row_schema = table.row_schema.values
 
     try:
         # Check for image and label columns in schema
-        assert image_column_name in row_schema, f"Image column '{image_column_name}' not found in schema for Table {table.url}. Try providing your 'image_column_name' as an argument if you have a different column name."
-        assert label_column_name in row_schema, f"Label column '{label_column_name}' not found in schema for Table {table.url}. Try providing your 'label_column_name' as an argument if you have a different column name."
+        assert (
+            image_column_name in row_schema
+        ), f"Image column '{image_column_name}' not found in schema for Table {table.url}. Try providing your 'image_column_name' as an argument if you have a different column name."
+        assert (
+            label_column_name in row_schema
+        ), f"Label column '{label_column_name}' not found in schema for Table {table.url}. Try providing your 'label_column_name' as an argument if you have a different column name."
 
         # Check for desired roles
-        assert row_schema[
-            image_column_name].value.string_role == tlc.STRING_ROLE_IMAGE_URL, f"Image column '{image_column_name}' must have role tlc.STRING_ROLE_IMAGE_URL={tlc.STRING_ROLE_IMAGE_URL}."
-        assert row_schema[
-            label_column_name].value.number_role == tlc.LABEL, f"Label column '{label_column_name}' must have role tlc.LABEL={tlc.LABEL}."
+        assert (
+            row_schema[image_column_name].value.string_role == tlc.STRING_ROLE_IMAGE_URL
+        ), f"Image column '{image_column_name}' must have role tlc.STRING_ROLE_IMAGE_URL={tlc.STRING_ROLE_IMAGE_URL}."
+        assert (row_schema[label_column_name].value.number_role == tlc.LABEL
+                ), f"Label column '{label_column_name}' must have role tlc.LABEL={tlc.LABEL}."
     except AssertionError as e:
         raise ValueError(f"Table {table.url} is not compatible with YOLOv8 classification.") from e

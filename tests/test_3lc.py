@@ -393,7 +393,7 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     settings = Settings(project_name=f"test_sampling_weights_collection_{task}", exclude_zero_weight_collection=True)
     trainer = trainer_class(overrides={"data": TASK2DATASET[task], "settings": settings, "workers": 2})
 
-    # Classification trainer needs a model object to create dataloader
+    # Classification trainer needs a model attribute to create dataloader
     if task == "classify":
         trainer.model = Mock()
 
