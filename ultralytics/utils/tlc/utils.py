@@ -149,7 +149,7 @@ def check_tlc_dataset(
     return {
         **tables,
         "names": names_yolo,
-        "names_3lc": names,
+        "names_3lc": value_map,
         "nc": len(names),
         "range_to_3lc_class": range_to_3lc_class,
         "3lc_class_to_range": {

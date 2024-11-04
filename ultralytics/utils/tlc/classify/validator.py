@@ -41,7 +41,7 @@ class TLCClassificationValidator(TLCValidatorMixin, yolo.classify.Classification
         )
 
     def _get_metrics_schemas(self):
-        predicted_value_map = {float(k): tlc.MapElement(v) for k, v in self.data["names_3lc"].items()}
+        predicted_value_map = self.data["names_3lc"]
         predicted_value = tlc.Int32Value(value_map=predicted_value_map)
         predicted_schema = tlc.Schema(
             "Predicted",
