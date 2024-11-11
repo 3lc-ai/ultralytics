@@ -31,4 +31,4 @@ jobs:
 
       - name: Run tests
         run: |
-          TLC_LOGLEVEL=debug pytest tests/test_3lc.py -vv
+          TLC_LOGLEVEL=DEBUG pytest tests/test_3lc.py -vv
