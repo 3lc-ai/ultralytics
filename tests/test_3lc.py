@@ -5,9 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-print("Before import tlc")
 import tlc
-print("After import tlc")
 
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
@@ -28,11 +26,9 @@ from ultralytics.utils.tlc.constants import (
     TRAINING_PHASE,
 )
 
-print("Before setting TMP_PROJECT_ROOT_URL")
 TMP_PROJECT_ROOT_URL = tlc.Url(TMP / "3LC")
 tlc.Configuration.instance().project_root_url = TMP_PROJECT_ROOT_URL
 
-print("Before adding scan url")
 tlc.TableIndexingTable.instance().add_scan_url({
     "url": tlc.Url(TMP_PROJECT_ROOT_URL),
     "layout": "project",
