@@ -194,6 +194,34 @@ SAM 2 can be utilized across a broad spectrum of tasks, including real-time vide
         yolo predict model=sam2.1_b.pt source=path/to/video.mp4
         ```
 
+#### Segment Video and Track objects
+
+!!! example "Segment Video"
+
+    Segment the entire video content with specific prompts and track objects.
+
+    === "Python"
+
+        ```python
+        from ultralytics.models.sam import SAM2VideoPredictor
+
+        # Create SAM2VideoPredictor
+        overrides = dict(conf=0.25, task="segment", mode="predict", imgsz=1024, model="sam2_b.pt")
+        predictor = SAM2VideoPredictor(overrides=overrides)
+
+        # Run inference with single point
+        results = predictor(source="test.mp4", points=[920, 470], labels=1)
+
+        # Run inference with multiple points
+        results = predictor(source="test.mp4", points=[[920, 470], [909, 138]], labels=[1, 1])
+
+        # Run inference with multiple points prompt per object
+        results = predictor(source="test.mp4", points=[[[920, 470], [909, 138]]], labels=[[1, 1]])
+
+        # Run inference with negative points prompt
+        results = predictor(source="test.mp4", points=[[[920, 470], [909, 138]]], labels=[[1, 0]])
+        ```
+
 - This example demonstrates how SAM 2 can be used to segment the entire content of an image or video if no prompts (bboxes/points/masks) are provided.
 
 ## SAM 2 comparison vs YOLOv8
@@ -242,6 +270,17 @@ Tests run on a 2023 Apple M2 Macbook with 16GB of RAM using `torch==2.3.1` and `
 Auto-annotation is a powerful feature of SAM 2, enabling users to generate segmentation datasets quickly and accurately by leveraging pre-trained models. This capability is particularly useful for creating large, high-quality datasets without extensive manual effort.
 
 ### How to Auto-Annotate with SAM 2
+
+<p align="center">
+  <br>
+  <iframe loading="lazy" width="720" height="405" src="https://www.youtube.com/embed/M7xWw4Iodhg"
+    title="YouTube video player" frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen>
+  </iframe>
+  <br>
+  <strong>Watch:</strong> Auto Annotation with Meta's Segment Anything 2 Model using Ultralytics | Data Labeling
+</p>
 
 To auto-annotate your dataset using SAM 2, follow this example:
 

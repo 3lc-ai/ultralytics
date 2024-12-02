@@ -144,6 +144,9 @@ class Model(nn.Module):
         else:
             self._load(model, task=task)
 
+        # Delete super().training for accessing self.model.training
+        del self.training
+
     def __call__(
         self,
         source: Union[str, Path, int, Image.Image, list, tuple, np.ndarray, torch.Tensor] = None,
@@ -1126,3 +1129,46 @@ class Model(nn.Module):
             description of the expected behavior and structure.
         """
         raise NotImplementedError("Please provide task map for your model!")
+
+    def eval(self):
+        """
+        Sets the model to evaluation mode.
+
+        This method changes the model's mode to evaluation, which affects layers like dropout and batch normalization
+        that behave differently during training and evaluation.
+
+        Returns:
+            (Model): The model instance with evaluation mode set.
+
+        Examples:
+            >> model = YOLO("yolo11n.pt")
+            >> model.eval()
+        """
+        self.model.eval()
+        return self
+
+    def __getattr__(self, name):
+        """
+        Enables accessing model attributes directly through the Model class.
+
+        This method provides a way to access attributes of the underlying model directly through the Model class
+        instance. It first checks if the requested attribute is 'model', in which case it returns the model from
+        the module dictionary. Otherwise, it delegates the attribute lookup to the underlying model.
+
+        Args:
+            name (str): The name of the attribute to retrieve.
+
+        Returns:
+            (Any): The requested attribute value.
+
+        Raises:
+            AttributeError: If the requested attribute does not exist in the model.
+
+        Examples:
+            >>> model = YOLO("yolo11n.pt")
+            >>> print(model.stride)
+            >>> print(model.task)
+        """
+        if name == "model":
+            return self._modules["model"]
+        return getattr(self.model, name)
