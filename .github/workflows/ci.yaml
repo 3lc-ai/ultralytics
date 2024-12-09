@@ -4,38 +4,38 @@
 name: Ultralytics CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
   #schedule:
   #  - cron: "0 0 * * *" # runs at 00:00 UTC every day
-  workflow_dispatch:
-    inputs:
-      hub:
-        description: "Run HUB"
-        default: false
-        type: boolean
-      benchmarks:
-        description: "Run Benchmarks"
-        default: false
-        type: boolean
-      tests:
-        description: "Run Tests"
-        default: false
-        type: boolean
-      gpu:
-        description: "Run GPU"
-        default: false
-        type: boolean
-      raspberrypi:
-        description: "Run Raspberry Pi"
-        default: false
-        type: boolean
-      conda:
-        description: "Run Conda"
-        default: false
-        type: boolean
+  # workflow_dispatch:
+  #   inputs:
+  #     hub:
+  #       description: "Run HUB"
+  #       default: false
+  #       type: boolean
+  #     benchmarks:
+  #       description: "Run Benchmarks"
+  #       default: false
+  #       type: boolean
+  #     tests:
+  #       description: "Run Tests"
+  #       default: false
+  #       type: boolean
+  #     gpu:
+  #       description: "Run GPU"
+  #       default: false
+  #       type: boolean
+  #     raspberrypi:
+  #       description: "Run Raspberry Pi"
+  #       default: false
+  #       type: boolean
+  #     conda:
+  #       description: "Run Conda"
+  #       default: false
+  #       type: boolean
 
 jobs:
   HUB:
