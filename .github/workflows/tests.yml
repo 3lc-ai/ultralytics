@@ -23,8 +23,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Set environment variable dynamically
-      run: |
-        export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
+        run: |
+          export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
 
       - name: Install dependencies
         run: |
