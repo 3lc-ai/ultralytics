@@ -3,7 +3,7 @@ name: Run 3LC tests
 on:
   pull_request:
     branches:
-      - tlc-integration  # Adjust if your main branch has a different name
+      - tlc-integration
 
 jobs:
   test:
@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.9']  # Specify the Python versions you want to test against
+        python-version: ['3.9']
 
     steps:
       - name: Checkout code
@@ -22,18 +22,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Set environment variable dynamically
-        run: |
-          pip install 3lc
-          python -c "import tlc; tlc.Table.from_url('mnt/foo')"
-          export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .
           pip install pacmap==0.7.3
-          pip install pytest               # Install your test runner, such as pytest
+          pip install pytest
+
+      - name: Set environment variable dynamically
+        run: |
+          python -c "import tlc; tlc.Table.from_url('mnt/foo')"
+          export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
 
       - name: Run tests
         run: |
