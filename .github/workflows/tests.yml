@@ -30,11 +30,7 @@ jobs:
           pip install pacmap==0.7.3
           pip install pytest
 
-      - name: Set env vars
-        run: |
-          export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
-          python -c "import tlc; tlc.Table.from_url('mnt/foo/bar')"
-
       - name: Run tests
         run: |
+          export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
           pytest tests/test_3lc.py
