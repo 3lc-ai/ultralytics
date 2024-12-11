@@ -32,9 +32,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install .
-          uv pip install pacmap==0.7.3 
-          uv pip install pytest
+          uv pip install . pacmap==0.7.3 pytest
 
       - name: Run tests
         run: |
