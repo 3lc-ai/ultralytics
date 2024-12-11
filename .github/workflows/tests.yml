@@ -24,6 +24,7 @@ jobs:
 
       - name: Set environment variable dynamically
         run: |
+          python -c "import tlc; tlc.Table.from_url('mnt/foo')"
           export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
 
       - name: Install dependencies
