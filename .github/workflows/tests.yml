@@ -30,7 +30,7 @@ jobs:
           pip install pacmap==0.7.3
           pip install pytest
 
-      - name: Set env var
+      - name: Set env vars
         run: |
           export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
 
