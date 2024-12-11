@@ -33,7 +33,6 @@ jobs:
       - name: Set env var
         run: |
           export $(echo ${{ secrets.VARIABLE_NAME }})=${{ secrets.VARIABLE_VALUE }}
-          python -c "import tlc; tlc.Table.from_url('mnt/foo')"
 
       - name: Run tests
         run: |
