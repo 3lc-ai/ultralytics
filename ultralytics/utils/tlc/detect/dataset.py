@@ -58,8 +58,10 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
                 continue
 
             self.example_ids.append(example_id)
-            self.im_files.append(tlc.Url(row[tlc.IMAGE]).to_absolute().to_str())
-            self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format, self.class_map))
+
+            im_file = tlc.Url(row[tlc.IMAGE]).to_absolute(self.table.url).to_str()
+            self.im_files.append(im_file)
+            self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format, self.class_map, im_file))
 
         # Scan images if not already scanned
         if not self._is_scanned():
@@ -153,7 +155,7 @@ def unpack_boxes(bboxes: list[dict[str, int | float]], class_map: dict[int, int]
     return classes, boxes
 
 
-def tlc_table_row_to_yolo_label(row, table_format: str, class_map: dict[int, int]) -> dict[str, Any]:
+def tlc_table_row_to_yolo_label(row, table_format: str, class_map: dict[int, int], im_file: str) -> dict[str, Any]:
     classes, bboxes = unpack_boxes(row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST], class_map)
 
     if table_format == "COCO":
@@ -162,7 +164,7 @@ def tlc_table_row_to_yolo_label(row, table_format: str, class_map: dict[int, int
         bboxes = ops.xyxy2xywhn(bboxes_xyxy, w=row['width'], h=row['height'])
 
     return dict(
-        im_file=tlc.Url(row[tlc.IMAGE]).to_absolute().to_str(),
+        im_file=im_file,
         shape=(row['height'], row['width']),  # format: (height, width)
         cls=classes,
         bboxes=bboxes,
