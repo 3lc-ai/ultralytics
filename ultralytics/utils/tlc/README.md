@@ -16,13 +16,12 @@ For any questions or problems, please reach out on the [3LC Discord](https://dis
 
 ## Getting Started
 
-The first step is to clone this fork, change directory into it and install the package and requirements into a virtual environment:
+The first step is to install the package and requirements into a virtual environment:
+
 ```bash
-git clone https://github.com/3lc-ai/ultralytics.git
-cd ultralytics
 python -m venv .venv
 source .venv/bin/activate # or .venv/Scripts/activate in Git Bash / Windows
-pip install -e . # install the local ultralytics fork package
+pip install "git+https://github.com/3lc-ai/ultralytics@tlc-integration" # install the 3lc fork of ultralytics
 pip install pacmap # or umap-learn (optional, only required for embeddings collection)
 ```
 
@@ -50,7 +49,7 @@ model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset S
 
 In the background, 3LC will create `tlc.Table`s and collect metrics with the trained model after training completes, which can be opened in the 3LC Dashboard.
 
-> **⚠️ NOTE:** Make sure not to have your calling script in the same directory as the cloned `ultralytics` repository. If they are in the same directory, Python will directly import the module instead of the installed package, causing `import ultralytics` to fail.
+> **⚠️ NOTE:** If you installed from source from a cloned source, make sure not to have your calling script in the same directory as the cloned `ultralytics` repository. If they are in the same directory, Python will directly import the module instead of the installed package, causing `import ultralytics` to fail.
 
 ## Dataset specification
 
