@@ -49,7 +49,7 @@ model.train(data="coco128.yaml", settings=settings) # See the section 'Dataset S
 
 In the background, 3LC will create `tlc.Table`s and collect metrics with the trained model after training completes, which can be opened in the 3LC Dashboard.
 
-> **⚠️ NOTE:** If you installed from source from a cloned source, make sure not to have your calling script in the same directory as the cloned `ultralytics` repository. If they are in the same directory, Python will directly import the module instead of the installed package, causing `import ultralytics` to fail.
+> **⚠️ NOTE:** If you installed from source after cloning the repository, make sure not to have your calling script in the same directory as the cloned `ultralytics` repository. If they are in the same directory, Python will directly import the module instead of the installed package, causing `import ultralytics` to fail.
 
 ## Dataset specification
 
