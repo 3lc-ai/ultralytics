@@ -8,6 +8,7 @@ TRAINING_PHASE = "Training Phase"
 IMAGE_COLUMN_NAME = tlc.IMAGE
 CLASSIFY_LABEL_COLUMN_NAME = tlc.LABEL
 DETECTION_LABEL_COLUMN_NAME = "bbs.bb_list.label"
+SEGMENTATION_LABEL_COLUMN_NAME = "segmentations"
 PRECISION = "precision"
 RECALL = "recall"
 MAP = "mAP"

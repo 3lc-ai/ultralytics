@@ -2,20 +2,14 @@
 from __future__ import annotations
 
 import tlc
-import torch
 import yaml
 
-from packaging import version
 from pathlib import Path
 
-from .constants import TRAINING_PHASE
-
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION, TLC_PREFIX
-from ultralytics.utils.tlc.settings import Settings
+from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
 
-from typing import Callable, Literal, Iterable
-
+from typing import Callable, Iterable
 
 def check_tlc_dataset(
     data: str,
@@ -134,11 +128,15 @@ def check_tlc_dataset(
             LOGGER.info(f"{colorstr(key)}: Using table {tables[key].url} from {source}")
 
     first_split = next(iter(tables.keys()))
-    value_map = tables[first_split].get_value_map(label_column_name)
+
+    value_map = get_table_value_map(tables[first_split], label_column_name)
+    
     names = {int(k): v['internal_name'] for k, v in value_map.items()}
 
     for split in tables:
-        if tables[split].get_value_map(label_column_name) != value_map:
+        other_value_map = get_table_value_map(tables[split], label_column_name)
+
+        if other_value_map != value_map:
             msg = f"All splits must have the same categories, but {split} has different categories from {first_split}."
             raise ValueError(msg)
 
@@ -156,74 +154,18 @@ def check_tlc_dataset(
             v: k
             for k, v in range_to_3lc_class.items()}, }
 
-
-def training_phase_schema() -> tlc.Schema:
-    """Create a 3LC schema for the training phase.
-
-    :returns: The training phase schema.
+def get_table_value_map(table: tlc.Table, label_column_name: str) -> dict[int, dict[str, object]]:
+    """Get the value map for a table.
+    
+    :param table: The table to get the value map for.
+    :param label_column_name: The name of the label column.
+    :returns: The value map for the table.
     """
-    return tlc.Schema(
-        display_name=TRAINING_PHASE,
-        description=("'During' metrics are collected with EMA during training, "
-                     "'After' is with the final model weights after completed training."),
-        display_importance=tlc.DISPLAY_IMPORTANCE_EPOCH - 1,  # Right hand side of epoch in the Dashboard
-        writable=False,
-        computable=False,
-        value=tlc.Int32Value(
-            value_min=0,
-            value_max=1,
-            value_map={
-                float(0): tlc.MapElement(display_name='During'),
-                float(1): tlc.MapElement(display_name='After'), },
-        ))
+    value_map = table.get_value_map(label_column_name)
+    if value_map is None:
+        value_map = table.schema.values["rows"].values["segmentations"].values["instance_properties"].values["label"].value.map
 
-
-def image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
-    """Create a 3LC schema for YOLOv8 image embeddings.
-
-    :param activation_size: The size of the activation tensor.
-    :returns: The YOLO image embeddings schema.
-    """
-    embedding_schema = tlc.Schema('Embedding',
-                                  'Large NN embedding',
-                                  writable=False,
-                                  computable=False,
-                                  value=tlc.Float32Value(number_role=tlc.NUMBER_ROLE_NN_EMBEDDING),
-                                  size0=tlc.DimensionNumericValue(value_min=activation_size,
-                                                                  value_max=activation_size,
-                                                                  enforce_min=True,
-                                                                  enforce_max=True))
-    return embedding_schema
-
-
-def reduce_embeddings(
-    run: tlc.Run,
-    method: str,
-    n_components: int,
-    foreign_table_url: tlc.Url | None = None,
-):
-    """Reduce image embeddings by a foreign table URL."""
-    if foreign_table_url is None:
-        foreign_table_url = tlc.Url(tlc.active_run().constants['inputs'][0]['input_table_url']).to_absolute(
-            tlc.active_run().url)
-
-    LOGGER.info(TLC_COLORSTR +
-                f"Reducing image embeddings to {n_components}D with {method}, this may take a few minutes...")
-    run.reduce_embeddings_by_foreign_table_url(
-        foreign_table_url=foreign_table_url,
-        method=method,
-        n_components=n_components,
-    )
-
-
-def check_tlc_version():
-    """Check the 3LC version."""
-    installed_version = version.parse(tlc.__version__)
-    if installed_version < version.parse(TLC_REQUIRED_VERSION):
-        raise ValueError(
-            f"3LC version {tlc.__version__} is too old to use the YOLOv8 integration. "
-            f"Please upgrade to version {TLC_REQUIRED_VERSION} or later by running 'pip install --upgrade 3lc'.")
-
+    return value_map
 
 def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
     """Parse a 3LC YAML file and return the corresponding tables.
@@ -264,40 +206,3 @@ def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
         tables[split] = table
 
     return tables
-
-
-def create_sampler(table: tlc.Table,
-                   mode: Literal["train", "val"],
-                   settings: Settings,
-                   distributed: bool = False) -> torch.utils.data.Sampler | None:
-    """Get the sampler for the dataset.
-    
-    :param table: The table to get the sampler for.
-    :param mode: The mode of the sampler.
-    :param settings: The settings for the run.
-    :param distributed: Whether training is distributed.
-    :returns: The sampler for the dataset.
-    """
-    sampler = None
-
-    if mode == "train":
-        if settings.sampling_weights or settings.exclude_zero_weight_training:
-            if distributed:
-                raise NotImplementedError("Distributed training and using 3LC weights is not yet supported.")
-
-            try:
-                sampler = table.create_sampler(
-                    exclude_zero_weights=settings.exclude_zero_weight_training,
-                    weighted=settings.sampling_weights,
-                    shuffle=True,
-                )
-            except Exception as e:
-                raise ValueError(f"Error creating sampler for table {table.url}") from e
-
-    elif mode == "val":
-        if distributed:
-            raise NotImplementedError("Distributed validation and exclusion by weight is not yet supported.")
-
-        # Exclude zero weight is handled in the dataset for validation
-        return None
-    return sampler
