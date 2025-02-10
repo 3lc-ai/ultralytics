@@ -185,6 +185,19 @@ class TLCTrainerMixin(BaseTrainer):
     def save_metrics(self, metrics):
         # Log aggregate metrics after every epoch
         processed_metrics = self._process_metrics(metrics)
+
+        # Special handling of segmentation metrics
+        metrics_names_mapping = {
+            "val_precision(M": "val_seg_precision",
+            "val_recall(M": "val_seg_recall",
+            "val_mAP50(M": "val_seg_mAP50",
+            "val_mAP50-95(M": "val_seg_mAP50_95",
+        }
+
+        for key, value in metrics_names_mapping.items():
+            if key in processed_metrics:
+                processed_metrics[value] = processed_metrics.pop(key)
+
         self._run.add_output_value({"epoch": self.epoch + 1, **processed_metrics})
 
         super().save_metrics(metrics=metrics)
