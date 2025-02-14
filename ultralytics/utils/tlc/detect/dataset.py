@@ -17,23 +17,30 @@ from typing import Any
 
 
 class IdentityDict(dict):
-
     def __missing__(self, key):
         return key
 
 
 class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
-
-    def __init__(self, table, data=None, task="detect", exclude_zero=False, class_map=None, **kwargs):
-        """ 3LC equivalent of YOLODataset, populating the data fields from a 3LC Table.
-        
-        """
-        assert task == "detect", f"Unsupported task: {task} for TLCYOLODataset. Only 'detect' is supported."
+    def __init__(
+        self,
+        table,
+        data=None,
+        task="detect",
+        exclude_zero=False,
+        class_map=None,
+        **kwargs,
+    ):
+        """3LC equivalent of YOLODataset, populating the data fields from a 3LC Table."""
+        assert task == "detect", (
+            f"Unsupported task: {task} for TLCYOLODataset. Only 'detect' is supported."
+        )
         self.table = table
         self._exclude_zero = exclude_zero
         self.class_map = class_map if class_map is not None else IdentityDict()
 
         from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
+
         if is_yolo_table(self.table):
             self._table_format = "YOLO"
         elif is_coco_table(self.table):
@@ -61,7 +68,11 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
             im_file = tlc.Url(row[tlc.IMAGE]).to_absolute(self.table.url).to_str()
             self.im_files.append(im_file)
-            self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format, self.class_map, im_file))
+            self.labels.append(
+                tlc_table_row_to_yolo_label(
+                    row, self._table_format, self.class_map, im_file
+                )
+            )
 
         # Scan images if not already scanned
         if not self._is_scanned():
@@ -81,7 +92,9 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         samples_iterator = ((im_file, None) for im_file in self.im_files)
 
         with ThreadPool(NUM_THREADS) as pool:
-            results = pool.imap(func=verify_image, iterable=zip(samples_iterator, repeat(self.prefix)))
+            results = pool.imap(
+                func=verify_image, iterable=zip(samples_iterator, repeat(self.prefix))
+            )
             pbar = TQDM(enumerate(results), desc=desc, total=len(self.im_files))
             for i, (sample, nf_f, nc_f, msg) in pbar:
                 if nf_f:
@@ -106,7 +119,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.labels = labels
 
     def set_rectangle(self):
-        """Save the batch shapes and inidices for the dataset. """
+        """Save the batch shapes and inidices for the dataset."""
         bi = np.floor(np.arange(self.ni) / self.batch_size).astype(int)  # batch index
         nb = bi[-1] + 1  # number of batches
 
@@ -130,7 +143,10 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             elif mini > 1:
                 shapes[i] = [1, 1 / mini]
 
-        self.batch_shapes = np.ceil(np.array(shapes) * self.imgsz / self.stride + self.pad).astype(int) * self.stride
+        self.batch_shapes = (
+            np.ceil(np.array(shapes) * self.imgsz / self.stride + self.pad).astype(int)
+            * self.stride
+        )
         self.batch = bi  # batch index of image
 
 
@@ -138,7 +154,9 @@ def unpack_box(bbox: dict[str, int | float]) -> tuple[int | float]:
     return bbox[tlc.LABEL], [bbox[tlc.X0], bbox[tlc.Y0], bbox[tlc.X1], bbox[tlc.Y1]]
 
 
-def unpack_boxes(bboxes: list[dict[str, int | float]], class_map: dict[int, int]) -> tuple[np.ndarray, np.ndarray]:
+def unpack_boxes(
+    bboxes: list[dict[str, int | float]], class_map: dict[int, int]
+) -> tuple[np.ndarray, np.ndarray]:
     classes_list, boxes_list = [], []
     for bbox in bboxes:
         _class, box = unpack_box(bbox)
@@ -155,17 +173,21 @@ def unpack_boxes(bboxes: list[dict[str, int | float]], class_map: dict[int, int]
     return classes, boxes
 
 
-def tlc_table_row_to_yolo_label(row, table_format: str, class_map: dict[int, int], im_file: str) -> dict[str, Any]:
-    classes, bboxes = unpack_boxes(row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST], class_map)
+def tlc_table_row_to_yolo_label(
+    row, table_format: str, class_map: dict[int, int], im_file: str
+) -> dict[str, Any]:
+    classes, bboxes = unpack_boxes(
+        row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST], class_map
+    )
 
     if table_format == "COCO":
         # Convert from ltwh absolute to xywh relative
         bboxes_xyxy = ops.ltwh2xyxy(bboxes)
-        bboxes = ops.xyxy2xywhn(bboxes_xyxy, w=row['width'], h=row['height'])
+        bboxes = ops.xyxy2xywhn(bboxes_xyxy, w=row["width"], h=row["height"])
 
     return dict(
         im_file=im_file,
-        shape=(row['height'], row['width']),  # format: (height, width)
+        shape=(row["height"], row["width"]),  # format: (height, width)
         cls=classes,
         bboxes=bboxes,
         segments=[],

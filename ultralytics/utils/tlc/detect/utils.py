@@ -86,7 +86,9 @@ def build_tlc_yolo_dataset(
     split=None,
 ):
     if multi_modal:
-        return ValueError("Multi-modal datasets are not supported in the 3LC Ultralytics integration.")
+        return ValueError(
+            "Multi-modal datasets are not supported in the 3LC Ultralytics integration."
+        )
 
     return TLCYOLODataset(
         table,
@@ -118,11 +120,14 @@ def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
     """
     if not (is_yolo_table(table) or is_coco_table(table)):
         raise ValueError(
-            f"Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table.")
+            f"Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table."
+        )
 
 
-def yolo_predicted_bounding_box_schema(label_value_map: dict[float, tlc.MapElement]) -> tlc.Schema:
-    """ Create a 3LC bounding box schema for YOLOv8
+def yolo_predicted_bounding_box_schema(
+    label_value_map: dict[float, tlc.MapElement],
+) -> tlc.Schema:
+    """Create a 3LC bounding box schema for YOLOv8
 
     :param categories: Categories for the current dataset.
     :returns: The YOLO bounding box schema for predicted boxes.
@@ -154,18 +159,24 @@ def yolo_loss_schemas(training: bool = False) -> dict[str, tlc.Schema]:
     :returns: The YOLO loss schemas for each of the three components.
     """
     schemas = {}
-    schemas["box_loss"] = tlc.Schema(description="Box Loss",
-                                     writable=False,
-                                     value=tlc.Float32Value(),
-                                     display_importance=3004)
-    schemas["dfl_loss"] = tlc.Schema(description="Distribution Focal Loss",
-                                     writable=False,
-                                     value=tlc.Float32Value(),
-                                     display_importance=3005)
-    schemas["cls_loss"] = tlc.Schema(description="Classification Loss",
-                                     writable=False,
-                                     value=tlc.Float32Value(),
-                                     display_importance=3006)
+    schemas["box_loss"] = tlc.Schema(
+        description="Box Loss",
+        writable=False,
+        value=tlc.Float32Value(),
+        display_importance=3004,
+    )
+    schemas["dfl_loss"] = tlc.Schema(
+        description="Distribution Focal Loss",
+        writable=False,
+        value=tlc.Float32Value(),
+        display_importance=3005,
+    )
+    schemas["cls_loss"] = tlc.Schema(
+        description="Classification Loss",
+        writable=False,
+        value=tlc.Float32Value(),
+        display_importance=3006,
+    )
     if training:
         schemas["loss"] = tlc.Schema(
             description="Weighted sum of box, DFL, and classification losses used in training",
@@ -197,8 +208,15 @@ def construct_bbox_struct(
     )
 
     for pred in predicted_annotations:
-        bbox, label, score, iou = pred["bbox"], pred["category_id"], pred["score"], pred["iou"]
-        label_val = inverse_label_mapping[label] if inverse_label_mapping is not None else label
+        bbox, label, score, iou = (
+            pred["bbox"],
+            pred["category_id"],
+            pred["score"],
+            pred["iou"],
+        )
+        label_val = (
+            inverse_label_mapping[label] if inverse_label_mapping is not None else label
+        )
         bbox_struct["bb_list"].append(
             _TLCPredictedBoundingBox(
                 label=label_val,
@@ -208,7 +226,8 @@ def construct_bbox_struct(
                 y0=bbox[1],
                 x1=bbox[2],
                 y1=bbox[3],
-            ))
+            )
+        )
 
     return bbox_struct
 
@@ -228,11 +247,26 @@ def is_yolo_table(table: tlc.Table) -> tuple[bool, str]:
         assert tlc.BOUNDING_BOXES in row_schema
         assert tlc.BOUNDING_BOX_LIST in row_schema[tlc.BOUNDING_BOXES].values
         assert tlc.SAMPLE_WEIGHT in row_schema
-        assert tlc.LABEL in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.X0 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.Y0 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.X1 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.Y1 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        assert (
+            tlc.LABEL
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.X0
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.Y0
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.X1
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.Y1
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
 
         X0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.X0]
         Y0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.Y0]
@@ -270,11 +304,26 @@ def is_coco_table(table: tlc.Table) -> bool:
         assert tlc.BOUNDING_BOXES in row_schema
         assert tlc.BOUNDING_BOX_LIST in row_schema[tlc.BOUNDING_BOXES].values
         assert tlc.SAMPLE_WEIGHT in row_schema
-        assert tlc.LABEL in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.X0 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.Y0 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.X1 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        assert tlc.Y1 in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        assert (
+            tlc.LABEL
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.X0
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.Y0
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.X1
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
+        assert (
+            tlc.Y1
+            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
+        )
 
         X0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.X0]
         Y0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.Y0]

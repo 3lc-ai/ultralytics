@@ -22,7 +22,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         args (Namespace): See parent.
         augment (bool): See parent.
         prefix (str): See parent.
-    
+
     """
 
     def __init__(
@@ -52,8 +52,14 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
                 continue
 
             self.example_ids.append(example_id)
-            image_path = Path(tlc.Url(row[image_column_name]).to_absolute(table.url).to_str())
-            category = class_map[row[label_column_name]] if class_map else row[label_column_name]
+            image_path = Path(
+                tlc.Url(row[image_column_name]).to_absolute(table.url).to_str()
+            )
+            category = (
+                class_map[row[label_column_name]]
+                if class_map
+                else row[label_column_name]
+            )
             self.samples.append((image_path, category))
 
         # Initialize attributes (calls self.verify_images())
@@ -63,20 +69,20 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         self._post_init()
 
     def verify_schema(self, image_column_name, label_column_name):
-        """ Verify that the provided Table has the desired entries """
+        """Verify that the provided Table has the desired entries"""
 
         # Check for data in columns
         assert len(self.table) > 0, f"Table {self.root.to_str()} has no rows."
         first_row = self.table.table_rows[0]
-        assert isinstance(
-            first_row[image_column_name],
-            str), f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
-        assert isinstance(
-            first_row[label_column_name],
-            int), f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
+        assert isinstance(first_row[image_column_name], str), (
+            f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
+        )
+        assert isinstance(first_row[label_column_name], int), (
+            f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
+        )
 
     def verify_images(self):
-        """ Verify all images in the dataset."""
+        """Verify all images in the dataset."""
 
         # Skip verification if the dataset has already been scanned
         if self._is_scanned():
@@ -86,7 +92,9 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         # Run scan if the marker does not exist
         nf, nc, msgs, samples, example_ids = 0, 0, [], [], []
         with ThreadPool(NUM_THREADS) as pool:
-            results = pool.imap(func=verify_image, iterable=zip(self.samples, repeat(self.prefix)))
+            results = pool.imap(
+                func=verify_image, iterable=zip(self.samples, repeat(self.prefix))
+            )
             pbar = TQDM(enumerate(results), desc=desc, total=len(self.samples))
             for i, (sample, nf_f, nc_f, msg) in pbar:
                 if nf_f:

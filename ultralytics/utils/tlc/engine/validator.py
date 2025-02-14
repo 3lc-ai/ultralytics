@@ -23,7 +23,6 @@ from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_
 
 
 def execute_when_collecting(method):
-
     def wrapper(self, *args, **kwargs):
         if self._should_collect:
             return method(self, *args, **kwargs)
@@ -32,7 +31,6 @@ def execute_when_collecting(method):
 
 
 class TLCValidatorMixin(BaseValidator):
-
     def __init__(
         self,
         dataloader=None,
@@ -60,8 +58,12 @@ class TLCValidatorMixin(BaseValidator):
             else:
                 self._run = None  # Create run
             self._settings: Settings = args.pop("settings", Settings())
-            self._image_column_name = args.pop("image_column_name", self._default_image_column_name)
-            self._label_column_name = args.pop("label_column_name", self._default_label_column_name)
+            self._image_column_name = args.pop(
+                "image_column_name", self._default_image_column_name
+            )
+            self._label_column_name = args.pop(
+                "label_column_name", self._default_label_column_name
+            )
             self._table = args.pop("table", None)
             self._training = False
 
@@ -81,7 +83,7 @@ class TLCValidatorMixin(BaseValidator):
                 self._image_column_name,
                 self._label_column_name,
                 project_name=self._settings.project_name,
-                splits=(self.args.split, ),
+                splits=(self.args.split,),
             )
 
         # Create a run if not provided
@@ -92,7 +94,9 @@ class TLCValidatorMixin(BaseValidator):
             else:
                 first_split = list(self.data.keys())[0]
                 project_name = self.data[first_split].project_name
-                LOGGER.info(f"{TLC_COLORSTR}Using project name '{project_name}' from the provided table to create run.")
+                LOGGER.info(
+                    f"{TLC_COLORSTR}Using project name '{project_name}' from the provided table to create run."
+                )
 
             if tlc.active_run() and tlc.active_run().project_name == project_name:
                 self._run = tlc.active_run()
@@ -103,11 +107,13 @@ class TLCValidatorMixin(BaseValidator):
                 self._run = tlc.init(
                     project_name=project_name,
                     description=self._settings.run_description
-                    if self._settings.run_description else DEFAULT_COLLECT_RUN_DESCRIPTION,
+                    if self._settings.run_description
+                    else DEFAULT_COLLECT_RUN_DESCRIPTION,
                     run_name=self._settings.run_name,
                 )
                 LOGGER.info(
-                    f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
+                    f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}."
+                )
 
         self.metrics.run_url = self._run.url
 
@@ -115,8 +121,10 @@ class TLCValidatorMixin(BaseValidator):
         self._epoch = trainer.epoch if trainer is not None else self._epoch
 
         if trainer:
-            self._should_collect = (not self._settings.collection_disable
-                                    and self._epoch + 1 in trainer._metrics_collection_epochs)
+            self._should_collect = (
+                not self._settings.collection_disable
+                and self._epoch + 1 in trainer._metrics_collection_epochs
+            )
         else:
             self._should_collect = not self._settings.collection_disable
 
@@ -136,7 +144,7 @@ class TLCValidatorMixin(BaseValidator):
         initial_spaces = len(desc) - len(desc.lstrip())
         split_centered = split.center(initial_spaces)
         split_str = f"{colorstr(split_centered)}"
-        desc = split_str + desc[len(split_centered):]
+        desc = split_str + desc[len(split_centered) :]
 
         return desc
 
@@ -205,7 +213,9 @@ class TLCValidatorMixin(BaseValidator):
     def _pre_validation(self, model):
         """Prepare the validator for metrics collection"""
         column_schemas = {}
-        column_schemas.update(self._get_metrics_schemas())  # Add task-specific metrics schema
+        column_schemas.update(
+            self._get_metrics_schemas()
+        )  # Add task-specific metrics schema
 
         self._prepare_loss_fn(model)
 
@@ -213,7 +223,9 @@ class TLCValidatorMixin(BaseValidator):
             # Add hook and get the activation size
             activation_size = self._add_embeddings_hook(model)
 
-            column_schemas["embeddings"] = image_embeddings_schema(activation_size=activation_size)
+            column_schemas["embeddings"] = image_embeddings_schema(
+                activation_size=activation_size
+            )
 
         if self._epoch is not None:
             column_schemas[TRAINING_PHASE] = training_phase_schema()
@@ -240,7 +252,9 @@ class TLCValidatorMixin(BaseValidator):
 
         # Improve memory usage - don't cache metrics data
         for metrics_info in metrics_infos:
-            tlc.ObjectRegistry._delete_object_from_caches(tlc.Url(metrics_info["url"]).to_absolute(self._run.url))
+            tlc.ObjectRegistry._delete_object_from_caches(
+                tlc.Url(metrics_info["url"]).to_absolute(self._run.url)
+            )
 
         self._run.set_status_running()
 
@@ -269,16 +283,24 @@ class TLCValidatorMixin(BaseValidator):
         training_phase = 1 if self._final_validation else 0
         num_classes = self.nc + 1  # all classes plus "all"
 
-        metrics_batch = ({
-            tlc.EPOCH: [epoch] * num_classes,
-            TRAINING_PHASE: [training_phase] * num_classes, } if self._training else {})
+        metrics_batch = (
+            {
+                tlc.EPOCH: [epoch] * num_classes,
+                TRAINING_PHASE: [training_phase] * num_classes,
+            }
+            if self._training
+            else {}
+        )
 
-        metrics_batch.update({
-            tlc.FOREIGN_TABLE_ID: [0] * num_classes,
-            tlc.LABEL: list(range(num_classes)),
-            NUM_INSTANCES: np.append(self.nt_per_class, self.nt_per_class.sum()),
-            NUM_IMAGES: np.append(self.nt_per_image, self.seen),
-            **self._generate_per_class_metrics(), })
+        metrics_batch.update(
+            {
+                tlc.FOREIGN_TABLE_ID: [0] * num_classes,
+                tlc.LABEL: list(range(num_classes)),
+                NUM_INSTANCES: np.append(self.nt_per_class, self.nt_per_class.sum()),
+                NUM_IMAGES: np.append(self.nt_per_image, self.seen),
+                **self._generate_per_class_metrics(),
+            }
+        )
 
         metrics_writer.add_batch(metrics_batch)
         metrics_writer.finalize()
@@ -291,43 +313,38 @@ class TLCValidatorMixin(BaseValidator):
 
     def _per_class_metrics_schemas(self):
         return {
-            TRAINING_PHASE:
-            training_phase_schema(),
-            tlc.FOREIGN_TABLE_ID:
-            tlc.ForeignTableIdSchema(self.dataloader.dataset.table.url.to_str()),
-            tlc.LABEL:
-            tlc.CategoricalLabel("class", {
-                **self.names, self.nc: "all"}).schema,
-            NUM_IMAGES:
-            tlc.Schema(
+            TRAINING_PHASE: training_phase_schema(),
+            tlc.FOREIGN_TABLE_ID: tlc.ForeignTableIdSchema(
+                self.dataloader.dataset.table.url.to_str()
+            ),
+            tlc.LABEL: tlc.CategoricalLabel(
+                "class", {**self.names, self.nc: "all"}
+            ).schema,
+            NUM_IMAGES: tlc.Schema(
                 value=tlc.Int32Value(),
                 description="Number of images with at least one instance of the class",
             ),
-            NUM_INSTANCES:
-            tlc.Schema(
+            NUM_INSTANCES: tlc.Schema(
                 value=tlc.Int32Value(),
                 description="Total number of instances of the class in all images",
             ),
-            PRECISION:
-            tlc.Schema(
+            PRECISION: tlc.Schema(
                 value=tlc.Float32Value(),
                 description="Precision of the class",
             ),
-            RECALL:
-            tlc.Schema(
+            RECALL: tlc.Schema(
                 value=tlc.Float32Value(),
                 description="Recall of the class",
             ),
-            MAP:
-            tlc.Schema(
+            MAP: tlc.Schema(
                 value=tlc.Float32Value(),
                 description="mAP of the class",
             ),
-            MAP50_95:
-            tlc.Schema(
+            MAP50_95: tlc.Schema(
                 value=tlc.Float32Value(),
                 description="mAP50-95 of the class",
-            ), }
+            ),
+        }
 
     def _generate_per_class_metrics(self):
         """Transform metrics from self.metrics to a format suitable for 3LC"""
@@ -339,7 +356,9 @@ class TLCValidatorMixin(BaseValidator):
 
         for i in range(self.nc):
             if i in self.metrics.ap_class_index:
-                p, r, ap50, ap5095 = self.metrics.class_result(np.where(self.metrics.ap_class_index == i)[0][0])
+                p, r, ap50, ap5095 = self.metrics.class_result(
+                    np.where(self.metrics.ap_class_index == i)[0][0]
+                )
             else:
                 p, r, ap50, ap5095 = 0.0, 0.0, 0.0, 0.0
 
@@ -359,7 +378,8 @@ class TLCValidatorMixin(BaseValidator):
             PRECISION: precisions,
             RECALL: recalls,
             MAP: mAPs,
-            MAP50_95: mAP50_95s, }
+            MAP50_95: mAP50_95s,
+        }
 
     def _verify_model_data_compatibility(self, model_class_names):
         """Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
