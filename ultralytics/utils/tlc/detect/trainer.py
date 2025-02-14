@@ -76,7 +76,7 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
 
     def _process_metrics(self, metrics):
         return {
-            metric.strip("(B)").replace("metrics", "val").replace("/", "_"): value
+            metric.removesuffix("(B)").replace("metrics", "val").replace("/", "_"): value
             for metric, value in metrics.items()}
 
     def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
