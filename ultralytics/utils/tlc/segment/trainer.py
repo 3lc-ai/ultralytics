@@ -8,11 +8,11 @@ from ultralytics.utils.tlc.detect.trainer import TLCDetectionTrainer
 from ultralytics.utils.tlc.segment.validator import TLCSegmentationValidator
 from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset
 
+
 class TLCSegmentationTrainer(SegmentationTrainer, TLCDetectionTrainer):
     _default_label_column_name = SEGMENTATION_LABEL_COLUMN_NAME
 
     def get_dataset(self):
-
         # Parse yaml and create tables
         self.data = tlc_check_seg_dataset(
             self.args.data,
@@ -31,12 +31,12 @@ class TLCSegmentationTrainer(SegmentationTrainer, TLCDetectionTrainer):
                 self._image_column_name,
                 self._label_column_name,
                 project_name=self._settings.project_name,
-                splits=("test", ),
+                splits=("test",),
             )
             self.data["test"] = data_test["test"]
 
         return self.data["train"], self.data.get("val") or self.data.get("test")
-    
+
     def _process_metrics(self, metrics):
         detection_metrics = super()._process_metrics(metrics)
         return {metric_name.replace("(M)", "_seg"): value for metric_name, value in detection_metrics.items()}

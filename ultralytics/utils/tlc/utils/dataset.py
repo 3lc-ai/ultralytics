@@ -11,6 +11,7 @@ from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
 
 from typing import Callable, Iterable
 
+
 def check_tlc_dataset(
     data: str,
     tables: dict[str, tlc.Table | tlc.Url | str] | None,
@@ -97,7 +98,8 @@ def check_tlc_dataset(
 
                 except Exception as e:
                     LOGGER.warning(
-                        f"{colorstr(key)}: Failed to read or create table for split {key} from {data}: {e!s}")
+                        f"{colorstr(key)}: Failed to read or create table for split {key} from {data}: {e!s}"
+                    )
 
     else:
         # LOGGER.info(f"{TLC_COLORSTR}Using data directly from tables")
@@ -111,12 +113,15 @@ def check_tlc_dataset(
                     tables[key] = tlc.Table.from_url(table_url)
                 except Exception as e:
                     raise ValueError(
-                        f"Error loading table from {table} for split '{key}' provided through `tables`.") from e
+                        f"Error loading table from {table} for split '{key}' provided through `tables`."
+                    ) from e
             elif isinstance(table, tlc.Table):
                 tables[key] = table
             else:
-                msg = (f"Invalid type {type(table)} for split {key} provided through `tables`."
-                       "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table.")
+                msg = (
+                    f"Invalid type {type(table)} for split {key} provided through `tables`."
+                    "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table."
+                )
 
                 raise ValueError(msg)
 
@@ -130,8 +135,8 @@ def check_tlc_dataset(
     first_split = next(iter(tables.keys()))
 
     value_map = get_table_value_map(tables[first_split], label_column_name)
-    
-    names = {int(k): v['internal_name'] for k, v in value_map.items()}
+
+    names = {int(k): v["internal_name"] for k, v in value_map.items()}
 
     for split in tables:
         other_value_map = get_table_value_map(tables[split], label_column_name)
@@ -150,26 +155,29 @@ def check_tlc_dataset(
         "names_3lc": value_map,
         "nc": len(names),
         "range_to_3lc_class": range_to_3lc_class,
-        "3lc_class_to_range": {
-            v: k
-            for k, v in range_to_3lc_class.items()}, }
+        "3lc_class_to_range": {v: k for k, v in range_to_3lc_class.items()},
+    }
+
 
 def get_table_value_map(table: tlc.Table, label_column_name: str) -> dict[int, dict[str, object]]:
     """Get the value map for a table.
-    
+
     :param table: The table to get the value map for.
     :param label_column_name: The name of the label column.
     :returns: The value map for the table.
     """
     value_map = table.get_value_map(label_column_name)
     if value_map is None:
-        value_map = table.schema.values["rows"].values["segmentations"].values["instance_properties"].values["label"].value.map
+        value_map = (
+            table.schema.values["rows"].values["segmentations"].values["instance_properties"].values["label"].value.map
+        )
 
     return value_map
 
+
 def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
     """Parse a 3LC YAML file and return the corresponding tables.
-    
+
     :param data_file: The path to the 3LC YAML file.
     :returns: The tables pointed to by the YAML file.
     """
@@ -187,7 +195,7 @@ def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
         # Handle :latest at the end
         if data_config[split].endswith(":latest"):
             latest = True
-            split_path = data_config[split][:-len(":latest")]
+            split_path = data_config[split][: -len(":latest")]
         else:
             latest = False
             split_path = data_config[split]

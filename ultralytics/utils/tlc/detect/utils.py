@@ -119,11 +119,12 @@ def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
     """
     if not (is_yolo_table(table) or is_coco_table(table)):
         raise ValueError(
-            f"Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table.")
+            f"Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table."
+        )
 
 
 def yolo_predicted_bounding_box_schema(label_value_map: dict[float, tlc.MapElement]) -> tlc.Schema:
-    """ Create a 3LC bounding box schema for YOLOv8
+    """Create a 3LC bounding box schema for YOLOv8
 
     :param categories: Categories for the current dataset.
     :returns: The YOLO bounding box schema for predicted boxes.
@@ -155,18 +156,15 @@ def yolo_loss_schemas(training: bool = False) -> dict[str, tlc.Schema]:
     :returns: The YOLO loss schemas for each of the three components.
     """
     schemas = {}
-    schemas["box_loss"] = tlc.Schema(description="Box Loss",
-                                     writable=False,
-                                     value=tlc.Float32Value(),
-                                     display_importance=3004)
-    schemas["dfl_loss"] = tlc.Schema(description="Distribution Focal Loss",
-                                     writable=False,
-                                     value=tlc.Float32Value(),
-                                     display_importance=3005)
-    schemas["cls_loss"] = tlc.Schema(description="Classification Loss",
-                                     writable=False,
-                                     value=tlc.Float32Value(),
-                                     display_importance=3006)
+    schemas["box_loss"] = tlc.Schema(
+        description="Box Loss", writable=False, value=tlc.Float32Value(), display_importance=3004
+    )
+    schemas["dfl_loss"] = tlc.Schema(
+        description="Distribution Focal Loss", writable=False, value=tlc.Float32Value(), display_importance=3005
+    )
+    schemas["cls_loss"] = tlc.Schema(
+        description="Classification Loss", writable=False, value=tlc.Float32Value(), display_importance=3006
+    )
     if training:
         schemas["loss"] = tlc.Schema(
             description="Weighted sum of box, DFL, and classification losses used in training",
@@ -209,7 +207,8 @@ def construct_bbox_struct(
                 y0=bbox[1],
                 x1=bbox[2],
                 y1=bbox[3],
-            ))
+            )
+        )
 
     return bbox_struct
 

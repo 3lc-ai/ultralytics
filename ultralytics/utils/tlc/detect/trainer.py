@@ -37,7 +37,7 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
                 self._image_column_name,
                 self._label_column_name,
                 project_name=self._settings.project_name,
-                splits=("test", ),
+                splits=("test",),
             )
             self.data["test"] = data_test["test"]
 
@@ -77,7 +77,8 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
     def _process_metrics(self, metrics):
         return {
             metric.removesuffix("(B)").replace("metrics", "val").replace("/", "_"): value
-            for metric, value in metrics.items()}
+            for metric, value in metrics.items()
+        }
 
     def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
         """Construct and return dataloader."""

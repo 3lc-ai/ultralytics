@@ -10,7 +10,13 @@ from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import metrics, ops
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_COLUMN_NAME
 from ultralytics.utils.tlc.detect.loss import v8UnreducedDetectionLoss
-from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, yolo_predicted_bounding_box_schema, construct_bbox_struct, tlc_check_det_dataset, yolo_loss_schemas
+from ultralytics.utils.tlc.detect.utils import (
+    build_tlc_yolo_dataset,
+    yolo_predicted_bounding_box_schema,
+    construct_bbox_struct,
+    tlc_check_det_dataset,
+    yolo_loss_schemas,
+)
 from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
 from ultralytics.utils.tlc.utils import create_sampler
 
@@ -50,7 +56,8 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
         return {
             tlc.PREDICTED_BOUNDING_BOXES: yolo_predicted_bounding_box_schema(self.data["names_3lc"]),
-            **loss_schemas, }
+            **loss_schemas,
+        }
 
     def _compute_3lc_metrics(self, preds, batch):
         losses = self.loss_fn(self._curr_raw_preds, batch) if self._settings.collect_loss else {}
@@ -58,40 +65,42 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         processed_predictions = self._process_detection_predictions(preds, batch)
         return {
             tlc.PREDICTED_BOUNDING_BOXES: processed_predictions,
-            **{
-                k: tensor.mean(dim=1).cpu().numpy()
-                for k, tensor in losses.items()}}
+            **{k: tensor.mean(dim=1).cpu().numpy() for k, tensor in losses.items()},
+        }
 
     def _process_detection_predictions(self, preds, batch):
         predicted_boxes = []
         for i, predictions in enumerate(preds):
-            ori_shape = batch['ori_shape'][i]
-            resized_shape = batch['resized_shape'][i]
-            ratio_pad = batch['ratio_pad'][i]
+            ori_shape = batch["ori_shape"][i]
+            resized_shape = batch["resized_shape"][i]
+            ratio_pad = batch["ratio_pad"][i]
             height, width = ori_shape
 
             # Handle case with no predictions
             if len(predictions) == 0:
-                predicted_boxes.append(construct_bbox_struct(
-                    [],
-                    image_width=width,
-                    image_height=height,
-                ))
+                predicted_boxes.append(
+                    construct_bbox_struct(
+                        [],
+                        image_width=width,
+                        image_height=height,
+                    )
+                )
                 continue
 
             predictions = predictions.clone()
-            predictions = predictions[predictions[:, 4]
-                                      > self._settings.conf_thres]  # filter out low confidence predictions
+            predictions = predictions[
+                predictions[:, 4] > self._settings.conf_thres
+            ]  # filter out low confidence predictions
             # sort by confidence and remove excess boxes
-            predictions = predictions[predictions[:, 4].argsort(descending=True)[:self._settings.max_det]]
+            predictions = predictions[predictions[:, 4].argsort(descending=True)[: self._settings.max_det]]
 
             pred_box = predictions[:, :4].clone()
             pred_scaled = ops.scale_boxes(resized_shape, pred_box, ori_shape, ratio_pad)
 
             # Compute IoUs
             pbatch = self._prepare_batch(i, batch)
-            if pbatch['bbox'].shape[0]:
-                ious = metrics.box_iou(pbatch['bbox'], pred_scaled)  # IoU evaluated in xyxy format
+            if pbatch["bbox"].shape[0]:
+                ious = metrics.box_iou(pbatch["bbox"], pred_scaled)  # IoU evaluated in xyxy format
                 box_ious = ious.max(dim=0)[0].cpu().tolist()
             else:
                 box_ious = [0.0] * pred_scaled.shape[0]  # No predictions
@@ -103,28 +112,33 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
 
             annotations = []
             for pi in range(len(predictions)):
-                annotations.append({
-                    'score': conf[pi],
-                    'category_id': self.data["range_to_3lc_class"][int(pred_cls[pi])],
-                    'bbox': pred_xywh[pi, :].cpu().tolist(),
-                    'iou': box_ious[pi], })
+                annotations.append(
+                    {
+                        "score": conf[pi],
+                        "category_id": self.data["range_to_3lc_class"][int(pred_cls[pi])],
+                        "bbox": pred_xywh[pi, :].cpu().tolist(),
+                        "iou": box_ious[pi],
+                    }
+                )
 
             assert len(annotations) <= self._settings.max_det, "Should have at most MAX_DET predictions per image."
 
-            predicted_boxes.append(construct_bbox_struct(
-                annotations,
-                image_width=width,
-                image_height=height,
-            ))
+            predicted_boxes.append(
+                construct_bbox_struct(
+                    annotations,
+                    image_width=width,
+                    image_height=height,
+                )
+            )
 
         return predicted_boxes
 
     def _prepare_loss_fn(self, model):
-        self.loss_fn = v8UnreducedDetectionLoss(model.model if hasattr(model.model, "model") else model,
-                                                training=self._training)
+        self.loss_fn = v8UnreducedDetectionLoss(
+            model.model if hasattr(model.model, "model") else model, training=self._training
+        )
 
     def _add_embeddings_hook(self, model) -> int:
-
         if hasattr(model.model, "model"):
             model = model.model
 
@@ -148,8 +162,8 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
             if i == sppf_index:
                 self._hook_handles.append(module.register_forward_hook(hook_fn))
 
-        activation_size = model.model[sppf_index]._modules['cv2']._modules['conv'].out_channels
+        activation_size = model.model[sppf_index]._modules["cv2"]._modules["conv"].out_channels
         return activation_size
 
     def _infer_batch_size(self, preds, batch) -> int:
-        return len(batch['im_file'])
+        return len(batch["im_file"])

@@ -22,7 +22,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         args (Namespace): See parent.
         augment (bool): See parent.
         prefix (str): See parent.
-    
+
     """
 
     def __init__(
@@ -63,20 +63,20 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         self._post_init()
 
     def verify_schema(self, image_column_name, label_column_name):
-        """ Verify that the provided Table has the desired entries """
+        """Verify that the provided Table has the desired entries"""
 
         # Check for data in columns
         assert len(self.table) > 0, f"Table {self.root.to_str()} has no rows."
         first_row = self.table.table_rows[0]
-        assert isinstance(
-            first_row[image_column_name],
-            str), f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
-        assert isinstance(
-            first_row[label_column_name],
-            int), f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
+        assert isinstance(first_row[image_column_name], str), (
+            f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
+        )
+        assert isinstance(first_row[label_column_name], int), (
+            f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
+        )
 
     def verify_images(self):
-        """ Verify all images in the dataset."""
+        """Verify all images in the dataset."""
 
         # Skip verification if the dataset has already been scanned
         if self._is_scanned():

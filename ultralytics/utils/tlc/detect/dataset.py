@@ -17,25 +17,25 @@ from ultralytics.utils import LOGGER, NUM_THREADS, TQDM
 
 from typing import Any
 
-class IdentityDict(dict):
 
+class IdentityDict(dict):
     def __missing__(self, key):
         return key
 
 
 class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
-
     def __init__(self, table, data=None, task="detect", exclude_zero=False, class_map=None, **kwargs):
-        """ 3LC equivalent of YOLODataset, populating the data fields from a 3LC Table.
-        
-        """
-        assert task in ("segment", "detect"), f"Unsupported task: {task} for TLCYOLODataset. Only 'segment' and 'detect' are supported."
+        """3LC equivalent of YOLODataset, populating the data fields from a 3LC Table."""
+        assert task in ("segment", "detect"), (
+            f"Unsupported task: {task} for TLCYOLODataset. Only 'segment' and 'detect' are supported."
+        )
         self.table = table
         self._exclude_zero = exclude_zero
         self.class_map = class_map if class_map is not None else IdentityDict()
 
         if task == "detect":
             from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
+
             if is_yolo_table(self.table):
                 self._table_format = "YOLO"
             elif is_coco_table(self.table):
@@ -68,7 +68,9 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             if self._table_format in ("COCO", "YOLO"):
                 self.labels.append(tlc_table_row_to_yolo_label(row, self._table_format, self.class_map, im_file))
             else:
-                self.labels.append(tlc_table_row_to_segment_label(self.table[example_id], self._table_format, self.class_map, im_file))
+                self.labels.append(
+                    tlc_table_row_to_segment_label(self.table[example_id], self._table_format, self.class_map, im_file)
+                )
 
         # Scan images if not already scanned
         if not self._is_scanned():
@@ -77,7 +79,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.example_ids = np.array(self.example_ids, dtype=np.int32)
 
         return self.labels
-    
+
     def build_transforms(self, hyp=None):
         """Builds and appends transforms to the list."""
         if self.augment:
@@ -136,7 +138,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.labels = labels
 
     def set_rectangle(self):
-        """Save the batch shapes and inidices for the dataset. """
+        """Save the batch shapes and inidices for the dataset."""
         bi = np.floor(np.arange(self.ni) / self.batch_size).astype(int)  # batch index
         nb = bi[-1] + 1  # number of batches
 
@@ -191,11 +193,11 @@ def tlc_table_row_to_yolo_label(row, table_format: str, class_map: dict[int, int
     if table_format == "COCO":
         # Convert from ltwh absolute to xywh relative
         bboxes_xyxy = ops.ltwh2xyxy(bboxes)
-        bboxes = ops.xyxy2xywhn(bboxes_xyxy, w=row['width'], h=row['height'])
+        bboxes = ops.xyxy2xywhn(bboxes_xyxy, w=row["width"], h=row["height"])
 
     return dict(
         im_file=im_file,
-        shape=(row['height'], row['width']),  # format: (height, width)
+        shape=(row["height"], row["width"]),  # format: (height, width)
         cls=classes,
         bboxes=bboxes,
         segments=[],
@@ -203,6 +205,7 @@ def tlc_table_row_to_yolo_label(row, table_format: str, class_map: dict[int, int
         normalized=True,
         bbox_format="xywh",
     )
+
 
 def tlc_table_row_to_segment_label(row, table_format: str, class_map: dict[int, int], im_file: str) -> dict[str, Any]:
     # Row is here in sample view
@@ -231,13 +234,14 @@ def tlc_table_row_to_segment_label(row, table_format: str, class_map: dict[int, 
         bbox_format="xywh",
     )
 
+
 class FormatWithInstanceMapping(Format):
-    """Custom formatter that keeps track of the instance id from the original table when sorting. """
+    """Custom formatter that keeps track of the instance id from the original table when sorting."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._image_to_mapping = {} # {image_path: dict[int, int]} mapping to original instance order
+        self._image_to_mapping = {}  # {image_path: dict[int, int]} mapping to original instance order
 
     def _format_segments(self, instances, cls, w, h):
         """Converts polygon segments to bitmap masks.
@@ -270,7 +274,7 @@ class FormatWithInstanceMapping(Format):
             self._image_to_mapping[self._current_im_file] = list(range(len(instances)))
 
         return masks, instances, cls
-    
+
     def __call__(self, labels):
         """Keep track of which image we are formatting."""
         self._current_im_file = labels["im_file"]
