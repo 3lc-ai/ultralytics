@@ -38,9 +38,19 @@ class TLCSegmentationTrainer(SegmentationTrainer, TLCDetectionTrainer):
         return self.data["train"], self.data.get("val") or self.data.get("test")
     
     def _process_metrics(self, metrics):
-        return {
-            metric.strip("(B)").replace("(M)", "-mask").replace("metrics", "val").replace("/", "_"): value
-            for metric, value in metrics.items()}
+        # Special handling of segmentation metrics
+        metrics_names_mapping = {
+            "val_precision(M": "val_seg_precision",
+            "val_recall(M": "val_seg_recall",
+            "val_mAP50(M": "val_seg_mAP50",
+            "val_mAP50-95(M": "val_seg_mAP50_95",
+        }
+
+        for key, value in metrics_names_mapping.items():
+            if key in metrics:
+                metrics[value] = metrics.pop(key)
+
+        return super()._process_metrics(metrics)
 
     def get_validator(self, dataloader=None):
         self.loss_names = "box_loss", "seg_loss", "cls_loss", "dfl_loss"
