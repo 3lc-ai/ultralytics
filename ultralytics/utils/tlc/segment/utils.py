@@ -1,3 +1,6 @@
+# Ultralytics YOLO 🚀 3LC Integration, AGPL-3.0 license
+from __future__ import annotations
+
 import tlc
 
 from pathlib import Path
@@ -10,6 +13,7 @@ import torch.nn.functional as F
 from typing import Iterable
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.data.utils import check_det_dataset
+
 def tlc_check_seg_dataset(
     data: str,
     tables: dict[str, tlc.Table | tlc.Url | Path | str] | None,
