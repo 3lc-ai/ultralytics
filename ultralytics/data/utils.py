@@ -136,7 +136,7 @@ def verify_image_label(args):
 
                 # All labels
                 max_cls = lb[:, 0].max()  # max label count
-                assert max_cls <= num_cls, (
+                assert max_cls < num_cls, (
                     f"Label class {int(max_cls)} exceeds dataset class count {num_cls}. "
                     f"Possible class labels are 0-{num_cls - 1}"
                 )
@@ -714,8 +714,8 @@ def save_dataset_cache_file(prefix, path, x, version):
     if is_dir_writeable(path.parent):
         if path.exists():
             path.unlink()  # remove *.cache file if exists
-        np.save(str(path), x)  # save cache for next time
-        path.with_suffix(".cache.npy").rename(path)  # remove .npy suffix
+        with open(str(path), "wb") as file:  # context manager here fixes windows async np.save bug
+            np.save(file, x)
         LOGGER.info(f"{prefix}New cache created: {path}")
     else:
         LOGGER.warning(f"{prefix}WARNING ⚠️ Cache directory {path.parent} is not writeable, cache not saved.")
