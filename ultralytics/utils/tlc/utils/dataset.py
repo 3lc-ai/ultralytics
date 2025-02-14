@@ -11,6 +11,7 @@ from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_PREFIX
 
 from typing import Callable, Iterable
 
+
 def check_tlc_dataset(
     data: str,
     tables: dict[str, tlc.Table | tlc.Url | str] | None,
@@ -141,8 +142,8 @@ def check_tlc_dataset(
     first_split = next(iter(tables.keys()))
 
     value_map = get_table_value_map(tables[first_split], label_column_name)
-    
-    names = {int(k): v['internal_name'] for k, v in value_map.items()}
+
+    names = {int(k): v["internal_name"] for k, v in value_map.items()}
 
     for split in tables:
         other_value_map = get_table_value_map(tables[split], label_column_name)
@@ -164,18 +165,28 @@ def check_tlc_dataset(
         "3lc_class_to_range": {v: k for k, v in range_to_3lc_class.items()},
     }
 
-def get_table_value_map(table: tlc.Table, label_column_name: str) -> dict[int, dict[str, object]]:
+
+def get_table_value_map(
+    table: tlc.Table, label_column_name: str
+) -> dict[int, dict[str, object]]:
     """Get the value map for a table.
-    
+
     :param table: The table to get the value map for.
     :param label_column_name: The name of the label column.
     :returns: The value map for the table.
     """
     value_map = table.get_value_map(label_column_name)
     if value_map is None:
-        value_map = table.schema.values["rows"].values["segmentations"].values["instance_properties"].values["label"].value.map
+        value_map = (
+            table.schema.values["rows"]
+            .values["segmentations"]
+            .values["instance_properties"]
+            .values["label"]
+            .value.map
+        )
 
     return value_map
+
 
 def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
     """Parse a 3LC YAML file and return the corresponding tables.

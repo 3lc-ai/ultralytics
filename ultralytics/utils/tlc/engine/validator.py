@@ -137,8 +137,13 @@ class TLCValidatorMixin(BaseValidator):
             epoch_str = ""
 
         dataset_name = table.dataset_name
-        prefix = self._run.bulk_data_url / f"{dataset_name}{epoch_str}{'-after-training' if self._final_validation else ''}"
-        with tlc.bulk_data_url_context(prefix=prefix, table_with_bulk_data_url=tlc.Url("")):
+        prefix = (
+            self._run.bulk_data_url
+            / f"{dataset_name}{epoch_str}{'-after-training' if self._final_validation else ''}"
+        )
+        with tlc.bulk_data_url_context(
+            prefix=prefix, table_with_bulk_data_url=tlc.Url("")
+        ):
             out = super().__call__(trainer, model)
 
         self._write_per_class_metrics_tables()

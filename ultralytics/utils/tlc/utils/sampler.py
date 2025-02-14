@@ -7,12 +7,15 @@ from typing import Literal
 
 from ultralytics.utils.tlc.settings import Settings
 
-def create_sampler(table: tlc.Table,
-                   mode: Literal["train", "val"],
-                   settings: Settings,
-                   distributed: bool = False) -> torch.utils.data.Sampler | None:
+
+def create_sampler(
+    table: tlc.Table,
+    mode: Literal["train", "val"],
+    settings: Settings,
+    distributed: bool = False,
+) -> torch.utils.data.Sampler | None:
     """Get the sampler for the dataset.
-    
+
     :param table: The table to get the sampler for.
     :param mode: The mode of the sampler.
     :param settings: The settings for the run.
@@ -24,7 +27,9 @@ def create_sampler(table: tlc.Table,
     if mode == "train":
         if settings.sampling_weights or settings.exclude_zero_weight_training:
             if distributed:
-                raise NotImplementedError("Distributed training and using 3LC weights is not yet supported.")
+                raise NotImplementedError(
+                    "Distributed training and using 3LC weights is not yet supported."
+                )
 
             try:
                 sampler = table.create_sampler(
@@ -37,7 +42,9 @@ def create_sampler(table: tlc.Table,
 
     elif mode == "val":
         if distributed:
-            raise NotImplementedError("Distributed validation and exclusion by weight is not yet supported.")
+            raise NotImplementedError(
+                "Distributed validation and exclusion by weight is not yet supported."
+            )
 
         # Exclude zero weight is handled in the dataset for validation
         return None
