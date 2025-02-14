@@ -1,15 +1,17 @@
+# Ultralytics YOLO 🚀 3LC Integration, AGPL-3.0 license
+
 import numpy as np
 import tlc
 import torch
+from tlc.client.data_format import InstanceSegmentationDict
 
 from ultralytics.models.yolo.segment.val import SegmentationValidator
 from ultralytics.utils import ops
-# from ultralytics.utils.tlc.engine.validator import TLCValidatorMixin
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
 from ultralytics.utils.tlc.segment.utils import compute_mask_iou, tlc_check_seg_dataset
 
-SEGMENTATION_LABEL_COLUMN_NAME = "segmentation_label"
+SEGMENTATION_LABEL_COLUMN_NAME = "segmentation_label" # TODO: Make a constant and use it?
 
 class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
     _default_image_column_name = IMAGE_COLUMN_NAME
@@ -18,7 +20,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
     def check_dataset(self, *args, **kwargs):
         return tlc_check_seg_dataset(*args, **kwargs)
 
-    def _get_metrics_schemas(self):
+    def _get_metrics_schemas(self) -> dict[str, tlc.Schema]:
         #TODO: Ensure class  mapping is the same as in input table
         instance_properties_structure = {
             tlc.LABEL: tlc.CategoricalLabel(name=tlc.LABEL, classes=self.data["names"]),
@@ -33,10 +35,16 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
         return {"predicted_segmentations": segment_sample_type.schema}
 
-    def _compute_3lc_metrics(self, preds, batch):
+    def _compute_3lc_metrics(self, preds, batch) -> list[dict[str, InstanceSegmentationDict]]:
+        """Compute 3LC metrics for instance segmentation.
+        
+        :param preds: Predictions returned by YOLO segmentation model.
+        :param batch: Batch of data presented to the YOLO segmentation model.
+        :returns: Metrics dict with predicted instance data for each sample in a batch.
+        """
         predicted_batch_segmentations = []
 
-        # Reimplements of SegmentationValidator, but with control over mask processing
+        # Reimplements SegmentationValidator, but with control over mask processing
         for si, (pred, proto) in enumerate(zip(preds[0], preds[1])):
             pbatch = self._prepare_batch(si, batch)
             cls, bbox = pbatch.pop("cls"), pbatch.pop("bbox")
