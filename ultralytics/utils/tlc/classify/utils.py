@@ -65,11 +65,7 @@ def get_or_create_cls_table(
     """
 
     # Special handling for ImageNet
-    is_imagenet = (
-        isinstance(data_dict["names"], dict)
-        and isinstance(data_dict["names"][0], str)
-        and data_dict["names"][0].startswith("n0")
-    )
+    is_imagenet = isinstance(data_dict["names"], dict) and isinstance(data_dict["names"][0], str) and data_dict["names"][0].startswith("n0")
 
     if is_imagenet:
         label_overrides = yaml_load(ROOT / "cfg/datasets/ImageNet.yaml")["map"]
@@ -98,19 +94,18 @@ def check_cls_table(table: tlc.Table, image_column_name: str, label_column_name:
 
     try:
         # Check for image and label columns in schema
-        assert image_column_name in row_schema, (
-            f"Image column '{image_column_name}' not found in schema for Table {table.url}. Try providing your 'image_column_name' as an argument if you have a different column name."
-        )
-        assert label_column_name in row_schema, (
-            f"Label column '{label_column_name}' not found in schema for Table {table.url}. Try providing your 'label_column_name' as an argument if you have a different column name."
-        )
+        assert (
+            image_column_name in row_schema
+        ), f"Image column '{image_column_name}' not found in schema for Table {table.url}. Try providing your 'image_column_name' as an argument if you have a different column name."
+        assert (
+            label_column_name in row_schema
+        ), f"Label column '{label_column_name}' not found in schema for Table {table.url}. Try providing your 'label_column_name' as an argument if you have a different column name."
 
         # Check for desired roles
-        assert row_schema[image_column_name].value.string_role == tlc.STRING_ROLE_IMAGE_URL, (
-            f"Image column '{image_column_name}' must have role tlc.STRING_ROLE_IMAGE_URL={tlc.STRING_ROLE_IMAGE_URL}."
-        )
-        assert row_schema[label_column_name].value.number_role == tlc.LABEL, (
-            f"Label column '{label_column_name}' must have role tlc.LABEL={tlc.LABEL}."
-        )
+        assert (
+            row_schema[image_column_name].value.string_role == tlc.STRING_ROLE_IMAGE_URL
+        ), f"Image column '{image_column_name}' must have role tlc.STRING_ROLE_IMAGE_URL={tlc.STRING_ROLE_IMAGE_URL}."
+        assert (row_schema[label_column_name].value.number_role == tlc.LABEL
+                ), f"Label column '{label_column_name}' must have role tlc.LABEL={tlc.LABEL}."
     except AssertionError as e:
         raise ValueError(f"Table {table.url} is not compatible with YOLOv8 classification.") from e

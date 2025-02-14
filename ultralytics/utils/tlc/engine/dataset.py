@@ -11,12 +11,12 @@ from ultralytics.utils import LOGGER
 # Responsible for any generic 3LC dataset handling, such as scanning, caching and adding example ids to each sample
 # Assume there is an attribute self.table that is a tlc.Table
 class TLCDatasetMixin:
+
     def _post_init(self):
         self.display_name = self.table.dataset_name
 
-        assert hasattr(self, "table") and isinstance(self.table, tlc.Table), (
-            "TLCDatasetMixin requires an attribute `table` which is a tlc.Table."
-        )
+        assert hasattr(self, "table") and isinstance(
+            self.table, tlc.Table), "TLCDatasetMixin requires an attribute `table` which is a tlc.Table."
         if not hasattr(self, "example_ids"):
             self.example_ids = np.arange(len(self.table))
 
@@ -29,7 +29,7 @@ class TLCDatasetMixin:
         return len(self.example_ids)
 
     def _is_scanned(self):
-        """Check if the dataset has been scanned."""
+        """ Check if the dataset has been scanned. """
         verified_marker_url = self.table.url / "cache.yolo"
 
         if verified_marker_url.exists():

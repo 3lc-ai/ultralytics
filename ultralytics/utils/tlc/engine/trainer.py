@@ -13,20 +13,18 @@ from ultralytics.utils.metrics import smooth
 
 
 class TLCTrainerMixin(BaseTrainer):
-    """A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
+    """ A class extending the BaseTrainer class for training Ultralytics YOLO models with 3LC,
     which implements common 3LC-specific behavior across tasks. Use as a Mixin class for task-specific
     trainers.
     """
 
     def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None):
         LOGGER.info("Using 3LC Trainer 🌟")
-        self._settings = Settings() if "settings" not in overrides else overrides.pop("settings")
+        self._settings = Settings() if 'settings' not in overrides else overrides.pop('settings')
         self._settings.verify(training=True)
 
-        assert "data" in overrides or "tables" in overrides, (
-            "You must provide either a data path or tables to train with 3LC."
-        )
-        self._tables = overrides.pop("tables", None)
+        assert 'data' in overrides or 'tables' in overrides, "You must provide either a data path or tables to train with 3LC."
+        self._tables = overrides.pop('tables', None)
 
         # Column names
         self._image_column_name = overrides.pop("image_column_name", self._default_image_column_name)
@@ -40,12 +38,9 @@ class TLCTrainerMixin(BaseTrainer):
             self._metrics_collection_epochs = set(self._settings.get_metrics_collection_epochs(self.epochs))
 
             # Create a 3LC run
-            description = (
-                self._settings.run_description if self._settings.run_description else DEFAULT_TRAIN_RUN_DESCRIPTION
-            )
-            project_name = (
-                self._settings.project_name if self._settings.project_name else self.data["train"].project_name
-            )
+            description = self._settings.run_description if self._settings.run_description else DEFAULT_TRAIN_RUN_DESCRIPTION
+            project_name = self._settings.project_name if self._settings.project_name else self.data[
+                "train"].project_name
             self._run = tlc.init(
                 project_name=project_name,
                 description=description,
@@ -53,8 +48,7 @@ class TLCTrainerMixin(BaseTrainer):
             )
 
             LOGGER.info(
-                f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}."
-            )
+                f"{TLC_COLORSTR}Created run named '{self._run.url.parts[-1]}' in project {self._run.project_name}.")
 
             # Log parameters to 3LC
             self._log_3lc_parameters()
@@ -62,7 +56,7 @@ class TLCTrainerMixin(BaseTrainer):
             self._print_metrics_collection_epochs()
 
     def _log_3lc_parameters(self):
-        """Log various data as parameters to the tlc.Run."""
+        """ Log various data as parameters to the tlc.Run. """
         if "val" in self.data:
             val_url = str(self.data["val"].url)
         else:
@@ -72,12 +66,14 @@ class TLCTrainerMixin(BaseTrainer):
             **vars(self.args),  # YOLO arguments
             "3LC/train_url": str(self.data.get("train").url),  # 3LC table used for training
             "3LC/val_url": val_url,  # 3LC table used for validation
-            **{f"3LC/{k}": v for k, v in vars(self._settings).items()},  # 3LC settings
+            **{
+                f"3LC/{k}": v
+                for k, v in vars(self._settings).items()},  # 3LC settings
         }
         self._run.set_parameters(parameters)
 
     def _print_metrics_collection_epochs(self):
-        """Print collection epochs to the console."""
+        """ Print collection epochs to the console. """
 
         # Special message when no collection is enabled
         if self._settings.collection_disable:
@@ -113,21 +109,16 @@ class TLCTrainerMixin(BaseTrainer):
                     self.trainset,
                     batch_size=self.batch_size if self.args.task == "obb" else self.batch_size * 2,
                     rank=-1,
-                    mode="val",
-                )
+                    mode="val")
                 self._train_validator = self.get_validator(dataloader=train_validator_dataloader)
             return self._train_validator
         else:
             return None
 
     def validate(self):
-        """Perform validation with 3LC metrics collection, also on the training data, if applicable."""
+        """ Perform validation with 3LC metrics collection, also on the training data, if applicable."""
         # Validate on the training set
-        if (
-            not self._settings.collection_disable
-            and not self._settings.collection_val_only
-            and self.epoch + 1 in self._metrics_collection_epochs
-        ):
+        if not self._settings.collection_disable and not self._settings.collection_val_only and self.epoch + 1 in self._metrics_collection_epochs:
             self.train_validator(trainer=self)
 
         # Validate on the validation/test set like usual
@@ -150,7 +141,7 @@ class TLCTrainerMixin(BaseTrainer):
                     if not self._settings.collection_val_only and not self._settings.collection_disable:
                         self.train_validator(model=f)
                     self.validator.args.plots = self.args.plots
-                    self.metrics = self.validator(model=f)  # Only a dict! strange..?
+                    self.metrics = self.validator(model=f)  # Only a dict! strange..? 
                     self.metrics.pop("fitness", None)
                     self._save_confidence_metrics()
                     self.run_callbacks("on_fit_epoch_end")
@@ -167,25 +158,26 @@ class TLCTrainerMixin(BaseTrainer):
             self._run.set_status_completed()
 
     def _save_confidence_metrics(self):
+
         if self.args.task != "detect":
             return
-
+        
         try:
             curves = [
-                self.validator.metrics.box.f1_curve,  # (nc, 1000)
-                self.validator.metrics.box.r_curve,  # (nc, 1000)
-                self.validator.metrics.box.p_curve,  # (nc, 1000)
+                self.validator.metrics.box.f1_curve, # (nc, 1000)
+                self.validator.metrics.box.r_curve, # (nc, 1000)
+                self.validator.metrics.box.p_curve, # (nc, 1000)
             ]
             names = ["F1_score", "Recall", "Precision"]
-            px = self.validator.metrics.box.px  # (1000,) (linspace(0, 1)
-
+            px = self.validator.metrics.box.px # (1000,) (linspace(0, 1)
+            
             values = {}
             for py, name in zip(curves, names):
                 y = smooth(py.mean(0), 0.05)
                 best_val = y.max()
                 best_conf = px[y.argmax()]
                 values[f"3LC/{name}"] = {"best_val": best_val, "best_conf": best_conf}
-
+            
             self._run.set_parameters(values)
         except Exception as e:
             LOGGER.error(TLC_COLORSTR + f"Failed to save confidence metrics: {e}")

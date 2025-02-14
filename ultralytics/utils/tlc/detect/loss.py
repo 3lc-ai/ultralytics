@@ -8,12 +8,13 @@ from ultralytics.utils.tal import bbox2dist, make_anchors
 
 
 class UnreducedBboxLoss(BboxLoss):
+
     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
         """IoU loss."""
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
         # loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
-        loss_iou = (1.0 - iou) * weight
+        loss_iou = ((1.0 - iou) * weight)
 
         # DFL loss
         if self.dfl_loss:
@@ -31,6 +32,7 @@ class UnreducedBboxLoss(BboxLoss):
 
 
 class v8UnreducedDetectionLoss(v8DetectionLoss):
+
     def __init__(self, model, tal_topk=10, training=False):
         super().__init__(model, tal_topk=tal_topk)
 
@@ -44,8 +46,7 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = preds[1] if isinstance(preds, (list, tuple)) else preds  # 3lc: list when using detectionmodel
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
-            (self.reg_max * 4, self.nc), 1
-        )
+            (self.reg_max * 4, self.nc), 1)
 
         pred_scores = pred_scores.permute(0, 2, 1).contiguous()
         pred_distri = pred_distri.permute(0, 2, 1).contiguous()
@@ -89,9 +90,8 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
             # loss[0], loss[2] = self.bbox_loss(
             #     pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
             # )
-            box_loss, dfl_loss = self.bbox_loss(
-                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
-            )
+            box_loss, dfl_loss = self.bbox_loss(pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores,
+                                                target_scores_sum, fg_mask)
 
         # loss[0] *= self.hyp.box  # box gain
         # loss[1] *= self.hyp.cls  # cls gain

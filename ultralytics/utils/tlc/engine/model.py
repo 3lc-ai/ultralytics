@@ -18,10 +18,10 @@ from typing import Iterable
 
 
 class TLCYOLO(YOLO):
-    """YOLO (You Only Look Once) object detection model with 3LC integration."""
+    """ YOLO (You Only Look Once) object detection model with 3LC integration. """
 
     def __init__(self, *args, **kwargs):
-        """Initialize YOLO model with 3LC integration. Checks that the installed version of 3LC is compatible."""
+        """ Initialize YOLO model with 3LC integration. Checks that the installed version of 3LC is compatible. """
 
         check_tlc_version()
 
@@ -29,7 +29,7 @@ class TLCYOLO(YOLO):
 
     @property
     def task_map(self):
-        """Map head to 3LC model, trainer, validator, and predictor classes."""
+        """ Map head to 3LC model, trainer, validator, and predictor classes. """
         return {
             "detect": {
                 "model": DetectionModel,
@@ -42,26 +42,24 @@ class TLCYOLO(YOLO):
                 "trainer": TLCClassificationTrainer,
                 "validator": TLCClassificationValidator,
                 "predictor": yolo.classify.ClassificationPredictor,
-            },
+            }, 
             "segment": {
                 "model": SegmentationModel,
                 "trainer": TLCSegmentationTrainer,
                 "validator": TLCSegmentationValidator,
-                "predictor": yolo.segment.SegmentationPredictor,
-            },
+                "predictor": yolo.segment.SegmentationPredictor, 
+            }, 
         }
 
-    def collect(
-        self,
-        data: str | None = None,
-        splits: Iterable[str] | None = None,
-        tables: dict[str, str | tlc.Url | tlc.Table] | None = None,
-        settings: Settings | None = None,
-        **kwargs,
-    ) -> dict[str, dict[str, float]]:
-        """Perform calls to model.val() to collect metrics on a set of splits, all under one tlc.Run.
+    def collect(self,
+                data: str | None = None,
+                splits: Iterable[str] | None = None,
+                tables: dict[str, str | tlc.Url | tlc.Table] | None = None,
+                settings: Settings | None = None,
+                **kwargs) -> dict[str, dict[str, float]]:
+        """ Perform calls to model.val() to collect metrics on a set of splits, all under one tlc.Run.
         If enabled, embeddings are reduced at the end of validation.
-
+         
         :param data: Path to a YOLO or 3LC YAML file. If provided, splits must also be provided.
         :param splits: List of splits to collect metrics for. If provided, data must also be provided.
         :param tables: Dictionary of splits to tables to collect metrics for. Mutually exclusive with data and splits.

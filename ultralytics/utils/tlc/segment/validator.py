@@ -11,8 +11,7 @@ from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
 from ultralytics.utils.tlc.segment.utils import compute_mask_iou, tlc_check_seg_dataset
 
-SEGMENTATION_LABEL_COLUMN_NAME = "segmentation_label"  # TODO: Make a constant and use it?
-
+SEGMENTATION_LABEL_COLUMN_NAME = "segmentation_label" # TODO: Make a constant and use it?
 
 class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
     _default_image_column_name = IMAGE_COLUMN_NAME
@@ -22,7 +21,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
         return tlc_check_seg_dataset(*args, **kwargs)
 
     def _get_metrics_schemas(self) -> dict[str, tlc.Schema]:
-        # TODO: Ensure class  mapping is the same as in input table
+        #TODO: Ensure class  mapping is the same as in input table
         instance_properties_structure = {
             tlc.LABEL: tlc.CategoricalLabel(name=tlc.LABEL, classes=self.data["names"]),
             tlc.CONFIDENCE: tlc.Float(name=tlc.CONFIDENCE, number_role=tlc.NUMBER_ROLE_CONFIDENCE),
@@ -38,7 +37,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
     def _compute_3lc_metrics(self, preds, batch) -> list[dict[str, InstanceSegmentationDict]]:
         """Compute 3LC metrics for instance segmentation.
-
+        
         :param preds: Predictions returned by YOLO segmentation model.
         :param batch: Batch of data presented to the YOLO segmentation model.
         :returns: Metrics dict with predicted instance data for each sample in a batch.
@@ -71,7 +70,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
                 }
                 predicted_batch_segmentations.append(predicted_instances)
                 continue
-
+            
             pred_cls = pred_cls[keep_indices]
             conf = conf[keep_indices]
             pred = pred.detach().clone()[keep_indices]
@@ -111,7 +110,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
                     tlc.LABEL: pred_cls.tolist(),
                     tlc.CONFIDENCE: conf.tolist(),
                 },
-                tlc.GT_IOUS: mask_iou,
+                tlc.GT_IOUS: mask_iou, 
                 tlc.MASKS: result_masks,
             }
 

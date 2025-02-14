@@ -18,7 +18,9 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
     _default_label_column_name = CLASSIFY_LABEL_COLUMN_NAME
 
     def get_dataset(self):
-        """Overrides the get_dataset method to get or create 3LC tables."""
+        """ Overrides the get_dataset method to get or create 3LC tables.
+        
+        """
         self.data = tlc_check_cls_dataset(
             self.args.data,
             self._tables,
@@ -34,7 +36,7 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
                 self._image_column_name,
                 self._label_column_name,
                 project_name=self._settings.project_name,
-                splits=("test",),
+                splits=("test", ),
             )
             self.data["test"] = data_test["test"]
 
@@ -72,9 +74,12 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
             dataset = self.build_dataset(dataset_path, mode)
 
         sampler = create_sampler(dataset.table, mode=mode, settings=self._settings, distributed=is_parallel(self.model))
-        loader = build_dataloader(
-            dataset, batch_size, self.args.workers, rank=rank, shuffle=mode == "train", sampler=sampler
-        )
+        loader = build_dataloader(dataset,
+                                  batch_size,
+                                  self.args.workers,
+                                  rank=rank,
+                                  shuffle=mode == "train",
+                                  sampler=sampler)
         # Attach inference transforms
         if mode != "train":
             if is_parallel(self.model):

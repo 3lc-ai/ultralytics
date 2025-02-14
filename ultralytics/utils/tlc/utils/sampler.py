@@ -7,12 +7,12 @@ from typing import Literal
 
 from ultralytics.utils.tlc.settings import Settings
 
-
-def create_sampler(
-    table: tlc.Table, mode: Literal["train", "val"], settings: Settings, distributed: bool = False
-) -> torch.utils.data.Sampler | None:
+def create_sampler(table: tlc.Table,
+                   mode: Literal["train", "val"],
+                   settings: Settings,
+                   distributed: bool = False) -> torch.utils.data.Sampler | None:
     """Get the sampler for the dataset.
-
+    
     :param table: The table to get the sampler for.
     :param mode: The mode of the sampler.
     :param settings: The settings for the run.
