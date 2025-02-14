@@ -66,7 +66,7 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        """ Create a Settings instance from environment variables.
+        """Create a Settings instance from environment variables.
 
         :returns: A Settings instance with values parsed from environment variables.
         """
@@ -83,29 +83,37 @@ class Settings:
 
         instance = cls(**kwargs)
 
-        instance._from_env = True  # Mark the instance as created from environment variables
+        instance._from_env = (
+            True  # Mark the instance as created from environment variables
+        )
 
         return instance
 
     def __post_init__(self) -> None:
         # Mark as not created from environment variables
-        if not hasattr(self, '_from_env'):
+        if not hasattr(self, "_from_env"):
             self._from_env = False
 
     def verify(self, training: bool = True) -> None:
-        """ Verify that the settings are valid.
+        """Verify that the settings are valid.
 
         :param training: Whether the settings are for training or validation.
 
         :raises: AssertionError if the settings are invalid.
         """
         # Checks
-        assert 0.0 <= self.conf_thres <= 1.0, f'Confidence threshold {self.conf_thres} is not in [0, 1].'
-        assert self.max_det > 0, f'Maximum number of detections {self.max_det} is not positive.'
-        assert self.image_embeddings_dim in (0, 2,
-                                             3), f'Invalid image embeddings dimension {self.image_embeddings_dim}.'
-        assert self.image_embeddings_reducer in (
-            'pacmap', 'umap'), f'Invalid image embeddings reducer {self.image_embeddings_reducer}.'
+        assert 0.0 <= self.conf_thres <= 1.0, (
+            f"Confidence threshold {self.conf_thres} is not in [0, 1]."
+        )
+        assert self.max_det > 0, (
+            f"Maximum number of detections {self.max_det} is not positive."
+        )
+        assert self.image_embeddings_dim in (0, 2, 3), (
+            f"Invalid image embeddings dimension {self.image_embeddings_dim}."
+        )
+        assert self.image_embeddings_reducer in ("pacmap", "umap"), (
+            f"Invalid image embeddings reducer {self.image_embeddings_reducer}."
+        )
         if self.image_embeddings_dim > 0:
             self._check_reducer_available()
 
@@ -129,12 +137,20 @@ class Settings:
             )
 
         if self.collection_epoch_interval <= 0:
-            raise ValueError(f'Invalid interval {self.collection_epoch_interval}, must be non-zero')
+            raise ValueError(
+                f"Invalid interval {self.collection_epoch_interval}, must be non-zero"
+            )
         else:
-            return list(range(self.collection_epoch_start, epochs + 1, self.collection_epoch_interval))
+            return list(
+                range(
+                    self.collection_epoch_start,
+                    epochs + 1,
+                    self.collection_epoch_interval,
+                )
+            )
 
     def _verify_training(self) -> None:
-        """ Verify that the settings are valid for training.
+        """Verify that the settings are valid for training.
 
         :param opt: The argparse namespace containing YOLOv8 settings.
 
@@ -142,36 +158,43 @@ class Settings:
         """
         # Can't collect things when collection is disabled
         cases = [
-            (self.collection_val_only, 'collect only on val set'),
+            (self.collection_val_only, "collect only on val set"),
             # (self.collect_loss, 'collect loss values'), TODO: Restore when loss is supported.
-            (self.image_embeddings_dim > 0, 'collect image embeddings'),
-            (self.collection_epoch_start, 'collect metrics during training'), ]
+            (self.image_embeddings_dim > 0, "collect image embeddings"),
+            (self.collection_epoch_start, "collect metrics during training"),
+        ]
 
         for setting, description in cases:
-            assert not (self.collection_disable and setting), f'Cannot disable collection and {description}.'
+            assert not (self.collection_disable and setting), (
+                f"Cannot disable collection and {description}."
+            )
 
         # Collection epoch settings
-        assert self.collection_epoch_start is None or self.collection_epoch_start >= 0, (
-            f'Invalid collection start epoch {self.collection_epoch_start}.')
+        assert (
+            self.collection_epoch_start is None or self.collection_epoch_start >= 0
+        ), f"Invalid collection start epoch {self.collection_epoch_start}."
         assert self.collection_epoch_interval > 0, (
-            f'Invalid collection epoch interval {self.collection_epoch_interval}.')
+            f"Invalid collection epoch interval {self.collection_epoch_interval}."
+        )
 
     def _verify_collection(self) -> None:
-        """ Verify that the settings are valid for metrics collection only (no training).
+        """Verify that the settings are valid for metrics collection only (no training).
 
         :raises: AssertionError if the settings are invalid.
         """
         pass
 
     def _check_reducer_available(self) -> None:
-        """ Check that the selected reducer is available.
+        """Check that the selected reducer is available.
 
         :raises: ValueError if the selected reducer is not available.
         """
-        reducer_to_package = {'pacmap': 'pacmap', 'umap': 'umap-learn'}
+        reducer_to_package = {"pacmap": "pacmap", "umap": "umap-learn"}
         if self.image_embeddings_reducer not in reducer_to_package:
-            raise ValueError(f"Invalid image embeddings reducer {self.image_embeddings_reducer}. "
-                             "Valid options are 'pacmap' and 'umap'.")
+            raise ValueError(
+                f"Invalid image embeddings reducer {self.image_embeddings_reducer}. "
+                "Valid options are 'pacmap' and 'umap'."
+            )
 
         try:
             importlib.import_module(self.image_embeddings_reducer)
@@ -179,7 +202,8 @@ class Settings:
             package = reducer_to_package[self.image_embeddings_reducer]
             raise ValueError(
                 f"Embeddings collection enabled, but failed to import {self.image_embeddings_reducer} dependency. "
-                f"Run `pip install {package}` to enable embeddings collection.") from e
+                f"Run `pip install {package}` to enable embeddings collection."
+            ) from e
 
     @staticmethod
     def _field_to_env_var(_field: field) -> None:
@@ -188,77 +212,100 @@ class Settings:
         :param _field: The field to get the environment variable for.
         :returns: The environment variable name.
         """
-        return f'TLC_{_field.name.upper()}'
+        return f"TLC_{_field.name.upper()}"
 
     def _handle_unsupported_env_vars(self) -> None:
         """Handle environment variables starting with TLC which are not supported.
 
         Appropriate warnings are logged when unsupported environment variables are encountered.
         """
-        supported_env_vars = [self._field_to_env_var(_field) for _field in fields(Settings)]
-        unsupported_env_vars = [var for var in os.environ if var.startswith('TLC_') and var not in supported_env_vars]
+        supported_env_vars = [
+            self._field_to_env_var(_field) for _field in fields(Settings)
+        ]
+        unsupported_env_vars = [
+            var
+            for var in os.environ
+            if var.startswith("TLC_") and var not in supported_env_vars
+        ]
 
         # Output all environment variables if there are any unsupported ones
         if len(unsupported_env_vars) > 1:
-            LOGGER.warning(f'{TLC_COLORSTR}Found unsupported environment variables: '
-                           f'{", ".join(unsupported_env_vars)}.\n{self._supported_env_vars_str()}')
+            LOGGER.warning(
+                f"{TLC_COLORSTR}Found unsupported environment variables: "
+                f"{', '.join(unsupported_env_vars)}.\n{self._supported_env_vars_str()}"
+            )
 
         # If there is only one, look for the most similar one
         elif len(unsupported_env_vars) == 1:
-            closest_match = get_close_matches(unsupported_env_vars[0], supported_env_vars, n=1, cutoff=0.4)
+            closest_match = get_close_matches(
+                unsupported_env_vars[0], supported_env_vars, n=1, cutoff=0.4
+            )
             if closest_match:
-                LOGGER.warning(f'{TLC_COLORSTR}Found unsupported environment variable: {unsupported_env_vars[0]}. '
-                               f'Did you mean {closest_match[0]}?')
+                LOGGER.warning(
+                    f"{TLC_COLORSTR}Found unsupported environment variable: {unsupported_env_vars[0]}. "
+                    f"Did you mean {closest_match[0]}?"
+                )
             else:
-                LOGGER.warning(f'{TLC_COLORSTR}Found unsupported environment variable: {unsupported_env_vars[0]}.'
-                               f'\n{self._supported_env_vars_str()}')
+                LOGGER.warning(
+                    f"{TLC_COLORSTR}Found unsupported environment variable: {unsupported_env_vars[0]}."
+                    f"\n{self._supported_env_vars_str()}"
+                )
 
-    def _supported_env_vars_str(self, sep: str = '\n  - ') -> str:
-        """ Print all supported environment variables.
+    def _supported_env_vars_str(self, sep: str = "\n  - ") -> str:
+        """Print all supported environment variables.
 
         :param sep: The separator to use between each variable.
         :returns: A sep-separated string with all supported environment variables.
 
         """
-        default_settings_instance = Settings()  # Create an instance to get the default values
+        default_settings_instance = (
+            Settings()
+        )  # Create an instance to get the default values
 
         # Display defaults differently for environment variables as they are provided differently
         if self._from_env:
-            formatter = lambda x: x if not isinstance(x, list) else ','.join(x)
+            formatter = lambda x: x if not isinstance(x, list) else ",".join(x)
         else:
             formatter = lambda x: x
 
-        field_info_list = [{
-            'name': self._field_to_env_var(_field),
-            'description': _field.metadata['description'],
-            'default': formatter(getattr(default_settings_instance, _field.name))} for _field in fields(Settings)]
+        field_info_list = [
+            {
+                "name": self._field_to_env_var(_field),
+                "description": _field.metadata["description"],
+                "default": formatter(getattr(default_settings_instance, _field.name)),
+            }
+            for _field in fields(Settings)
+        ]
 
         # Display each line as TLC_<FIELD_NAME>: <DESCRIPTION>. Default: '<DEFAULT>'
         lines = [
             f"{field_info['name']}: {field_info['description']}. Default: '{field_info['default']}'."
-            for field_info in field_info_list]
-        return f'Supported environment variables:{sep}{sep.join(lines)}'
+            for field_info in field_info_list
+        ]
+        return f"Supported environment variables:{sep}{sep.join(lines)}"
 
     @staticmethod
     def _parse_env_var(name: str, value: Any, var_type: str) -> Any:
-        """ Parse an environment variable.
+        """Parse an environment variable.
 
         :param name: The name of the environment variable.
         :param value: The value of the environment variable.
         :param var_type: The expected type of the environment variable as defined in the dataclass.
         """
-        if var_type == 'bool':
+        if var_type == "bool":
             return Settings._parse_boolean_env_var(name, value)
-        elif var_type == 'list':
-            return value.split(',')
-        elif var_type == 'int':
+        elif var_type == "list":
+            return value.split(",")
+        elif var_type == "int":
             return int(value)
-        elif var_type == 'float':
+        elif var_type == "float":
             return float(value)
-        elif var_type == 'str':
+        elif var_type == "str":
             return value
         else:
-            raise ValueError(f'Unsupported type {var_type} for environment variable {name}.')
+            raise ValueError(
+                f"Unsupported type {var_type} for environment variable {name}."
+            )
 
     @staticmethod
     def _parse_boolean_env_var(name: str, value: Any) -> bool:
@@ -273,10 +320,12 @@ class Settings:
         :returns: The parsed boolean value.
         :raises: ValueError if the value is not a valid boolean.
         """
-        if value.lower() in ('y', 'yes', '1', 'true'):
+        if value.lower() in ("y", "yes", "1", "true"):
             return True
-        elif value.lower() in ('n', 'no', '0', 'false'):
+        elif value.lower() in ("n", "no", "0", "false"):
             return False
         else:
-            raise ValueError(f'Invalid value {value} for environment variable {name}, '
-                             'should be a boolean on the form y/n, yes/no, 1/0 or true/false.')
+            raise ValueError(
+                f"Invalid value {value} for environment variable {name}, "
+                "should be a boolean on the form y/n, yes/no, 1/0 or true/false."
+            )

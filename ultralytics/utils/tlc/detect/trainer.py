@@ -5,8 +5,14 @@ from ultralytics.models.yolo.detect import DetectionTrainer
 
 from ultralytics.data import build_dataloader
 from ultralytics.utils import LOGGER
-from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, DETECTION_LABEL_COLUMN_NAME
-from ultralytics.utils.tlc.detect.utils import build_tlc_yolo_dataset, tlc_check_det_dataset
+from ultralytics.utils.tlc.constants import (
+    IMAGE_COLUMN_NAME,
+    DETECTION_LABEL_COLUMN_NAME,
+)
+from ultralytics.utils.tlc.detect.utils import (
+    build_tlc_yolo_dataset,
+    tlc_check_det_dataset,
+)
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
 from ultralytics.utils.tlc.engine.trainer import TLCTrainerMixin
 from ultralytics.utils.tlc.utils import create_sampler
@@ -37,7 +43,7 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
                 self._image_column_name,
                 self._label_column_name,
                 project_name=self._settings.project_name,
-                splits=("test", ),
+                splits=("test",),
             )
             self.data["test"] = data_test["test"]
 
@@ -77,20 +83,29 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
     def _process_metrics(self, metrics):
         return {
             metric.strip("(B)").replace("metrics", "val").replace("/", "_"): value
-            for metric, value in metrics.items()}
+            for metric, value in metrics.items()
+        }
 
     def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
         """Construct and return dataloader."""
         assert mode in {"train", "val"}, f"Mode must be 'train' or 'val', not {mode}."
-        with torch_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
+        with torch_distributed_zero_first(
+            rank
+        ):  # init dataset *.cache only once if DDP
             dataset = self.build_dataset(dataset_path, mode, batch_size)
 
         shuffle = mode == "train"
         if getattr(dataset, "rect", False) and shuffle:
-            LOGGER.warning("WARNING ⚠️ 'rect=True' is incompatible with DataLoader shuffle, setting shuffle=False")
+            LOGGER.warning(
+                "WARNING ⚠️ 'rect=True' is incompatible with DataLoader shuffle, setting shuffle=False"
+            )
             shuffle = False
         workers = self.args.workers if mode == "train" else self.args.workers * 2
 
-        sampler = create_sampler(dataset.table, mode, self._settings, distributed=rank != -1)
+        sampler = create_sampler(
+            dataset.table, mode, self._settings, distributed=rank != -1
+        )
 
-        return build_dataloader(dataset, batch_size, workers, shuffle, rank, sampler)  # return dataloader
+        return build_dataloader(
+            dataset, batch_size, workers, shuffle, rank, sampler
+        )  # return dataloader

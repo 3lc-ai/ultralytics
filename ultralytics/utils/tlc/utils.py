@@ -11,7 +11,11 @@ from pathlib import Path
 from .constants import TRAINING_PHASE
 
 from ultralytics.utils import LOGGER, colorstr
-from ultralytics.utils.tlc.constants import TLC_COLORSTR, TLC_REQUIRED_VERSION, TLC_PREFIX
+from ultralytics.utils.tlc.constants import (
+    TLC_COLORSTR,
+    TLC_REQUIRED_VERSION,
+    TLC_PREFIX,
+)
 from ultralytics.utils.tlc.settings import Settings
 
 from typing import Callable, Literal, Iterable
@@ -23,7 +27,10 @@ def check_tlc_dataset(
     image_column_name: str,
     label_column_name: str,
     dataset_checker: Callable[[str], dict[str, object]] | None = None,
-    table_creator: Callable[[str, dict[str, object], str, str, str, str, str], tlc.Table] | None = None,
+    table_creator: Callable[
+        [str, dict[str, object], str, str, str, str, str], tlc.Table
+    ]
+    | None = None,
     table_checker: Callable[[str, tlc.Table], bool] | None = None,
     project_name: str | None = None,
     check_backwards_compatible_table_name: bool = False,
@@ -47,7 +54,9 @@ def check_tlc_dataset(
     has_prefix = False
     if tables is None and data.startswith(TLC_PREFIX):
         has_prefix = True
-        LOGGER.info(f"{TLC_COLORSTR}Parsing 3LC YAML file data={data} and populating tables")
+        LOGGER.info(
+            f"{TLC_COLORSTR}Parsing 3LC YAML file data={data} and populating tables"
+        )
         tables = parse_3lc_yaml_file(data)
 
     if tables is None:
@@ -99,11 +108,14 @@ def check_tlc_dataset(
                             f"{colorstr(key)}: Using latest version of table from {data}: {table.url} -> {tables[key].url}"
                         )
                     else:
-                        LOGGER.info(f"{colorstr(key)}: Using initial version of table from {data}: {tables[key].url}")
+                        LOGGER.info(
+                            f"{colorstr(key)}: Using initial version of table from {data}: {tables[key].url}"
+                        )
 
                 except Exception as e:
                     LOGGER.warning(
-                        f"{colorstr(key)}: Failed to read or create table for split {key} from {data}: {e!s}")
+                        f"{colorstr(key)}: Failed to read or create table for split {key} from {data}: {e!s}"
+                    )
 
     else:
         # LOGGER.info(f"{TLC_COLORSTR}Using data directly from tables")
@@ -117,12 +129,15 @@ def check_tlc_dataset(
                     tables[key] = tlc.Table.from_url(table_url)
                 except Exception as e:
                     raise ValueError(
-                        f"Error loading table from {table} for split '{key}' provided through `tables`.") from e
+                        f"Error loading table from {table} for split '{key}' provided through `tables`."
+                    ) from e
             elif isinstance(table, tlc.Table):
                 tables[key] = table
             else:
-                msg = (f"Invalid type {type(table)} for split {key} provided through `tables`."
-                       "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table.")
+                msg = (
+                    f"Invalid type {type(table)} for split {key} provided through `tables`."
+                    "Must be a tlc.Table object or a location (string, pathlib.Path or tlc.Url) of a tlc.Table."
+                )
 
                 raise ValueError(msg)
 
@@ -135,7 +150,7 @@ def check_tlc_dataset(
 
     first_split = next(iter(tables.keys()))
     value_map = tables[first_split].get_value_map(label_column_name)
-    names = {int(k): v['internal_name'] for k, v in value_map.items()}
+    names = {int(k): v["internal_name"] for k, v in value_map.items()}
 
     for split in tables:
         if tables[split].get_value_map(label_column_name) != value_map:
@@ -152,9 +167,8 @@ def check_tlc_dataset(
         "names_3lc": value_map,
         "nc": len(names),
         "range_to_3lc_class": range_to_3lc_class,
-        "3lc_class_to_range": {
-            v: k
-            for k, v in range_to_3lc_class.items()}, }
+        "3lc_class_to_range": {v: k for k, v in range_to_3lc_class.items()},
+    }
 
 
 def training_phase_schema() -> tlc.Schema:
@@ -164,18 +178,23 @@ def training_phase_schema() -> tlc.Schema:
     """
     return tlc.Schema(
         display_name=TRAINING_PHASE,
-        description=("'During' metrics are collected with EMA during training, "
-                     "'After' is with the final model weights after completed training."),
-        display_importance=tlc.DISPLAY_IMPORTANCE_EPOCH - 1,  # Right hand side of epoch in the Dashboard
+        description=(
+            "'During' metrics are collected with EMA during training, "
+            "'After' is with the final model weights after completed training."
+        ),
+        display_importance=tlc.DISPLAY_IMPORTANCE_EPOCH
+        - 1,  # Right hand side of epoch in the Dashboard
         writable=False,
         computable=False,
         value=tlc.Int32Value(
             value_min=0,
             value_max=1,
             value_map={
-                float(0): tlc.MapElement(display_name='During'),
-                float(1): tlc.MapElement(display_name='After'), },
-        ))
+                float(0): tlc.MapElement(display_name="During"),
+                float(1): tlc.MapElement(display_name="After"),
+            },
+        ),
+    )
 
 
 def image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
@@ -184,15 +203,19 @@ def image_embeddings_schema(activation_size=512) -> dict[str, tlc.Schema]:
     :param activation_size: The size of the activation tensor.
     :returns: The YOLO image embeddings schema.
     """
-    embedding_schema = tlc.Schema('Embedding',
-                                  'Large NN embedding',
-                                  writable=False,
-                                  computable=False,
-                                  value=tlc.Float32Value(number_role=tlc.NUMBER_ROLE_NN_EMBEDDING),
-                                  size0=tlc.DimensionNumericValue(value_min=activation_size,
-                                                                  value_max=activation_size,
-                                                                  enforce_min=True,
-                                                                  enforce_max=True))
+    embedding_schema = tlc.Schema(
+        "Embedding",
+        "Large NN embedding",
+        writable=False,
+        computable=False,
+        value=tlc.Float32Value(number_role=tlc.NUMBER_ROLE_NN_EMBEDDING),
+        size0=tlc.DimensionNumericValue(
+            value_min=activation_size,
+            value_max=activation_size,
+            enforce_min=True,
+            enforce_max=True,
+        ),
+    )
     return embedding_schema
 
 
@@ -204,11 +227,14 @@ def reduce_embeddings(
 ):
     """Reduce image embeddings by a foreign table URL."""
     if foreign_table_url is None:
-        foreign_table_url = tlc.Url(tlc.active_run().constants['inputs'][0]['input_table_url']).to_absolute(
-            tlc.active_run().url)
+        foreign_table_url = tlc.Url(
+            tlc.active_run().constants["inputs"][0]["input_table_url"]
+        ).to_absolute(tlc.active_run().url)
 
-    LOGGER.info(TLC_COLORSTR +
-                f"Reducing image embeddings to {n_components}D with {method}, this may take a few minutes...")
+    LOGGER.info(
+        TLC_COLORSTR
+        + f"Reducing image embeddings to {n_components}D with {method}, this may take a few minutes..."
+    )
     run.reduce_embeddings_by_foreign_table_url(
         foreign_table_url=foreign_table_url,
         method=method,
@@ -222,12 +248,13 @@ def check_tlc_version():
     if installed_version < version.parse(TLC_REQUIRED_VERSION):
         raise ValueError(
             f"3LC version {tlc.__version__} is too old to use the YOLOv8 integration. "
-            f"Please upgrade to version {TLC_REQUIRED_VERSION} or later by running 'pip install --upgrade 3lc'.")
+            f"Please upgrade to version {TLC_REQUIRED_VERSION} or later by running 'pip install --upgrade 3lc'."
+        )
 
 
 def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
     """Parse a 3LC YAML file and return the corresponding tables.
-    
+
     :param data_file: The path to the 3LC YAML file.
     :returns: The tables pointed to by the YAML file.
     """
@@ -245,13 +272,15 @@ def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
         # Handle :latest at the end
         if data_config[split].endswith(":latest"):
             latest = True
-            split_path = data_config[split][:-len(":latest")]
+            split_path = data_config[split][: -len(":latest")]
         else:
             latest = False
             split_path = data_config[split]
 
         if split_path.startswith("./"):
-            LOGGER.debug(f"{TLC_COLORSTR}{split} split path starts with './', removing it.")
+            LOGGER.debug(
+                f"{TLC_COLORSTR}{split} split path starts with './', removing it."
+            )
             split_path = split_path[2:]
 
         table_url = tlc.Url(path) / split_path if path else tlc.Url(split_path)
@@ -266,12 +295,14 @@ def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
     return tables
 
 
-def create_sampler(table: tlc.Table,
-                   mode: Literal["train", "val"],
-                   settings: Settings,
-                   distributed: bool = False) -> torch.utils.data.Sampler | None:
+def create_sampler(
+    table: tlc.Table,
+    mode: Literal["train", "val"],
+    settings: Settings,
+    distributed: bool = False,
+) -> torch.utils.data.Sampler | None:
     """Get the sampler for the dataset.
-    
+
     :param table: The table to get the sampler for.
     :param mode: The mode of the sampler.
     :param settings: The settings for the run.
@@ -283,7 +314,9 @@ def create_sampler(table: tlc.Table,
     if mode == "train":
         if settings.sampling_weights or settings.exclude_zero_weight_training:
             if distributed:
-                raise NotImplementedError("Distributed training and using 3LC weights is not yet supported.")
+                raise NotImplementedError(
+                    "Distributed training and using 3LC weights is not yet supported."
+                )
 
             try:
                 sampler = table.create_sampler(
@@ -296,7 +329,9 @@ def create_sampler(table: tlc.Table,
 
     elif mode == "val":
         if distributed:
-            raise NotImplementedError("Distributed validation and exclusion by weight is not yet supported.")
+            raise NotImplementedError(
+                "Distributed validation and exclusion by weight is not yet supported."
+            )
 
         # Exclude zero weight is handled in the dataset for validation
         return None
