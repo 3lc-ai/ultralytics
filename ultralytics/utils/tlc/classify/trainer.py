@@ -4,7 +4,10 @@ from __future__ import annotations
 from ultralytics.models import yolo
 
 from ultralytics.data import build_dataloader
-from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, CLASSIFY_LABEL_COLUMN_NAME
+from ultralytics.utils.tlc.constants import (
+    IMAGE_COLUMN_NAME,
+    CLASSIFY_LABEL_COLUMN_NAME,
+)
 from ultralytics.utils.tlc.classify.dataset import TLCClassificationDataset
 from ultralytics.utils.tlc.engine.trainer import TLCTrainerMixin
 from ultralytics.utils.tlc.classify.validator import TLCClassificationValidator
@@ -18,9 +21,7 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
     _default_label_column_name = CLASSIFY_LABEL_COLUMN_NAME
 
     def get_dataset(self):
-        """ Overrides the get_dataset method to get or create 3LC tables.
-        
-        """
+        """Overrides the get_dataset method to get or create 3LC tables."""
         self.data = tlc_check_cls_dataset(
             self.args.data,
             self._tables,
@@ -36,7 +37,7 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
                 self._image_column_name,
                 self._label_column_name,
                 project_name=self._settings.project_name,
-                splits=("test", ),
+                splits=("test",),
             )
             self.data["test"] = data_test["test"]
 
@@ -70,16 +71,25 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
 
     def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
         """Returns PyTorch DataLoader with transforms to preprocess images for inference."""
-        with torch_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
+        with torch_distributed_zero_first(
+            rank
+        ):  # init dataset *.cache only once if DDP
             dataset = self.build_dataset(dataset_path, mode)
 
-        sampler = create_sampler(dataset.table, mode=mode, settings=self._settings, distributed=is_parallel(self.model))
-        loader = build_dataloader(dataset,
-                                  batch_size,
-                                  self.args.workers,
-                                  rank=rank,
-                                  shuffle=mode == "train",
-                                  sampler=sampler)
+        sampler = create_sampler(
+            dataset.table,
+            mode=mode,
+            settings=self._settings,
+            distributed=is_parallel(self.model),
+        )
+        loader = build_dataloader(
+            dataset,
+            batch_size,
+            self.args.workers,
+            rank=rank,
+            shuffle=mode == "train",
+            sampler=sampler,
+        )
         # Attach inference transforms
         if mode != "train":
             if is_parallel(self.model):

@@ -10,4 +10,5 @@ __all__ = [
     "TLCClassificationTrainer",
     "TLCClassificationValidator",
     "TLCDetectionTrainer",
-    "TLCDetectionValidator", ]
+    "TLCDetectionValidator",
+]
