@@ -6,13 +6,17 @@ import tlc
 from ultralytics.models import yolo
 from ultralytics.models.yolo.model import YOLO
 
-from ultralytics.nn.tasks import ClassificationModel, DetectionModel
+from ultralytics.nn.tasks import ClassificationModel, DetectionModel, SegmentationModel
 from ultralytics.utils.tlc.classify import (
     TLCClassificationTrainer,
     TLCClassificationValidator,
 )
 from ultralytics.utils.tlc.constants import DEFAULT_COLLECT_RUN_DESCRIPTION
 from ultralytics.utils.tlc.detect import TLCDetectionTrainer, TLCDetectionValidator
+from ultralytics.utils.tlc.segment import (
+    TLCSegmentationTrainer,
+    TLCSegmentationValidator,
+)
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import check_tlc_version, reduce_embeddings
 
@@ -44,6 +48,12 @@ class TLCYOLO(YOLO):
                 "trainer": TLCClassificationTrainer,
                 "validator": TLCClassificationValidator,
                 "predictor": yolo.classify.ClassificationPredictor,
+            },
+            "segment": {
+                "model": SegmentationModel,
+                "trainer": TLCSegmentationTrainer,
+                "validator": TLCSegmentationValidator,
+                "predictor": yolo.segment.SegmentationPredictor,
             },
         }
 

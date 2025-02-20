@@ -63,12 +63,13 @@ def get_or_create_det_table(
         dataset_yaml_file=data_dict["yaml_file"],
         split=key,
         override_split_path=data_dict[key],
+        task="detect",
         project_name=project_name,
         dataset_name=dataset_name,
         table_name=table_name,
         if_exists="reuse",
         add_weight_column=True,
-        description="Created with 3LC YOLOv8 integration",
+        description="Created with 3LC YOLO integration",
     )
 
 
