@@ -11,6 +11,7 @@ from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
+from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
 
 from tests import TMP
 from ultralytics.utils.tlc.constants import (
@@ -598,6 +599,10 @@ def test_check_tlc_dataset_bad_url() -> None:
     with pytest.raises(ValueError):
         check_tlc_dataset(data="", tables=tables, image_column_name="a", label_column_name="b")
 
+def test_absolutize_image_url() -> None:
+    url = tlc.Url("<UNEXPANDED_ALIAS>/in/my/url.png")
+    with pytest.raises(ValueError):
+        TLCDatasetMixin._absolutize_image_url(url, tlc.Url("some_table_url"))
 
 # HELPERS
 def _get_run_from_settings(settings: Settings) -> tlc.Run:

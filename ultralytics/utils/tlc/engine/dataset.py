@@ -30,6 +30,26 @@ class TLCDatasetMixin:
     def __len__(self):
         return len(self.example_ids)
 
+    @staticmethod
+    def _absolutize_image_url(image_str: str, table_url: tlc.Url) -> str:
+        """Expand aliases in the raw image string and absolutize the URL if it is relative.
+
+        Raise a ValueError if the alias cannot be expanded.
+
+        :param image_str: The raw image string to absolutize.
+        :return: The absolutized image string.
+        :raises ValueError: If the alias cannot be expanded.
+        """
+        url = tlc.Url(image_str)
+        try:
+            url = url.expand_aliases(allow_unexpanded=False)
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to expand alias in image_str: {image_str}. Make sure the alias is spelled correctly and is registered in your configuration."
+            ) from e
+
+        return url.to_absolute(table_url).to_str()
+
     def _is_scanned(self):
         """Check if the dataset has been scanned."""
         verified_marker_url = self.table.url / "cache.yolo"
