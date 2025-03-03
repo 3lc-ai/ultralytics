@@ -146,6 +146,18 @@ def test_detect_training() -> None:
     assert NUM_IMAGES in per_class_metrics_df.columns, "Expected num_images column in per-class metrics"
     assert NUM_INSTANCES in per_class_metrics_df.columns, "Expected num_instances column in per-class metrics"
 
+def test_detect_training_with_yolo12() -> None:
+    model = "yolo12n.pt"
+    data = TASK2DATASET["detect"]
+    overrides = {"data": data, "device": "cpu", "epochs": 1, "batch": 64, "imgsz": 32}
+
+    model_3lc = TLCYOLO(model)
+    # Embeddings can't be collected for yolo12
+    with pytest.raises(ValueError):
+        model_3lc.train(**overrides, settings=Settings(image_embeddings_dim=2))
+
+    # But should run to completion without embeddings collection
+    model_3lc.train(**overrides)
 
 def test_classify_training() -> None:
     model = TASK2MODEL["classify"]

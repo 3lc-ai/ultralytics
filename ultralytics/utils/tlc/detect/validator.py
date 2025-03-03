@@ -177,7 +177,9 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         )
 
         if sppf_index == -1:
-            raise ValueError("No SPPF layer found in model, cannot collect embeddings.")
+            raise ValueError(
+                "Image level embeddings can only be collected for detection models with a SPPF layer, but this model does not have one."
+            )
 
         weak_self = weakref.ref(self)  # Avoid circular reference (self <-> hook_fn)
 
