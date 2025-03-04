@@ -53,7 +53,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
 
             self.example_ids.append(example_id)
             image_path = Path(
-                tlc.Url(row[image_column_name]).to_absolute(table.url).to_str()
+                self._absolutize_image_url(row[image_column_name], self.table.url)
             )
             category = (
                 class_map[row[label_column_name]]

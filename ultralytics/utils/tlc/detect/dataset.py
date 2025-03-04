@@ -76,7 +76,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
             self.example_ids.append(example_id)
 
-            im_file = tlc.Url(row[tlc.IMAGE]).to_absolute(self.table.url).to_str()
+            im_file = self._absolutize_image_url(row[tlc.IMAGE], self.table.url)
             self.im_files.append(im_file)
             if self._table_format in ("COCO", "YOLO"):
                 self.labels.append(
