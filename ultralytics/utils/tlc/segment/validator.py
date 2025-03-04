@@ -54,8 +54,6 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
         # Reimplements SegmentationValidator, but with control over mask processing
         for si, (pred, proto) in enumerate(zip(preds[0], preds[1])):
             pbatch = self._prepare_batch(si, batch)
-            cls, bbox = pbatch.pop("cls"), pbatch.pop("bbox")
-            gt_masks = pbatch.pop("masks")
 
             conf = pred[:, 4]
             pred_cls = pred[:, 5]
@@ -72,8 +70,6 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
                         tlc.LABEL: [],
                         tlc.CONFIDENCE: [],
                     },
-                    tlc.GT_IOUS: [],
-                    tlc.MASKS: [],
                 }
                 predicted_batch_segmentations.append(predicted_instances)
                 continue
@@ -87,19 +83,6 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
             self.process = ops.process_mask_native
             predn, pred_masks = self._prepare_pred(pred, pbatch, proto)
             self.process = prev_process
-
-            # Only match when there are labels
-            if len(cls) > 0:
-                mask_iou = compute_mask_iou(
-                    cls, pred_masks=pred_masks, gt_masks=gt_masks, overlap=True
-                )
-
-                # Reorder using instance mapping before transposing and converting to list
-                instance_mapping = batch["instance_mapping"][si]
-                indices = list(instance_mapping.keys())
-                mask_iou = mask_iou[indices, :].transpose(1, 0).tolist()
-            else:
-                mask_iou = [[] for _ in range(len(pred_cls))]
 
             # Scale masks to image size and handle padding
             pred_masks = torch.as_tensor(pred_masks, dtype=torch.uint8)
@@ -119,7 +102,6 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
                     tlc.LABEL: pred_cls.tolist(),
                     tlc.CONFIDENCE: conf.tolist(),
                 },
-                tlc.GT_IOUS: mask_iou,
                 tlc.MASKS: result_masks,
             }
 
