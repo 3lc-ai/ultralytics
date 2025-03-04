@@ -9,7 +9,7 @@ from ultralytics.models.yolo.segment.val import SegmentationValidator
 from ultralytics.utils import ops
 from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
-from ultralytics.utils.tlc.segment.utils import compute_mask_iou, tlc_check_seg_dataset
+from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset
 
 SEGMENTATION_LABEL_COLUMN_NAME = (
     "segmentation_label"  # TODO: Make a constant and use it?

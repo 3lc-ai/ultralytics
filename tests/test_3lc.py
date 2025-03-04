@@ -6,9 +6,10 @@ import pandas as pd
 import pytest
 import tlc
 
-from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
+from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer, TLCSegmentationTrainer
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
+from ultralytics.utils.tlc.segment.utils import check_seg_table
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
@@ -34,10 +35,10 @@ tlc.TableIndexingTable.instance().add_scan_url({
     "object_type": "table",
     "static": True, })
 
-TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10"}
-TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt"}
-TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label"}
-TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted"}
+TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10", "segment": "coco8-seg.yaml"}
+TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt", "segment": "yolo11n-seg.pt"}
+TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label", "segment": "segmentations"}
+TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted", "segment": "predicted_segmentations"}
 
 try:
     import umap
@@ -56,11 +57,11 @@ def get_metrics_tables_from_run(run: tlc.Run) -> dict[str, list[tlc.Table]]:
         metrics_tables[metrics_info["stream_name"]].append(metrics_table)
     return metrics_tables
 
-
-def test_detect_training() -> None:
+@pytest.mark.parametrize("task", ["detect", "segment"])
+def test_training(task) -> None:
     # End-to-end test of detection
     overrides = {
-        "data": TASK2DATASET["detect"],
+        "data": TASK2DATASET[task],
         "epochs": 1,
         "batch": 4,
         "device": "cpu",
@@ -68,7 +69,7 @@ def test_detect_training() -> None:
         "plots": False, }
 
     # Compare results from 3LC with ultralytics
-    model_ultralytics = YOLO(TASK2MODEL["detect"])
+    model_ultralytics = YOLO(TASK2MODEL[task])
     results_ultralytics = model_ultralytics.train(**overrides)
 
     settings = Settings(
@@ -76,12 +77,12 @@ def test_detect_training() -> None:
         collect_loss=True,
         image_embeddings_dim=2,
         image_embeddings_reducer="pacmap",
-        project_name="test_detect_project",
-        run_name="test_detect",
-        run_description="Test detection training",
+        project_name=f"test_{task}_project",
+        run_name=f"test_{task}",
+        run_description=f"Test {task} training",
     )
 
-    model_3lc = TLCYOLO(TASK2MODEL["detect"])
+    model_3lc = TLCYOLO(TASK2MODEL[task])
     results_3lc = model_3lc.train(**overrides, settings=settings)
     assert results_3lc, "Detection training failed"
 
@@ -343,6 +344,31 @@ def test_table_resolving() -> None:
     tables = {"train": train_table_edited.url, "val": new_trainer.testset.url}
     trainer_from_tables = TLCDetectionTrainer(overrides={"tables": tables, "settings": settings})
     trainer_from_tables.trainset.url == train_table_edited.url, "Table passed directly not resolved correctly"
+
+def test_seg_table_checker() -> None:
+    settings = Settings(project_name="test_seg_table_checker")
+    trainer = TLCSegmentationTrainer(overrides={"data": TASK2DATASET["segment"], "settings": settings})
+
+    # A table from a yolo dataset is valid
+    check_seg_table(trainer.trainset, "image", "segmentations")
+
+    # The same data in a new table, but backed by a row cache, is also valid
+    overlay_table_url = tlc.NullOverlay(
+        url=trainer.trainset.url.create_sibling("overlay_table"),
+        input_table_url=trainer.trainset
+    ).write_to_url()
+    overlay_table = tlc.Table.from_url(overlay_table_url)
+    check_seg_table(overlay_table, "image", "segmentations")
+
+    # A table with a wrong schema should be invalid
+    invalid_schema_seg_table = tlc.Table.from_dict(
+        {"image": [1, 2, 3], "segmentations": [4, 5, 6]},
+        project_name=settings.project_name,
+        dataset_name="test_seg_table_checker",
+        table_name="invalid_seg_table",
+    )
+    with pytest.raises(ValueError, match="Schema validation failed"):
+        check_seg_table(invalid_schema_seg_table, "image", "segmentations")
 
 
 def test_sampling_weights() -> None:
