@@ -102,31 +102,6 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
         return self.labels
 
-    def build_transforms(self, hyp=None):
-        """Builds and appends transforms to the list."""
-        if self.augment:
-            hyp.mosaic = hyp.mosaic if self.augment and not self.rect else 0.0
-            hyp.mixup = hyp.mixup if self.augment and not self.rect else 0.0
-            transforms = v8_transforms(self, self.imgsz, hyp)
-        else:
-            transforms = Compose(
-                [LetterBox(new_shape=(self.imgsz, self.imgsz), scaleup=False)]
-            )
-        transforms.append(
-            FormatWithInstanceMapping(
-                bbox_format="xywh",
-                normalize=True,
-                return_mask=self.use_segments,
-                return_keypoint=self.use_keypoints,
-                return_obb=self.use_obb,
-                batch_idx=True,
-                mask_ratio=hyp.mask_ratio,
-                mask_overlap=hyp.overlap_mask,
-                bgr=hyp.bgr if self.augment else 0.0,  # only affect training.
-            )
-        )
-        return transforms
-
     def _scan_images(self):
         desc = f"{self.prefix}Scanning images in {self.table.url.to_str()}..."
 
@@ -272,56 +247,3 @@ def tlc_table_row_to_segment_label(
         normalized=True,
         bbox_format="xywh",
     )
-
-
-class FormatWithInstanceMapping(Format):
-    """Custom formatter that keeps track of the instance id from the original table when sorting."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._image_to_mapping = {}  # {image_path: dict[int, int]} mapping to original instance order
-
-    def _format_segments(self, instances, cls, w, h):
-        """Converts polygon segments to bitmap masks.
-
-        Args:
-            instances (Instances): Object containing segment information.
-            cls (numpy.ndarray): Class labels for each instance.
-            w (int): Width of the image.
-            h (int): Height of the image.
-
-        Returns:
-            masks (numpy.ndarray): Bitmap masks with shape (N, H, W) or (1, H, W) if mask_overlap is True.
-            instances (Instances): Updated instances object with sorted segments if mask_overlap is True.
-            cls (numpy.ndarray): Updated class labels, sorted if mask_overlap is True.
-
-        Notes:
-            - If self.mask_overlap is True, masks are overlapped and sorted by area.
-            - If self.mask_overlap is False, each mask is represented separately.
-            - Masks are downsampled according to self.mask_ratio.
-        """
-        segments = instances.segments
-        if self.mask_overlap:
-            masks, sorted_idx = polygons2masks_overlap(
-                (h, w), segments, downsample_ratio=self.mask_ratio
-            )
-            masks = masks[None]  # (640, 640) -> (1, 640, 640)
-            instances = instances[sorted_idx]
-            cls = cls[sorted_idx]
-            self._image_to_mapping[self._current_im_file] = sorted_idx.tolist()
-        else:
-            masks = polygons2masks(
-                (h, w), segments, color=1, downsample_ratio=self.mask_ratio
-            )
-            self._image_to_mapping[self._current_im_file] = list(range(len(instances)))
-
-        return masks, instances, cls
-
-    def __call__(self, labels):
-        """Keep track of which image we are formatting."""
-        self._current_im_file = labels["im_file"]
-        sample = super().__call__(labels)
-        mapping = self._image_to_mapping.get(self._current_im_file, {})
-        sample["instance_mapping"] = {v: i for i, v in enumerate(mapping)}
-        return sample
