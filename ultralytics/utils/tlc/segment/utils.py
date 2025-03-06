@@ -55,9 +55,11 @@ def get_or_create_seg_table(
     )
 
 
-def check_seg_table(table: tlc.Table, image_column_name: str, label_column_name: str) -> None:
+def check_seg_table(
+    table: tlc.Table, image_column_name: str, label_column_name: str
+) -> None:
     """Verify that the table is compatible with instance segmentation.
-    
+
     :param table: The table to check.
     :param image_column_name: The name of the image column.
     :param label_column_name: The name of the label column.
@@ -68,14 +70,24 @@ def check_seg_table(table: tlc.Table, image_column_name: str, label_column_name:
     # Check that the schema is compatible with instance segmentation
     try:
         # Schema checks
-        assert image_column_name in row_schema, f"Image column {image_column_name} not found in table with URL {table.url}"
-        assert label_column_name in row_schema, f"Label column {label_column_name} not found in table with URL {table.url}"
+        assert image_column_name in row_schema, (
+            f"Image column {image_column_name} not found in table with URL {table.url}"
+        )
+        assert label_column_name in row_schema, (
+            f"Label column {label_column_name} not found in table with URL {table.url}"
+        )
 
-        assert hasattr(row_schema[label_column_name], "sample_type"), f"Label column {label_column_name} does not have a sample type"
+        assert hasattr(row_schema[label_column_name], "sample_type"), (
+            f"Label column {label_column_name} does not have a sample type"
+        )
         sample_type = tlc.SampleType.from_schema(row_schema[label_column_name])
-        assert isinstance(sample_type, tlc.InstanceSegmentationPolygons), f"Label column {label_column_name} does not have sample type InstanceSegmentationPolygons"
-        assert sample_type.relative, f"Label column {label_column_name} does not have relative coordinates"
-        
+        assert isinstance(sample_type, tlc.InstanceSegmentationPolygons), (
+            f"Label column {label_column_name} does not have sample type InstanceSegmentationPolygons"
+        )
+        assert sample_type.relative, (
+            f"Label column {label_column_name} does not have relative coordinates"
+        )
+
     except AssertionError as e:
         msg = f"Schema validation failed for {label_column_name} column in table with URL {table.url}. {str(e)}"
         raise ValueError(msg) from e
@@ -84,8 +96,10 @@ def check_seg_table(table: tlc.Table, image_column_name: str, label_column_name:
     try:
         first_row = table[0]
         sample_type.ensure_sample_valid(first_row[label_column_name])
-        assert image_column_name in first_row, f"Image column {image_column_name} not found in table with URL {table.url}"
-    
+        assert image_column_name in first_row, (
+            f"Image column {image_column_name} not found in table with URL {table.url}"
+        )
+
     except (AssertionError, ValueError) as e:
         msg = f"Data validation failed for {label_column_name} column in table with URL {table.url}. {str(e)}"
         raise ValueError(msg) from e
