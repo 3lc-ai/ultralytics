@@ -129,22 +129,7 @@ class TLCValidatorMixin(BaseValidator):
             self._should_collect = not self._settings.collection_disable
 
         # Call parent to perform the validation
-        if self.dataloader:
-            table = self.dataloader.dataset.table
-            epoch_str = f"-epoch-{self._epoch:03d}"
-        else:
-            table = self.data[self.args.split]
-            epoch_str = ""
-
-        dataset_name = table.dataset_name
-        prefix = (
-            self._run.bulk_data_url
-            / f"{dataset_name}{epoch_str}{'-after-training' if self._final_validation else ''}"
-        )
-        with tlc.bulk_data_url_context(
-            prefix=prefix, table_with_bulk_data_url=tlc.Url("")
-        ):
-            out = super().__call__(trainer, model)
+        out = super().__call__(trainer, model)
 
         self._write_per_class_metrics_tables()
         self._post_validation()
