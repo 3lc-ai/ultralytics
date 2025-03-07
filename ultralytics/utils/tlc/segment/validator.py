@@ -7,13 +7,9 @@ from tlc.client.data_format import InstanceSegmentationDict
 
 from ultralytics.models.yolo.segment.val import SegmentationValidator
 from ultralytics.utils import ops
-from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME
+from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, SEGMENTATION_LABEL_COLUMN_NAME
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
 from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset
-
-SEGMENTATION_LABEL_COLUMN_NAME = (
-    "segmentation_label"  # TODO: Make a constant and use it?
-)
 
 
 class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
@@ -33,12 +29,12 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
         }
 
         segment_sample_type = tlc.InstanceSegmentationMasks(
-            name="predicted_segmentations",
+            name=tlc.PREDICTED_SEGMENTATION,
             instance_properties_structure=instance_properties_structure,
             is_prediction=True,
         )
 
-        return {"predicted_segmentations": segment_sample_type.schema}
+        return {tlc.PREDICTED_SEGMENTATION: segment_sample_type.schema}
 
     def _compute_3lc_metrics(
         self, preds, batch
@@ -64,12 +60,13 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
             # Handle case where no predictions are kept
             if not torch.any(keep_indices):
                 predicted_instances = {
-                    "image_height": pbatch["ori_shape"][0],
-                    "image_width": pbatch["ori_shape"][1],
-                    "instance_properties": {
+                    tlc.IMAGE_HEIGHT: pbatch["ori_shape"][0],
+                    tlc.IMAGE_WIDTH: pbatch["ori_shape"][1],
+                    tlc.INSTANCE_PROPERTIES: {
                         tlc.LABEL: [],
                         tlc.CONFIDENCE: [],
                     },
+                    tlc.MASKS: [],
                 }
                 predicted_batch_segmentations.append(predicted_instances)
                 continue
@@ -96,9 +93,9 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
             result_masks = np.asfortranarray(scaled_masks.astype(np.uint8))
 
             predicted_instances = {
-                "image_height": pbatch["ori_shape"][0],
-                "image_width": pbatch["ori_shape"][1],
-                "instance_properties": {
+                tlc.IMAGE_WIDTH: pbatch["ori_shape"][0],
+                tlc.IMAGE_HEIGHT: pbatch["ori_shape"][1],
+                tlc.INSTANCE_PROPERTIES: {
                     tlc.LABEL: pred_cls.tolist(),
                     tlc.CONFIDENCE: conf.tolist(),
                 },
@@ -107,4 +104,4 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
             predicted_batch_segmentations.append(predicted_instances)
 
-        return {"predicted_segmentations": predicted_batch_segmentations}
+        return {tlc.PREDICTED_SEGMENTATION: predicted_batch_segmentations}
