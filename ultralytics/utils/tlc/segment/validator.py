@@ -7,7 +7,10 @@ from tlc.client.data_format import InstanceSegmentationDict
 
 from ultralytics.models.yolo.segment.val import SegmentationValidator
 from ultralytics.utils import ops
-from ultralytics.utils.tlc.constants import IMAGE_COLUMN_NAME, SEGMENTATION_LABEL_COLUMN_NAME
+from ultralytics.utils.tlc.constants import (
+    IMAGE_COLUMN_NAME,
+    SEGMENTATION_LABEL_COLUMN_NAME,
+)
 from ultralytics.utils.tlc.detect.validator import TLCDetectionValidator
 from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset
 
