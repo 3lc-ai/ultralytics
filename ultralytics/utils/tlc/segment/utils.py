@@ -27,7 +27,7 @@ def tlc_check_seg_dataset(
         table_creator=get_or_create_seg_table,
         table_checker=check_seg_table,
         project_name=project_name,
-        check_backwards_compatible_table_name=True,
+        check_backwards_compatible_table_name=False,
         splits=splits,
     )
 
