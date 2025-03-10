@@ -2,7 +2,7 @@
 
 # 3LC Integration
 
-This document outlines how to use the 3LC integration available for Ultralytics YOLO classification and object detection.
+This document outlines how to use the 3LC integration available for Ultralytics YOLO classification, object detection and instance segmentation.
 
 For any questions or problems, please reach out on the [3LC Discord](https://discord.com/channels/1236027984150794290/1236118620002586655).
 
@@ -85,8 +85,8 @@ In addition to tables created with `Table.from_yolo()` (which is called internal
 </details>
 
 <details>
-<summary>Segmentation (not supported)</summary>
-The 3LC integration does not yet support the Segmentation task. Let us know on Discord if you would like us to add it.
+<summary>Segmentation</summary>
+For instance segmentation, it is possible to provide `image_column_name` and `label_column_name` when calling `model.train()`, `model.val()` and `model.collect()` if you are providing your own table which has different column names to those expected by 3LC.
 </details>
 
 <details>
