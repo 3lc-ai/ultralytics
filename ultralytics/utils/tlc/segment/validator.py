@@ -32,12 +32,12 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
         }
 
         segment_sample_type = tlc.InstanceSegmentationMasks(
-            name=tlc.PREDICTED_SEGMENTATION,
+            name=tlc.PREDICTED_SEGMENTATIONS,
             instance_properties_structure=instance_properties_structure,
             is_prediction=True,
         )
 
-        return {tlc.PREDICTED_SEGMENTATION: segment_sample_type.schema}
+        return {tlc.PREDICTED_SEGMENTATIONS: segment_sample_type.schema}
 
     def _compute_3lc_metrics(
         self, preds, batch
@@ -107,4 +107,4 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
             predicted_batch_segmentations.append(predicted_instances)
 
-        return {tlc.PREDICTED_SEGMENTATION: predicted_batch_segmentations}
+        return {tlc.PREDICTED_SEGMENTATIONS: predicted_batch_segmentations}
