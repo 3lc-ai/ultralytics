@@ -6,17 +6,13 @@ import numpy as np
 import tlc
 from itertools import repeat
 
-from ultralytics.data.augment import Compose, Format, LetterBox, v8_transforms
 from ultralytics.data.dataset import YOLODataset
 from ultralytics.data.utils import (
     verify_image,
     segments2boxes,
-    polygons2masks,
-    polygons2masks_overlap,
 )
 from ultralytics.utils import ops
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
-
 
 from ultralytics.utils import LOGGER, NUM_THREADS, TQDM
 
@@ -226,10 +222,14 @@ def tlc_table_row_to_segment_label(
     # Get image size
     height, width = segmentations["image_height"], segmentations["image_width"]
 
-    classes = segmentations["instance_properties"][tlc.LABEL]
-    segments = [
-        np.array(polygon).reshape(-1, 2) for polygon in segmentations["polygons"]
-    ]
+    classes = []
+    segments = []
+
+    for category, polygon in zip(segmentations["instance_properties"][tlc.LABEL], segmentations["polygons"]):
+        if polygon:
+            classes.append(category)
+            segments.append(np.array(polygon).reshape(-1, 2))
+
 
     # Compute bounding boxes from segments
     if segments:
