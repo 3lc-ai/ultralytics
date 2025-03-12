@@ -199,7 +199,7 @@ class TLCTrainerMixin(BaseTrainer):
             self._run.set_status_completed()
 
     def _save_confidence_metrics(self):
-        if self.args.task != "detect":
+        if self.args.task not in ("detect", "segment"):
             return
 
         try:
