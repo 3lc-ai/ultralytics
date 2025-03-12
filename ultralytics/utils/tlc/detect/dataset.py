@@ -225,11 +225,12 @@ def tlc_table_row_to_segment_label(
     classes = []
     segments = []
 
-    for category, polygon in zip(segmentations["instance_properties"][tlc.LABEL], segmentations["polygons"]):
+    for category, polygon in zip(
+        segmentations["instance_properties"][tlc.LABEL], segmentations["polygons"]
+    ):
         if polygon:
             classes.append(class_map[category])
             segments.append(np.array(polygon).reshape(-1, 2))
-
 
     # Compute bounding boxes from segments
     if segments:
