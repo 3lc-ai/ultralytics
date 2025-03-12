@@ -25,7 +25,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
     def _get_metrics_schemas(self) -> dict[str, tlc.Schema]:
         # TODO: Ensure class  mapping is the same as in input table
         instance_properties_structure = {
-            tlc.LABEL: tlc.CategoricalLabel(name=tlc.LABEL, classes=self.data["names"]),
+            tlc.LABEL: tlc.CategoricalLabel(name=tlc.LABEL, classes=self.data["names_3lc"]),
             tlc.CONFIDENCE: tlc.Float(
                 name=tlc.CONFIDENCE, number_role=tlc.NUMBER_ROLE_CONFIDENCE
             ),
@@ -95,11 +95,13 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
             result_masks = np.asfortranarray(scaled_masks.astype(np.uint8))
 
+            predicted_labels = [self.data["range_to_3lc_class"][int(p)] for p in pred_cls.tolist()]
+
             predicted_instances = {
                 tlc.IMAGE_WIDTH: pbatch["ori_shape"][0],
                 tlc.IMAGE_HEIGHT: pbatch["ori_shape"][1],
                 tlc.INSTANCE_PROPERTIES: {
-                    tlc.LABEL: pred_cls.tolist(),
+                    tlc.LABEL: predicted_labels,
                     tlc.CONFIDENCE: conf.tolist(),
                 },
                 tlc.MASKS: result_masks,
