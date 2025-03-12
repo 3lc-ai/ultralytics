@@ -99,8 +99,8 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
             predicted_labels = [self.data["range_to_3lc_class"][int(p)] for p in pred_cls.tolist()]
 
             predicted_instances = {
-                tlc.IMAGE_WIDTH: pbatch["ori_shape"][0],
-                tlc.IMAGE_HEIGHT: pbatch["ori_shape"][1],
+                tlc.IMAGE_HEIGHT: pbatch["ori_shape"][0],
+                tlc.IMAGE_WIDTH: pbatch["ori_shape"][1],
                 tlc.INSTANCE_PROPERTIES: {
                     tlc.LABEL: predicted_labels,
                     tlc.CONFIDENCE: conf.tolist(),
