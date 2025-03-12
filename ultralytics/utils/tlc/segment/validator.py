@@ -95,6 +95,7 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
             result_masks = np.asfortranarray(scaled_masks.astype(np.uint8))
 
+            # Map predicted labels in 0, 1, ... back to possibly non-contiguous 3LC classes
             predicted_labels = [self.data["range_to_3lc_class"][int(p)] for p in pred_cls.tolist()]
 
             predicted_instances = {
