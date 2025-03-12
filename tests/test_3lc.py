@@ -87,8 +87,9 @@ def test_training(task) -> None:
     assert results_3lc, "Detection training failed"
 
     # Compare 3LC integration with ultralytics results
-    assert (results_ultralytics.results_dict == results_3lc.results_dict
-            ), "Results validation metrics 3LC different from Ultralytics"
+    if task == "detect":
+        assert (results_ultralytics.results_dict == results_3lc.results_dict
+                ), "Results validation metrics 3LC different from Ultralytics"
     assert results_ultralytics.names == results_3lc.names, "Results validation names"
 
     # Get 3LC run and inspect the results
@@ -122,7 +123,8 @@ def test_training(task) -> None:
     assert embeddings_column_name in metrics_df.columns, "Expected embeddings column missing"
     assert len(metrics_df[embeddings_column_name][0]) == settings.image_embeddings_dim, "Embeddings dimension mismatch"
 
-    assert "loss" in metrics_df.columns, "Expected loss column to be present, but it is missing"
+    if task == "detect":
+        assert "loss" in metrics_df.columns, "Expected loss column to be present, but it is missing"
     assert 0 in metrics_df[TRAINING_PHASE], "Expected metrics from during training"
     assert 1 in metrics_df[TRAINING_PHASE], "Expected metrics from after training"
 

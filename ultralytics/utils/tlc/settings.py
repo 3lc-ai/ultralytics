@@ -35,7 +35,12 @@ class Settings:
     """The description of the 3LC run. Default: None"""
 
     collect_loss: bool = field(default=False)
-    """Whether to collect loss values for the 'detect' task. Cross-Entropy loss is always computed for the 'classify' task. Default: False"""
+    """Whether to collect per-sample loss values for the 'detect' task.
+    
+    Cross-Entropy loss is always computed for the 'classify' task.
+    Not yet supported for the 'segment' task.
+    
+    Default: False"""
 
     image_embeddings_dim: int = field(default=0)
     """Image embeddings dimension. 0 means no embeddings, 2 means 2D embeddings, 3 means 3D embeddings. Default: 0"""
