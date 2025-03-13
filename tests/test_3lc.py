@@ -1,6 +1,6 @@
 from collections import defaultdict
 from unittest.mock import Mock
-
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 import pytest
@@ -9,7 +9,7 @@ import tlc
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer, TLCSegmentationTrainer
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
-from ultralytics.utils.tlc.segment.utils import check_seg_table
+from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset, check_seg_table
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
@@ -37,8 +37,8 @@ tlc.TableIndexingTable.instance().add_scan_url({
 
 TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10", "segment": "coco8-seg.yaml"}
 TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt", "segment": "yolo11n-seg.pt"}
-TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label", "segment": "segmentations"}
-TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted", "segment": "predicted_segmentations"}
+TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label", "segment": "segmentations.instance_properties.label"}
+TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted", "segment": "predicted_segmentations.instance_properties.label"}
 
 try:
     import umap
@@ -491,7 +491,7 @@ def test_get_metrics_collection_epochs(start, interval, epochs, disable, expecte
             settings.get_metrics_collection_epochs(epochs)
 
 
-@pytest.mark.parametrize("task", ["detect", "classify"])
+@pytest.mark.parametrize("task", ["detect", "classify", "segment"])
 def test_arbitrary_class_indices(task) -> None:
     # Test that arbitrary class indices can be used
     settings = Settings(
@@ -513,6 +513,15 @@ def test_arbitrary_class_indices(task) -> None:
     elif task == "classify":
         data_dict = tlc_check_cls_dataset(
             data=TASK2DATASET["classify"],
+            tables=None,
+            image_column_name="image",
+            label_column_name=label_column_name,
+            project_name=settings.project_name,
+        )
+
+    elif task == "segment":
+        data_dict = tlc_check_seg_dataset(
+            data=TASK2DATASET["segment"],
             tables=None,
             image_column_name="image",
             label_column_name=label_column_name,
@@ -557,6 +566,24 @@ def test_arbitrary_class_indices(task) -> None:
                     "runs_and_values": edits}},
             )
 
+        elif task == "segment":
+            edits = []
+            for i, row in enumerate(edited_schema_table.table_rows):
+                edits.append([i])
+
+                instance_properties_override = deepcopy(row["segmentations"]["instance_properties"])
+                instance_properties_override["label"] = [label_map[i] for i in instance_properties_override["label"]]
+
+                segmentations_edit = {**deepcopy(row["segmentations"]), "instance_properties": instance_properties_override}
+                edits.append(segmentations_edit)
+
+            edited_tables[split] = tlc.EditedTable(
+                url=edited_schema_table.url.create_sibling(f"edited_value_map_and_values_{task}"),
+                input_table_url=edited_schema_table,
+                edits={"segmentations": {
+                    "runs_and_values": edits}},
+            )
+        
     # Check that the edited table can be used for training and validation
     model = TLCYOLO(TASK2MODEL[task])
     results = model.train(tables=edited_tables, settings=settings, epochs=1, device="cpu")
@@ -581,6 +608,9 @@ def test_arbitrary_class_indices(task) -> None:
         predicted_label = np.sqrt(-metrics_df["bbs_predicted"][1]["bb_list"][0]["label"])
         assert table_value_map[predicted_label]["internal_name"] == "giraffe"
     elif task == "classify":
+        assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
+
+    elif task == "segment":
         assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
 
     # Verify that the metrics schema is correct
