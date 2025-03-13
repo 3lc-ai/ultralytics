@@ -394,7 +394,9 @@ class TLCValidatorMixin(BaseValidator):
                 if self.args.task == "detect":
                     p, r, ap50, ap5095 = class_results
                 else:
-                    p, r, ap50, ap5095, p_seg, r_seg, ap50_seg, ap5095_seg = class_results
+                    p, r, ap50, ap5095, p_seg, r_seg, ap50_seg, ap5095_seg = (
+                        class_results
+                    )
             else:
                 p, r, ap50, ap5095 = 0.0, 0.0, 0.0, 0.0
                 if self.args.task == "segment":
@@ -415,7 +417,16 @@ class TLCValidatorMixin(BaseValidator):
         if self.args.task == "detect":
             all_p, all_r, all_mAP50, all_mAP50_95 = mean_results
         else:
-            all_p, all_r, all_mAP50, all_mAP50_95, all_p_seg, all_r_seg, all_mAP50_seg, all_mAP50_95_seg = mean_results
+            (
+                all_p,
+                all_r,
+                all_mAP50,
+                all_mAP50_95,
+                all_p_seg,
+                all_r_seg,
+                all_mAP50_seg,
+                all_mAP50_95_seg,
+            ) = mean_results
 
         precisions[self.nc] = all_p
         recalls[self.nc] = all_r
@@ -441,7 +452,6 @@ class TLCValidatorMixin(BaseValidator):
             metrics[MAP50_95_SEG] = mAP50_95s_seg
 
         return metrics
-
 
     def _verify_model_data_compatibility(self, model_class_names):
         """Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
