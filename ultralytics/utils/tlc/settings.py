@@ -157,7 +157,7 @@ class Settings:
     def _verify_training(self) -> None:
         """Verify that the settings are valid for training.
 
-        :param opt: The argparse namespace containing YOLOv8 settings.
+        :param opt: The argparse namespace containing YOLO settings.
 
         :raises: AssertionError if the settings are invalid.
         """

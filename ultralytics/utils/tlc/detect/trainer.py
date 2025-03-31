@@ -22,7 +22,7 @@ from ultralytics.utils.torch_utils import de_parallel, torch_distributed_zero_fi
 class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
     _default_image_column_name = IMAGE_COLUMN_NAME
     _default_label_column_name = DETECTION_LABEL_COLUMN_NAME
-    """Trainer class for YOLOv8 object detection with 3LC"""
+    """Trainer class for YOLO object detection with 3LC"""
 
     def get_dataset(self):
         # Parse yaml and create tables

@@ -463,7 +463,7 @@ class TLCValidatorMixin(BaseValidator):
                 f"The model and data are incompatible. The model was trained on {len(model_class_names)} classes, but the data has {len(dataset_class_names)} classes. "
             )
 
-        # Imagenet has a class name transform in YOLOv8 which is not applied on table creation. TODO: Remove when image_folder takes a sparse class name mapping to change these
+        # Imagenet has a class name transform in YOLO which is not applied on table creation. TODO: Remove when image_folder takes a sparse class name mapping to change these
         if "n01440764" not in set(dataset_class_names.values()):
             if model_class_names != dataset_class_names:
                 raise ValueError(

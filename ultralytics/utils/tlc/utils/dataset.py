@@ -27,7 +27,7 @@ def check_tlc_dataset(
     check_backwards_compatible_table_name: bool = False,
     splits: Iterable[str] | None = None,
 ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    """Get or create tables for YOLOv8 datasets. data is ignored when tables is provided.
+    """Get or create tables for YOLO datasets. data is ignored when tables is provided.
 
     :param data: Path to a dataset
     :param tables: Dictionary of tables, if already created

@@ -20,7 +20,7 @@ def tlc_check_cls_dataset(
     project_name: str | None = None,
     splits: Iterable[str] | None = None,
 ) -> dict[str, tlc.Table | dict[float, str] | int]:
-    """Get or create tables for YOLOv8 classification datasets. data is ignored when tables is provided.
+    """Get or create tables for YOLO classification datasets. data is ignored when tables is provided.
 
     :param data: Path to an ImageFolder dataset
     :param tables: Dictionary of tables, if already created
@@ -90,7 +90,7 @@ def get_or_create_cls_table(
         extensions=IMG_FORMATS,
         if_exists="reuse",
         add_weight_column=True,
-        description="Created with 3LC YOLOv8 integration",
+        description="Created with 3LC YOLO integration",
         label_overrides=label_overrides,
     )
 
@@ -121,5 +121,5 @@ def check_cls_table(
         )
     except AssertionError as e:
         raise ValueError(
-            f"Table {table.url} is not compatible with YOLOv8 classification."
+            f"Table {table.url} is not compatible with YOLO classification."
         ) from e
