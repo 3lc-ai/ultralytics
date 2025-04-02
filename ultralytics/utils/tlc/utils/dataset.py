@@ -141,18 +141,22 @@ def check_tlc_dataset(
 
     first_split = next(iter(tables.keys()))
 
-    value_map = get_table_value_map(tables[first_split], label_column_name)
+    value_map = tables[first_split].get_value_map(label_column_name)
 
     if value_map is None:
-        raise ValueError(f"Failed to get value map for table with Url: {tables[first_split].url}")
+        raise ValueError(
+            f"Failed to get value map for table with Url: {tables[first_split].url}"
+        )
 
     names = {int(k): v["internal_name"] for k, v in value_map.items()}
 
     for split in tables:
-        other_value_map = get_table_value_map(tables[split], label_column_name)
+        other_value_map = tables[split].get_value_map(label_column_name)
 
         if other_value_map is None:
-            raise ValueError(f"Failed to get value map for table with Url: {tables[split].url}")
+            raise ValueError(
+                f"Failed to get value map for table with Url: {tables[split].url}"
+            )
 
         if other_value_map != value_map:
             msg = f"All splits must have the same categories, but {split} has different categories from {first_split}."
@@ -170,31 +174,6 @@ def check_tlc_dataset(
         "range_to_3lc_class": range_to_3lc_class,
         "3lc_class_to_range": {v: k for k, v in range_to_3lc_class.items()},
     }
-
-
-def get_table_value_map(
-    table: tlc.Table, label_column_name: str
-) -> dict[int, dict[str, object]]:
-    """Get the value map for a table.
-
-    :param table: The table to get the value map for.
-    :param label_column_name: The name of the label column.
-    :returns: The value map for the table.
-    """
-    value_map = table.get_value_map(label_column_name)
-    if value_map is None:
-        try:
-            value_map = (
-                table.schema.values["rows"]
-                .values["segmentations"]
-                .values["instance_properties"]
-                .values["label"]
-                .value.map
-            )
-        except Exception:
-            value_map = None
-
-    return value_map
 
 
 def parse_3lc_yaml_file(data_file: str) -> dict[str, tlc.Table]:
