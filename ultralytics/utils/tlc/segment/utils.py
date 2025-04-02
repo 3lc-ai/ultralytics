@@ -62,10 +62,12 @@ def check_seg_table(
 
     :param table: The table to check.
     :param image_column_name: The name of the image column.
-    :param label_column_name: The name of the label column.
+    :param label_column_name: The value path of the label.
     :raises ValueError: If the table is not compatible with instance segmentation.
     """
     row_schema = table.row_schema.values
+
+    label_column_name = label_column_name.split(".")[0]
 
     # Check that the schema is compatible with instance segmentation
     try:
