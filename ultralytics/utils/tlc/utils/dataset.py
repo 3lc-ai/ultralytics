@@ -143,10 +143,16 @@ def check_tlc_dataset(
 
     value_map = get_table_value_map(tables[first_split], label_column_name)
 
+    if value_map is None:
+        raise ValueError(f"Failed to get value map for table with Url: {tables[first_split].url}")
+
     names = {int(k): v["internal_name"] for k, v in value_map.items()}
 
     for split in tables:
         other_value_map = get_table_value_map(tables[split], label_column_name)
+
+        if other_value_map is None:
+            raise ValueError(f"Failed to get value map for table with Url: {tables[split].url}")
 
         if other_value_map != value_map:
             msg = f"All splits must have the same categories, but {split} has different categories from {first_split}."
@@ -177,13 +183,16 @@ def get_table_value_map(
     """
     value_map = table.get_value_map(label_column_name)
     if value_map is None:
-        value_map = (
-            table.schema.values["rows"]
-            .values["segmentations"]
-            .values["instance_properties"]
-            .values["label"]
-            .value.map
-        )
+        try:
+            value_map = (
+                table.schema.values["rows"]
+                .values["segmentations"]
+                .values["instance_properties"]
+                .values["label"]
+                .value.map
+            )
+        except Exception:
+            value_map = None
 
     return value_map
 
