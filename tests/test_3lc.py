@@ -244,7 +244,7 @@ def test_classify_training() -> None:
     assert preds_3lc[0].probs.top5 == preds_ultralytics[0].probs.top5, "Predictions mismatch"
 
 
-@pytest.mark.parametrize("task", ["detect"])
+@pytest.mark.parametrize("task", ["detect", "segment"])
 def test_metrics_collection_only(task) -> None:
     overrides = {"device": "cpu"}
     settings = Settings(project_name=f"test_{task}_collect", run_name=f"test_{task}_collect", collect_loss=True)
