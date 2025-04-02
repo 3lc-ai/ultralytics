@@ -135,7 +135,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.labels = labels
 
     def set_rectangle(self):
-        """Save the batch shapes and inidices for the dataset."""
+        """Save the batch shapes and indices for the dataset."""
         bi = np.floor(np.arange(self.ni) / self.batch_size).astype(int)  # batch index
         nb = bi[-1] + 1  # number of batches
 

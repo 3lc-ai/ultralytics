@@ -38,7 +38,7 @@ tlc.TableIndexingTable.instance().add_scan_url({
 TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10", "segment": "coco8-seg.yaml"}
 TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt", "segment": "yolo11n-seg.pt"}
 TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label", "segment": "segmentations.instance_properties.label"}
-TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted", "segment": "predicted_segmentations.instance_properties.label"}
+TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted", "segment": "segmentations_predicted.instance_properties.label"}
 
 try:
     import umap
@@ -574,15 +574,21 @@ def test_arbitrary_class_indices(task) -> None:
                 instance_properties_override = deepcopy(row["segmentations"]["instance_properties"])
                 instance_properties_override["label"] = [label_map[i] for i in instance_properties_override["label"]]
 
-                segmentations_edit = deepcopy(row["segmentations"])
-                segmentations_edit["instance_properties"] = instance_properties_override
+                segmentations_edit = {
+                    "rles": [rle.decode() for rle in row["segmentations"]["rles"]],
+                    "instance_properties": instance_properties_override,
+                }
+                
                 edits.append(segmentations_edit)
 
             edited_tables[split] = tlc.EditedTable(
                 url=edited_schema_table.url.create_sibling(f"edited_value_map_and_values_{task}"),
                 input_table_url=edited_schema_table,
-                edits={"segmentations": {
-                    "runs_and_values": edits}},
+                edits={
+                    "segmentations": {
+                        "runs_and_values": edits
+                    },
+                },
             )
         
     # Check that the edited table can be used for training and validation
@@ -612,7 +618,8 @@ def test_arbitrary_class_indices(task) -> None:
         assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
 
     elif task == "segment":
-        assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
+        predicted_labels = (x["instance_properties"]["label"] for x in metrics_df["segmentations_predicted"])
+        assert all(label <= 0 for predicted_row in predicted_labels for label in predicted_row), "Predicted label indices mismatch"
 
     # Verify that the metrics schema is correct
     label_value_map = edited_tables["train"].get_value_map(label_column_name)
