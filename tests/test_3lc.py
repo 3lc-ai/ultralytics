@@ -574,7 +574,8 @@ def test_arbitrary_class_indices(task) -> None:
                 instance_properties_override = deepcopy(row["segmentations"]["instance_properties"])
                 instance_properties_override["label"] = [label_map[i] for i in instance_properties_override["label"]]
 
-                segmentations_edit = {**deepcopy(row["segmentations"]), "instance_properties": instance_properties_override}
+                segmentations_edit = deepcopy(row["segmentations"])
+                segmentations_edit["instance_properties"] = instance_properties_override
                 edits.append(segmentations_edit)
 
             edited_tables[split] = tlc.EditedTable(
