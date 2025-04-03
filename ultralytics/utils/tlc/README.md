@@ -12,7 +12,7 @@ For any questions or problems, please reach out on the [3LC Discord](https://dis
 
 3LC is free for non-commercial use.
 
-![3LC Dashboard Overview](_static/dashboard.png)
+![3LC Dashboard Overview](https://github.com/3lc-ai/ultralytics/blob/feature/fred/show-3lc-readme/ultralytics/utils/tlc/_static/dashboard.png?raw=true)
 
 ## Getting Started
 
