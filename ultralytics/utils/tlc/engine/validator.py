@@ -9,12 +9,16 @@ from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.tlc.constants import (
     DEFAULT_COLLECT_RUN_DESCRIPTION,
     MAP,
+    MAP_SEG,
     MAP50_95,
+    MAP50_95_SEG,
     NUM_IMAGES,
     NUM_INSTANCES,
     PER_CLASS_METRICS_STREAM_NAME,
     PRECISION,
+    PRECISION_SEG,
     RECALL,
+    RECALL_SEG,
     TLC_COLORSTR,
     TRAINING_PHASE,
 )
@@ -270,8 +274,8 @@ class TLCValidatorMixin(BaseValidator):
         self._final_validation = None
 
     def _write_per_class_metrics_tables(self) -> None:
-        if self.args.task != "detect":
-            # Per-class metrics currently only supported for detection task
+        if self.args.task not in ("detect", "segment"):
+            # Per-class metrics currently only supported for detection and segmentation tasks
             return
 
         metrics_writer = tlc.MetricsTableWriter(
@@ -312,7 +316,7 @@ class TLCValidatorMixin(BaseValidator):
         self._run.update_metrics(metrics_infos)
 
     def _per_class_metrics_schemas(self):
-        return {
+        metrics_schemas = {
             TRAINING_PHASE: training_phase_schema(),
             tlc.FOREIGN_TABLE_ID: tlc.ForeignTableIdSchema(
                 self.dataloader.dataset.table.url.to_str()
@@ -346,6 +350,28 @@ class TLCValidatorMixin(BaseValidator):
             ),
         }
 
+        if self.args.task == "segment":
+            metrics_schemas[PRECISION_SEG] = tlc.Schema(
+                value=tlc.Float32Value(),
+                description="Mask precision of the class",
+            )
+
+            metrics_schemas[RECALL_SEG] = tlc.Schema(
+                value=tlc.Float32Value(),
+                description="Mask recall of the class",
+            )
+
+            metrics_schemas[MAP_SEG] = tlc.Schema(
+                value=tlc.Float32Value(),
+                description="Mask mAP of the class",
+            )
+
+            metrics_schemas[MAP50_95_SEG] = tlc.Schema(
+                value=tlc.Float32Value(),
+                description="Mask mAP50-95 of the class",
+            )
+        return metrics_schemas
+
     def _generate_per_class_metrics(self):
         """Transform metrics from self.metrics to a format suitable for 3LC"""
         # Consider moving this to TLCDetectionValidator when supporting other tasks
@@ -354,32 +380,78 @@ class TLCValidatorMixin(BaseValidator):
         mAPs = np.zeros(self.nc + 1)
         mAP50_95s = np.zeros(self.nc + 1)
 
+        if self.args.task == "segment":
+            precisions_seg = np.zeros(self.nc + 1)
+            recalls_seg = np.zeros(self.nc + 1)
+            mAPs_seg = np.zeros(self.nc + 1)
+            mAP50_95s_seg = np.zeros(self.nc + 1)
+
         for i in range(self.nc):
             if i in self.metrics.ap_class_index:
-                p, r, ap50, ap5095 = self.metrics.class_result(
+                class_results = self.metrics.class_result(
                     np.where(self.metrics.ap_class_index == i)[0][0]
                 )
+                if self.args.task == "detect":
+                    p, r, ap50, ap5095 = class_results
+                else:
+                    p, r, ap50, ap5095, p_seg, r_seg, ap50_seg, ap5095_seg = (
+                        class_results
+                    )
             else:
                 p, r, ap50, ap5095 = 0.0, 0.0, 0.0, 0.0
+                if self.args.task == "segment":
+                    p_seg, r_seg, ap50_seg, ap5095_seg = 0.0, 0.0, 0.0, 0.0
 
             precisions[i] = p
             recalls[i] = r
             mAPs[i] = ap50
             mAP50_95s[i] = ap5095
 
-        all_p, all_r, all_mAP50, all_mAP50_95 = self.metrics.mean_results()
+            if self.args.task == "segment":
+                precisions_seg[i] = p_seg
+                recalls_seg[i] = r_seg
+                mAPs_seg[i] = ap50_seg
+                mAP50_95s_seg[i] = ap5095_seg
+
+        mean_results = self.metrics.mean_results()
+        if self.args.task == "detect":
+            all_p, all_r, all_mAP50, all_mAP50_95 = mean_results
+        else:
+            (
+                all_p,
+                all_r,
+                all_mAP50,
+                all_mAP50_95,
+                all_p_seg,
+                all_r_seg,
+                all_mAP50_seg,
+                all_mAP50_95_seg,
+            ) = mean_results
 
         precisions[self.nc] = all_p
         recalls[self.nc] = all_r
         mAPs[self.nc] = all_mAP50
         mAP50_95s[self.nc] = all_mAP50_95
 
-        return {
+        metrics = {
             PRECISION: precisions,
             RECALL: recalls,
             MAP: mAPs,
             MAP50_95: mAP50_95s,
         }
+
+        if self.args.task == "segment":
+            precisions_seg[self.nc] = all_p_seg
+            recalls_seg[self.nc] = all_r_seg
+            mAPs_seg[self.nc] = all_mAP50_seg
+            mAP50_95s_seg[self.nc] = all_mAP50_95_seg
+
+            metrics[PRECISION_SEG] = precisions_seg
+            metrics[RECALL_SEG] = recalls_seg
+            metrics[MAP_SEG] = mAPs_seg
+            metrics[MAP50_95_SEG] = mAP50_95s_seg
+
+        return metrics
 
     def _verify_model_data_compatibility(self, model_class_names):
         """Verify that the model classes match the dataset classes. For a classification model, this amounts to checking
@@ -391,7 +463,7 @@ class TLCValidatorMixin(BaseValidator):
                 f"The model and data are incompatible. The model was trained on {len(model_class_names)} classes, but the data has {len(dataset_class_names)} classes. "
             )
 
-        # Imagenet has a class name transform in YOLOv8 which is not applied on table creation. TODO: Remove when image_folder takes a sparse class name mapping to change these
+        # Imagenet has a class name transform in YOLO which is not applied on table creation. TODO: Remove when image_folder takes a sparse class name mapping to change these
         if "n01440764" not in set(dataset_class_names.values()):
             if model_class_names != dataset_class_names:
                 raise ValueError(

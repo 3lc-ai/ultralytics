@@ -7,7 +7,10 @@ import tlc
 from itertools import repeat
 
 from ultralytics.data.dataset import YOLODataset
-from ultralytics.data.utils import verify_image
+from ultralytics.data.utils import (
+    verify_image,
+    segments2boxes,
+)
 from ultralytics.utils import ops
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
 
@@ -32,21 +35,24 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         **kwargs,
     ):
         """3LC equivalent of YOLODataset, populating the data fields from a 3LC Table."""
-        assert task == "detect", (
-            f"Unsupported task: {task} for TLCYOLODataset. Only 'detect' is supported."
+        assert task in ("segment", "detect"), (
+            f"Unsupported task: {task} for TLCYOLODataset. Only 'segment' and 'detect' are supported."
         )
         self.table = table
         self._exclude_zero = exclude_zero
         self.class_map = class_map if class_map is not None else IdentityDict()
 
-        from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
+        if task == "detect":
+            from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
 
-        if is_yolo_table(self.table):
-            self._table_format = "YOLO"
-        elif is_coco_table(self.table):
-            self._table_format = "COCO"
+            if is_yolo_table(self.table):
+                self._table_format = "YOLO"
+            elif is_coco_table(self.table):
+                self._table_format = "COCO"
+            else:
+                raise ValueError(f"Unsupported table format for table {table.url}")
         else:
-            raise ValueError(f"Unsupported table format for table {table.url}")
+            self._table_format = "segment"
 
         super().__init__(table, data=data, task=task, **kwargs)
 
@@ -68,11 +74,21 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
             im_file = self._absolutize_image_url(row[tlc.IMAGE], self.table.url)
             self.im_files.append(im_file)
-            self.labels.append(
-                tlc_table_row_to_yolo_label(
-                    row, self._table_format, self.class_map, im_file
+            if self._table_format in ("COCO", "YOLO"):
+                self.labels.append(
+                    tlc_table_row_to_yolo_label(
+                        row, self._table_format, self.class_map, im_file
+                    )
                 )
-            )
+            else:
+                self.labels.append(
+                    tlc_table_row_to_segment_label(
+                        self.table[example_id],
+                        self._table_format,
+                        self.class_map,
+                        im_file,
+                    )
+                )
 
         # Scan images if not already scanned
         if not self._is_scanned():
@@ -119,7 +135,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.labels = labels
 
     def set_rectangle(self):
-        """Save the batch shapes and inidices for the dataset."""
+        """Save the batch shapes and indices for the dataset."""
         bi = np.floor(np.arange(self.ni) / self.batch_size).astype(int)  # batch index
         nb = bi[-1] + 1  # number of batches
 
@@ -191,6 +207,43 @@ def tlc_table_row_to_yolo_label(
         cls=classes,
         bboxes=bboxes,
         segments=[],
+        keypoints=None,
+        normalized=True,
+        bbox_format="xywh",
+    )
+
+
+def tlc_table_row_to_segment_label(
+    row, table_format: str, class_map: dict[int, int], im_file: str
+) -> dict[str, Any]:
+    # Row is here in sample view
+
+    segmentations = row["segmentations"]
+    # Get image size
+    height, width = segmentations["image_height"], segmentations["image_width"]
+
+    classes = []
+    segments = []
+
+    for category, polygon in zip(
+        segmentations["instance_properties"][tlc.LABEL], segmentations["polygons"]
+    ):
+        if polygon:
+            classes.append(class_map[category])
+            segments.append(np.array(polygon).reshape(-1, 2))
+
+    # Compute bounding boxes from segments
+    if segments:
+        bboxes = segments2boxes(segments)
+    else:
+        bboxes = np.zeros((0, 4), dtype=np.float32)
+
+    return dict(
+        im_file=im_file,
+        shape=(height, width),  # format: (height, width)
+        cls=np.array(classes).reshape(-1, 1),
+        bboxes=bboxes,
+        segments=segments,
         keypoints=None,
         normalized=True,
         bbox_format="xywh",

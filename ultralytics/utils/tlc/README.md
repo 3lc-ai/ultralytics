@@ -2,7 +2,7 @@
 
 # 3LC Integration
 
-This document outlines how to use the 3LC integration available for Ultralytics YOLO classification and object detection.
+This document outlines how to use the 3LC integration available for Ultralytics YOLO classification, object detection and instance segmentation.
 
 For any questions or problems, please reach out on the [3LC Discord](https://discord.com/channels/1236027984150794290/1236118620002586655).
 
@@ -85,8 +85,10 @@ In addition to tables created with `Table.from_yolo()` (which is called internal
 </details>
 
 <details>
-<summary>Segmentation (not supported)</summary>
-The 3LC integration does not yet support the Segmentation task. Let us know on Discord if you would like us to add it.
+<summary>Segmentation</summary>
+Working with instance segmentation in the 3LC integration is similar to object detection. If you are using `tlc.Table.from_yolo()` to create your tables, make sure to pass `task="segment"`, as the default is `"detect"`.
+
+For instance segmentation, it is possible to provide `image_column_name` and `label_column_name` when calling `model.train()`, `model.val()` and `model.collect()` if you are providing your own table which has different column names to those expected by 3LC. Note that the `label_column_name` should be the path to the segmentation label field within the table schema, with the default being `"segmentations.instance_properties.label"` which points to the category labels for each segmentation instance.
 </details>
 
 <details>
@@ -143,11 +145,11 @@ The way in which embeddings are collected is different for the different tasks. 
 For classification, the integration scans your model for the first occurrence of a `torch.nn.Linear` layer. The inputs to this layer are used to extract image embeddings.
 </details>
 <details>
-<summary>Object Detection</summary>
-For object detection, the output of the spatial pooling function is used to extract embeddings.
+<summary>Object Detection and Instance Segmentation</summary>
+For object detection and instance segmentation, the output of the spatial pooling function is used to extract embeddings.
 </details>
 
-You can change which `3lc`-supported reducer to use by setting `image_embeddings_dim`. `pacmap` is the default.
+You can change which `3lc`-supported reducer to use by setting `image_embeddings_reducer`. `pacmap` is the default.
 
 ### Run properties
 Use `project_name`, `run_name` and `run_description` to customize the `tlc.Run` that is created. Any tables created by the integration will be under the `project_name` provided here. If these settings are not set, appropriate defaults are used instead.
@@ -187,7 +189,7 @@ Embeddings collection has an extra dependency for the library used for reduction
 
 ## How do I collect embeddings for each bounding box?
 
-In order to collect embeddings (or other additional metrics) for each bounding box, refer to the [3LC Bounding Box Example Notebooks](https://docs.3lc.ai/3lc/latest/public-notebooks/add-bb-embeddings.html).
+In order to collect embeddings (or other additional metrics) for each bounding box, refer to the [advanced 3LC examples](https://github.com/3lc-ai/3lc-examples/tree/main/tutorials/5-advanced-examples).
 
 ## Can I use the Ultralytics YOLO CLI commands in the integration to train and collect metrics?
 

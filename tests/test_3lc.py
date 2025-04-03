@@ -1,14 +1,15 @@
 from collections import defaultdict
 from unittest.mock import Mock
-
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 import pytest
 import tlc
 
-from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer
+from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer, TLCSegmentationTrainer
 from ultralytics.utils.tlc.classify.utils import tlc_check_cls_dataset
 from ultralytics.utils.tlc.detect.utils import tlc_check_det_dataset
+from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset, check_seg_table
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
@@ -34,10 +35,10 @@ tlc.TableIndexingTable.instance().add_scan_url({
     "object_type": "table",
     "static": True, })
 
-TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10"}
-TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt"}
-TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label"}
-TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted"}
+TASK2DATASET = {"detect": "coco8.yaml", "classify": "imagenet10", "segment": "coco8-seg.yaml"}
+TASK2MODEL = {"detect": "yolo11n.pt", "classify": "yolo11n-cls.pt", "segment": "yolo11n-seg.pt"}
+TASK2LABEL_COLUMN_NAME = {"detect": "bbs.bb_list.label", "classify": "label", "segment": "segmentations.instance_properties.label"}
+TASK2PREDICTED_LABEL_COLUMN_NAME = {"detect": "bbs_predicted.bb_list.label", "classify": "predicted", "segment": "segmentations_predicted.instance_properties.label"}
 
 try:
     import umap
@@ -56,11 +57,11 @@ def get_metrics_tables_from_run(run: tlc.Run) -> dict[str, list[tlc.Table]]:
         metrics_tables[metrics_info["stream_name"]].append(metrics_table)
     return metrics_tables
 
-
-def test_detect_training() -> None:
+@pytest.mark.parametrize("task", ["detect", "segment"])
+def test_training(task) -> None:
     # End-to-end test of detection
     overrides = {
-        "data": TASK2DATASET["detect"],
+        "data": TASK2DATASET[task],
         "epochs": 1,
         "batch": 4,
         "device": "cpu",
@@ -68,7 +69,7 @@ def test_detect_training() -> None:
         "plots": False, }
 
     # Compare results from 3LC with ultralytics
-    model_ultralytics = YOLO(TASK2MODEL["detect"])
+    model_ultralytics = YOLO(TASK2MODEL[task])
     results_ultralytics = model_ultralytics.train(**overrides)
 
     settings = Settings(
@@ -76,18 +77,19 @@ def test_detect_training() -> None:
         collect_loss=True,
         image_embeddings_dim=2,
         image_embeddings_reducer="pacmap",
-        project_name="test_detect_project",
-        run_name="test_detect",
-        run_description="Test detection training",
+        project_name=f"test_{task}_project",
+        run_name=f"test_{task}",
+        run_description=f"Test {task} training",
     )
 
-    model_3lc = TLCYOLO(TASK2MODEL["detect"])
+    model_3lc = TLCYOLO(TASK2MODEL[task])
     results_3lc = model_3lc.train(**overrides, settings=settings)
     assert results_3lc, "Detection training failed"
 
     # Compare 3LC integration with ultralytics results
-    assert (results_ultralytics.results_dict == results_3lc.results_dict
-            ), "Results validation metrics 3LC different from Ultralytics"
+    if task == "detect":
+        assert (results_ultralytics.results_dict == results_3lc.results_dict
+                ), "Results validation metrics 3LC different from Ultralytics"
     assert results_ultralytics.names == results_3lc.names, "Results validation names"
 
     # Get 3LC run and inspect the results
@@ -121,7 +123,8 @@ def test_detect_training() -> None:
     assert embeddings_column_name in metrics_df.columns, "Expected embeddings column missing"
     assert len(metrics_df[embeddings_column_name][0]) == settings.image_embeddings_dim, "Embeddings dimension mismatch"
 
-    assert "loss" in metrics_df.columns, "Expected loss column to be present, but it is missing"
+    if task == "detect":
+        assert "loss" in metrics_df.columns, "Expected loss column to be present, but it is missing"
     assert 0 in metrics_df[TRAINING_PHASE], "Expected metrics from during training"
     assert 1 in metrics_df[TRAINING_PHASE], "Expected metrics from after training"
 
@@ -241,7 +244,7 @@ def test_classify_training() -> None:
     assert preds_3lc[0].probs.top5 == preds_ultralytics[0].probs.top5, "Predictions mismatch"
 
 
-@pytest.mark.parametrize("task", ["detect"])
+@pytest.mark.parametrize("task", ["detect", "segment"])
 def test_metrics_collection_only(task) -> None:
     overrides = {"device": "cpu"}
     settings = Settings(project_name=f"test_{task}_collect", run_name=f"test_{task}_collect", collect_loss=True)
@@ -343,6 +346,31 @@ def test_table_resolving() -> None:
     tables = {"train": train_table_edited.url, "val": new_trainer.testset.url}
     trainer_from_tables = TLCDetectionTrainer(overrides={"tables": tables, "settings": settings})
     trainer_from_tables.trainset.url == train_table_edited.url, "Table passed directly not resolved correctly"
+
+def test_seg_table_checker() -> None:
+    settings = Settings(project_name="test_seg_table_checker")
+    trainer = TLCSegmentationTrainer(overrides={"data": TASK2DATASET["segment"], "settings": settings})
+
+    # A table from a yolo dataset is valid
+    check_seg_table(trainer.trainset, "image", "segmentations")
+
+    # The same data in a new table, but backed by a row cache, is also valid
+    overlay_table_url = tlc.NullOverlay(
+        url=trainer.trainset.url.create_sibling("overlay_table"),
+        input_table_url=trainer.trainset
+    ).write_to_url()
+    overlay_table = tlc.Table.from_url(overlay_table_url)
+    check_seg_table(overlay_table, "image", "segmentations")
+
+    # A table with a wrong schema should be invalid
+    invalid_schema_seg_table = tlc.Table.from_dict(
+        {"image": [1, 2, 3], "segmentations": [4, 5, 6]},
+        project_name=settings.project_name,
+        dataset_name="test_seg_table_checker",
+        table_name="invalid_seg_table",
+    )
+    with pytest.raises(ValueError, match="Schema validation failed"):
+        check_seg_table(invalid_schema_seg_table, "image", "segmentations")
 
 
 def test_sampling_weights() -> None:
@@ -463,7 +491,7 @@ def test_get_metrics_collection_epochs(start, interval, epochs, disable, expecte
             settings.get_metrics_collection_epochs(epochs)
 
 
-@pytest.mark.parametrize("task", ["detect", "classify"])
+@pytest.mark.parametrize("task", ["detect", "classify", "segment"])
 def test_arbitrary_class_indices(task) -> None:
     # Test that arbitrary class indices can be used
     settings = Settings(
@@ -485,6 +513,15 @@ def test_arbitrary_class_indices(task) -> None:
     elif task == "classify":
         data_dict = tlc_check_cls_dataset(
             data=TASK2DATASET["classify"],
+            tables=None,
+            image_column_name="image",
+            label_column_name=label_column_name,
+            project_name=settings.project_name,
+        )
+
+    elif task == "segment":
+        data_dict = tlc_check_seg_dataset(
+            data=TASK2DATASET["segment"],
             tables=None,
             image_column_name="image",
             label_column_name=label_column_name,
@@ -529,6 +566,31 @@ def test_arbitrary_class_indices(task) -> None:
                     "runs_and_values": edits}},
             )
 
+        elif task == "segment":
+            edits = []
+            for i, row in enumerate(edited_schema_table.table_rows):
+                edits.append([i])
+
+                instance_properties_override = deepcopy(row["segmentations"]["instance_properties"])
+                instance_properties_override["label"] = [label_map[i] for i in instance_properties_override["label"]]
+
+                segmentations_edit = {
+                    "rles": [rle.decode() for rle in row["segmentations"]["rles"]],
+                    "instance_properties": instance_properties_override,
+                }
+                
+                edits.append(segmentations_edit)
+
+            edited_tables[split] = tlc.EditedTable(
+                url=edited_schema_table.url.create_sibling(f"edited_value_map_and_values_{task}"),
+                input_table_url=edited_schema_table,
+                edits={
+                    "segmentations": {
+                        "runs_and_values": edits
+                    },
+                },
+            )
+        
     # Check that the edited table can be used for training and validation
     model = TLCYOLO(TASK2MODEL[task])
     results = model.train(tables=edited_tables, settings=settings, epochs=1, device="cpu")
@@ -554,6 +616,10 @@ def test_arbitrary_class_indices(task) -> None:
         assert table_value_map[predicted_label]["internal_name"] == "giraffe"
     elif task == "classify":
         assert all(label <= 0 for label in metrics_df[predicted_label_column_name]), "Predicted label indices mismatch"
+
+    elif task == "segment":
+        predicted_labels = (x["instance_properties"]["label"] for x in metrics_df["segmentations_predicted"])
+        assert all(label <= 0 for predicted_row in predicted_labels for label in predicted_row), "Predicted label indices mismatch"
 
     # Verify that the metrics schema is correct
     label_value_map = edited_tables["train"].get_value_map(label_column_name)

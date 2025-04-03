@@ -63,12 +63,13 @@ def get_or_create_det_table(
         dataset_yaml_file=data_dict["yaml_file"],
         split=key,
         override_split_path=data_dict[key],
+        task="detect",
         project_name=project_name,
         dataset_name=dataset_name,
         table_name=table_name,
         if_exists="reuse",
         add_weight_column=True,
-        description="Created with 3LC YOLOv8 integration",
+        description="Created with 3LC YOLO integration",
     )
 
 
@@ -112,7 +113,7 @@ def build_tlc_yolo_dataset(
 
 
 def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
-    """Check that a table is compatible with the detection task in the 3LC YOLOv8 integration.
+    """Check that a table is compatible with the detection task in the 3LC YOLO integration.
 
     :param split: The split of the table.
     :param table: The table to check.
@@ -120,14 +121,14 @@ def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
     """
     if not (is_yolo_table(table) or is_coco_table(table)):
         raise ValueError(
-            f"Table {table.url} is not compatible with YOLOv8 object detection, needs to be a YOLO or COCO table."
+            f"Table {table.url} is not compatible with YOLO object detection, needs to be a YOLO or COCO table."
         )
 
 
 def yolo_predicted_bounding_box_schema(
     label_value_map: dict[float, tlc.MapElement],
 ) -> tlc.Schema:
-    """Create a 3LC bounding box schema for YOLOv8
+    """Create a 3LC bounding box schema for YOLO.
 
     :param categories: Categories for the current dataset.
     :returns: The YOLO bounding box schema for predicted boxes.
@@ -153,7 +154,7 @@ def yolo_predicted_bounding_box_schema(
 
 
 def yolo_loss_schemas(training: bool = False) -> dict[str, tlc.Schema]:
-    """Create a 3LC schema for YOLOv8 per-sample loss metrics.
+    """Create a 3LC schema for YOLO per-sample loss metrics.
 
     :param training: Whether metrics are collected during training.
     :returns: The YOLO loss schemas for each of the three components.
