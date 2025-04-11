@@ -762,6 +762,12 @@ def test_absolute_segmentation_polygons() -> None:
     assert len(dataset.labels[0]["segments"]) == 1
     assert all(polygon.max() <= 1.0 and polygon.min() >= 0.0 for polygon in dataset.labels[0]["segments"])
 
+    # Should be able to train and collect metrics on this dataset
+    model = TLCYOLO(TASK2MODEL["segment"])
+    tables = {"train": table, "val": table}
+    results = model.train(tables=tables, settings=Settings(project_name="test_absolute_segmentation_polygons", run_name="test"), epochs=1, device="cpu", imgsz=640, batch=1)
+    assert results, "Training should succeed"
+
 def test_absolutize_image_url() -> None:
     url = tlc.Url("<UNEXPANDED_ALIAS>/in/my/url.png")
     with pytest.raises(ValueError):
