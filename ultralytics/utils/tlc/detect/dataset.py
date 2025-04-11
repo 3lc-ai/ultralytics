@@ -56,7 +56,9 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             rles_schema = self.table.rows_schema.values["segmentations"].values["rles"]
             polygons_are_relative = getattr(rles_schema, "polygons_are_relative", False)
 
-            self._table_format = "segment_relative" if polygons_are_relative else "segment_absolute"
+            self._table_format = (
+                "segment_relative" if polygons_are_relative else "segment_absolute"
+            )
 
         super().__init__(table, data=data, task=task, **kwargs)
 
