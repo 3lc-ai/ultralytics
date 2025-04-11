@@ -86,6 +86,9 @@ def check_seg_table(
         assert isinstance(sample_type, tlc.InstanceSegmentationPolygons), (
             f"Label column {label_column_name} does not have sample type InstanceSegmentationPolygons"
         )
+        assert sample_type.relative, (
+            f"Label column {label_column_name} does not have relative coordinates"
+        )
 
     except AssertionError as e:
         msg = f"Schema validation failed for {label_column_name} column in table with URL {table.url}. {str(e)}"

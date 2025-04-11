@@ -52,11 +52,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             else:
                 raise ValueError(f"Unsupported table format for table {table.url}")
         else:
-            # The default is absolute, so if it is not present in the schema, it is absolute
-            rles_schema = self.table.rows_schema.values["segmentations"].values["rles"]
-            polygons_are_relative = getattr(rles_schema, "polygons_are_relative", False)
-
-            self._table_format = "segment_relative" if polygons_are_relative else "segment_absolute"
+            self._table_format = "segment"
 
         super().__init__(table, data=data, task=task, **kwargs)
 
@@ -84,18 +80,16 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
                         row, self._table_format, self.class_map, im_file
                     )
                 )
-            elif self._table_format in ("segment_relative", "segment_absolute"):
+            else:
                 self.labels.append(
                     tlc_table_row_to_segment_label(
                         self.table[example_id],
                         self._table_format,
                         self.class_map,
                         im_file,
-                        row_index=example_id,
+                        example_id,
                     )
                 )
-            else:
-                raise ValueError(f"Unsupported table format: {self._table_format}")
 
         # Scan images if not already scanned
         if not self._is_scanned():
@@ -247,12 +241,7 @@ def tlc_table_row_to_segment_label(
             continue
 
         classes.append(class_map[category])
-        row_segments = np.array(polygon).reshape(-1, 2)
-
-        if table_format.endswith("absolute"):
-            row_segments = row_segments / np.array([width, height])
-
-        segments.append(row_segments)
+        segments.append(np.array(polygon).reshape(-1, 2))
 
     # Compute bounding boxes from segments
     if segments:

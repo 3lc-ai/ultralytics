@@ -4,7 +4,6 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import pytest
-from PIL import Image
 from pathlib import Path
 import tlc
 
@@ -720,47 +719,6 @@ def test_small_segmentations() -> None:
     dataset = TLCYOLODataset(table, task="segment", data={})
     assert len(dataset.labels[0]["segments"]) == 1
     assert len(dataset.labels[0]["cls"]) == 1
-
-def test_absolute_segmentation_polygons() -> None:
-    # Test that absolute segmentation polygons are handled correctly
-    structure = {
-        "image": tlc.ImagePath("image"),
-        "segmentations": tlc.InstanceSegmentationPolygons(
-            name="segmentations",
-            instance_properties_structure={"label": tlc.CategoricalLabel("label", ["a", "b", "c"])},
-            relative=False,
-        ),
-    }
-
-    table_writer = tlc.TableWriter(column_schemas=structure, project_name="test_absolute_segmentation_polygons", dataset_name="test", table_name="initial")
-
-    zidane_image_path = (Path(__file__).parent.parent / "ultralytics" / "assets" / "zidane.jpg").as_posix()
-    im = Image.open(zidane_image_path)
-    width, height = im.size
-    table_writer.add_row(
-        {
-            "image": zidane_image_path,
-            "segmentations": {
-                "image_width": width,
-                "image_height": height,
-                "instance_properties": {
-                    "label": [0],
-                },
-                "polygons": [
-                    [0, 0, 0, width, height, 0],
-                ]
-            }
-        }
-    )
-    table = table_writer.finalize()
-    
-    # Should pass the seg table checker
-    check_seg_table(table, "image", "segmentations.instance_properties.label")
-
-    # Should be able to populate the dataset with relative polygons
-    dataset = TLCYOLODataset(table, task="segment", data={})
-    assert len(dataset.labels[0]["segments"]) == 1
-    assert all(polygon.max() <= 1.0 and polygon.min() >= 0.0 for polygon in dataset.labels[0]["segments"])
 
 def test_absolutize_image_url() -> None:
     url = tlc.Url("<UNEXPANDED_ALIAS>/in/my/url.png")
