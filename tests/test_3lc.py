@@ -747,7 +747,7 @@ def test_absolute_segmentation_polygons() -> None:
                     "label": [0],
                 },
                 "polygons": [
-                    [0, 0, 0, width, height, 0],
+                    [0, 0, 0, height, width, 0],
                 ]
             }
         }
