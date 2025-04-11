@@ -4,6 +4,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import pytest
+from pathlib import Path
 import tlc
 
 from ultralytics.utils.tlc import Settings, TLCYOLO, TLCClassificationTrainer, TLCDetectionTrainer, TLCSegmentationTrainer
@@ -13,6 +14,7 @@ from ultralytics.utils.tlc.segment.utils import tlc_check_seg_dataset, check_seg
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 from ultralytics.models.yolo import YOLO
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
+from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 
 from tests import TMP
 from ultralytics.utils.tlc.constants import (
@@ -676,6 +678,47 @@ def test_check_tlc_dataset_bad_url() -> None:
 
     with pytest.raises(ValueError):
         check_tlc_dataset(data="", tables=tables, image_column_name="a", label_column_name="b")
+
+def test_small_segmentations() -> None:
+    # Test that small segmentations are skipped properly
+    structure = {
+        "image": tlc.ImagePath("image"),
+        "segmentations": tlc.InstanceSegmentationPolygons(
+            name="segmentations",
+            instance_properties_structure={"label": tlc.CategoricalLabel("label", ["a", "b", "c"])},
+            relative=True,
+        ),
+    }
+    zidane_image_path = (Path(__file__).parent.parent / "ultralytics" / "assets" / "zidane.jpg").as_posix()
+
+    relative_polygons_sample = {
+        "image": zidane_image_path,
+        "segmentations": {
+            "image_width": 10,
+            "image_height": 10,
+            "instance_properties": {
+                "label": [0, 1, 2],
+            },
+            "polygons": [
+                [0.0, 0.0, 0.0, 1.0, 1.0, 0.0], # Should be fine
+                [0.0, 0.0, 0.5, 0.0, 1.0, 0.0], # A line with no area, should be ignored
+                [0.0, 0.0, 0.01, 0.0, 0.01, 0.01, 0.0, 0.01], # Should become a one pixel mask, which should be ignored
+            ],
+        },
+    }
+
+    table_writer = tlc.TableWriter(column_schemas=structure, project_name="test_small_segmentations", dataset_name="test", table_name="initial")
+    table_writer.add_row(relative_polygons_sample)
+    table = table_writer.finalize()
+
+    assert len(table[0]["segmentations"]["polygons"]) == 3 # All three instances should be present in some way
+    assert len(table[0]["segmentations"]["polygons"][0]) == 6 # Expecting a full polygon
+    assert len(table[0]["segmentations"]["polygons"][1]) < 6 # Expecting some kind of zero area polygon
+    assert len(table[0]["segmentations"]["polygons"][2]) == 0 # Expecting an empty list
+
+    dataset = TLCYOLODataset(table, task="segment", data={})
+    assert len(dataset.labels[0]["segments"]) == 1
+    assert len(dataset.labels[0]["cls"]) == 1
 
 def test_absolutize_image_url() -> None:
     url = tlc.Url("<UNEXPANDED_ALIAS>/in/my/url.png")

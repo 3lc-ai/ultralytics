@@ -87,6 +87,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
                         self._table_format,
                         self.class_map,
                         im_file,
+                        example_id,
                     )
                 )
 
@@ -214,7 +215,11 @@ def tlc_table_row_to_yolo_label(
 
 
 def tlc_table_row_to_segment_label(
-    row, table_format: str, class_map: dict[int, int], im_file: str
+    row,
+    table_format: str,
+    class_map: dict[int, int],
+    im_file: str,
+    row_index: int | None = None,
 ) -> dict[str, Any]:
     # Row is here in sample view
 
@@ -225,12 +230,18 @@ def tlc_table_row_to_segment_label(
     classes = []
     segments = []
 
-    for category, polygon in zip(
-        segmentations["instance_properties"][tlc.LABEL], segmentations["polygons"]
+    for i, (category, polygon) in enumerate(
+        zip(segmentations["instance_properties"][tlc.LABEL], segmentations["polygons"])
     ):
-        if polygon:
-            classes.append(class_map[category])
-            segments.append(np.array(polygon).reshape(-1, 2))
+        # Handle polygons with zero area
+        if len(polygon) < 6:
+            LOGGER.warning(
+                f"Polygon {i} in row {row_index} has fewer than 6 points and will be ignored."
+            )
+            continue
+
+        classes.append(class_map[category])
+        segments.append(np.array(polygon).reshape(-1, 2))
 
     # Compute bounding boxes from segments
     if segments:
