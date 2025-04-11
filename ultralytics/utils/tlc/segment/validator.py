@@ -64,14 +64,15 @@ class TLCSegmentationValidator(TLCDetectionValidator, SegmentationValidator):
 
             # Handle case where no predictions are kept
             if not torch.any(keep_indices):
+                height, width = pbatch["ori_shape"]
                 predicted_instances = {
-                    tlc.IMAGE_HEIGHT: pbatch["ori_shape"][0],
-                    tlc.IMAGE_WIDTH: pbatch["ori_shape"][1],
+                    tlc.IMAGE_HEIGHT: height,
+                    tlc.IMAGE_WIDTH: width,
                     tlc.INSTANCE_PROPERTIES: {
                         tlc.LABEL: [],
                         tlc.CONFIDENCE: [],
                     },
-                    tlc.MASKS: [],
+                    tlc.MASKS: np.zeros((height, width, 0), dtype=np.uint8),
                 }
                 predicted_batch_segmentations.append(predicted_instances)
                 continue
