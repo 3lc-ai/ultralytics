@@ -37,6 +37,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         assert isinstance(table, tlc.Table)
         self.table = table
         self.root = table.url
+        self.prefix = prefix
         self._exclude_zero = exclude_zero
         self._class_map = class_map
 
