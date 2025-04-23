@@ -38,10 +38,12 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         self.table = table
         self.root = table.url
         self.prefix = prefix
+        self._image_column_name = image_column_name
+        self._label_column_name = label_column_name
         self._exclude_zero = exclude_zero
         self._class_map = class_map
 
-        self.verify_schema(image_column_name, label_column_name)
+        self.verify_schema()
 
         example_ids, im_files, labels = self._get_rows_from_table()
 
@@ -54,17 +56,17 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         # Call mixin
         self._post_init()
 
-    def verify_schema(self, image_column_name, label_column_name):
+    def verify_schema(self):
         """Verify that the provided Table has the desired entries"""
 
         # Check for data in columns
         assert len(self.table) > 0, f"Table {self.root.to_str()} has no rows."
         first_row = self.table.table_rows[0]
-        assert isinstance(first_row[image_column_name], str), (
-            f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
+        assert isinstance(first_row[self._image_column_name], str), (
+            f"First value in image column '{self._image_column_name}' in table {self.root.to_str()} is not a string."
         )
-        assert isinstance(first_row[label_column_name], int), (
-            f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
+        assert isinstance(first_row[self._label_column_name], int), (
+            f"First value in label column '{self._label_column_name}' in table {self.root.to_str()} is not an integer."
         )
 
     def verify_images(self):
@@ -72,7 +74,7 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         return self.samples
 
     def _get_label_from_row(self, im_file: str, row: Any, example_id: int) -> Any:
-        label = row[self.label_column_name]
+        label = row[self._label_column_name]
 
         if self._class_map:
             label = self._class_map[label]
