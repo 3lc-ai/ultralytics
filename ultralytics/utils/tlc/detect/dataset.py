@@ -71,7 +71,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
     def get_labels(self):
         """Get the labels from the table."""
-        example_ids, im_files, labels = super()._get_rows_from_table()
+        example_ids, im_files, labels = self._get_rows_from_table()
         self.labels = labels
         self.im_files = im_files
         self.example_ids = np.array(example_ids, dtype=np.int32)
