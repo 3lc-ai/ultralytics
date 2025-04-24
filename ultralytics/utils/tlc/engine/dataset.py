@@ -39,6 +39,7 @@ class TLCDatasetMixin:
         Raise a ValueError if the alias cannot be expanded.
 
         :param image_str: The raw image string to absolutize.
+        :param table_url: The table URL to use for absolutization, usually the table whose images are being used.
         :return: The absolutized image string.
         :raises ValueError: If the alias cannot be expanded.
         """
@@ -64,32 +65,56 @@ class TLCDatasetMixin:
 
         example_ids, im_files, labels = [], [], []
 
-        nf, nc = 0, 0
+        nf, nc, excluded, msgs = 0, 0, 0, []
         colored_prefix = colorstr(self.prefix + ":")
         desc = f"{colored_prefix} Preparing data from {self.table.url.to_str()}"
         pbar = TQDM(enumerate(self.table.table_rows), desc=desc, total=len(self.table))
 
         for example_id, row in pbar:
             if self._exclude_zero and row.get(tlc.SAMPLE_WEIGHT, 1) == 0:
+                excluded += 1
                 continue
 
             im_file = self._absolutize_image_url(row[tlc.IMAGE], self.table.url)
 
-            (im_file, _), nf_f, nc_f, msg = verify_image(((im_file, None), self.prefix))
+            (im_file, _), nf_f, nc_f, msg = verify_image(((im_file, None), ""))
 
             nf += nf_f
             nc += nc_f
 
             if nc_f:
-                LOGGER.warning(msg)
+                msgs.append(msg)
                 continue
 
             example_ids.append(example_id)
             im_files.append(im_file)
             labels.append(self._get_label_from_row(im_file, row, example_id))
 
-            pbar.desc = f"{desc} {nf} images, {nc} corrupt"
+            pbar.desc = f"{desc} {nf} images, {nc} corrupt, {excluded} excluded"
 
         pbar.close()
+
+        if excluded > 0:
+            percentage_excluded = excluded / len(self.table) * 100
+            LOGGER.info(
+                f"{colored_prefix} Excluded {excluded} ({percentage_excluded:.2f}% of the table) zero-weight rows."
+            )
+
+        if msgs:
+            # Only take first 10 messages if there are more
+            truncated = len(msgs) > 10
+            msgs_to_show = msgs[:10]
+
+            # Create the message string with truncation notice if needed
+            msgs_str = "\n".join(msgs_to_show)
+            if truncated:
+                msgs_str += f"\n... (showing first 10 of {len(msgs)} messages)"
+
+            percentage_corrupt = nc / (len(self.table) - excluded) * 100
+
+            verb = "is" if nc == 1 else "are"
+            LOGGER.warning(
+                f"{colored_prefix} There {verb} {nc} ({percentage_corrupt:.2f}%) corrupt image{'' if nc == 1 else 's'}:\n{msgs_str}"
+            )
 
         return example_ids, im_files, labels
