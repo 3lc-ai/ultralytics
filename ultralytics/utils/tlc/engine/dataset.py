@@ -90,7 +90,8 @@ class TLCDatasetMixin:
             im_files.append(im_file)
             labels.append(self._get_label_from_row(im_file, row, example_id))
 
-            pbar.desc = f"{desc} {nf} images, {nc} corrupt, {excluded} excluded"
+            exclude_str = f" {excluded} excluded" if excluded > 0 else ""
+            pbar.desc = f"{desc} {nf} images, {nc} corrupt{exclude_str}"
 
         pbar.close()
 
