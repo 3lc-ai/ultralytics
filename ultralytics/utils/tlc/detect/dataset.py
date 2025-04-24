@@ -53,8 +53,12 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
                 raise ValueError(f"Unsupported table format for table {table.url}")
         else:
             # The default is absolute, so if it is not present in the schema, it is absolute
-            rles_schema = self.table.rows_schema.values["segmentations"].values["rles"]
-            polygons_are_relative = getattr(rles_schema, "polygons_are_relative", False)
+            rles_schema_value = (
+                self.table.rows_schema.values["segmentations"].values["rles"].value
+            )
+            polygons_are_relative = getattr(
+                rles_schema_value, "polygons_are_relative", False
+            )
 
             self._table_format = (
                 "segment_relative" if polygons_are_relative else "segment_absolute"
