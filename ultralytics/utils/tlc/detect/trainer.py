@@ -52,9 +52,7 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
     def build_dataset(self, table, mode="train", batch=None):
         # Dataset object for training / validation
         gs = max(int(de_parallel(self.model).stride.max() if self.model else 0), 32)
-        exclude_zero = (
-            mode == "val" and self._settings.exclude_zero_weight_collection
-        ) or (mode == "train" and self._settings.exclude_zero_weight_training)
+        exclude_zero = mode == "val" and self._settings.exclude_zero_weight_collection
         return build_tlc_yolo_dataset(
             self.args,
             table,
