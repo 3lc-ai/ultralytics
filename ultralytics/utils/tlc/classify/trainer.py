@@ -45,6 +45,7 @@ class TLCClassificationTrainer(TLCTrainerMixin, yolo.classify.ClassificationTrai
 
     def build_dataset(self, table, mode="train", batch=None):
         exclude_zero = mode == "val" and self._settings.exclude_zero_weight_collection
+
         return TLCClassificationDataset(
             table,
             args=self.args,

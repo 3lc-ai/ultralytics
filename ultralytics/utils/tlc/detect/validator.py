@@ -55,6 +55,7 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
             stride=self.stride,
             exclude_zero=self._settings.exclude_zero_weight_collection,
             class_map=self.data["3lc_class_to_range"],
+            split=self.args.split,
         )
 
     def postprocess(self, preds):
