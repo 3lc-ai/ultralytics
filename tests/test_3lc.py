@@ -776,10 +776,48 @@ def test_absolutize_image_url() -> None:
     with pytest.raises(ValueError):
         TLCDatasetMixin._absolutize_image_url(url, tlc.Url("some_table_url"))
 
+
+def test_no_predictions() -> None:
+    yolo_dataset_path, test_table = _create_test_image_and_table()
+
+    overrides = {
+        "data": yolo_dataset_path,
+        "epochs": 1,
+        "batch": 4,
+        "device": "cpu",
+        "save": False,
+        "conf": 1.0,
+        "plots": False,
+    }
+
+    model_ultralytics = YOLO("yolo11n.pt")
+    with pytest.raises(RuntimeError):
+        results_ultralytics = model_ultralytics.train(**overrides)
+        assert results_ultralytics, "Detection yolo training failed"
+
+    settings = Settings(
+        collection_epoch_start=1,
+        collect_loss=True,
+        image_embeddings_dim=2,
+        image_embeddings_reducer="pacmap",
+        project_name="test_no_predictions_project",
+        run_name="test_no_predictions",
+        run_description="Test no predictions training",
+        conf_thres=1.0,
+    )
+
+    model_3lc = TLCYOLO("yolo11n.pt")
+    with pytest.raises(RuntimeError):
+        results_3lc = model_3lc.train(**overrides, settings=settings, tables=dict(train=test_table, val=test_table))
+        assert results_3lc, "Detection training failed"
+
 # HELPERS
+
+
 def _get_run_from_settings(settings: Settings) -> tlc.Run:
     run_url = TMP_PROJECT_ROOT_URL / settings.project_name / "runs" / settings.run_name
     return tlc.Run.from_url(run_url)
+
 
 def _create_empty_label_file(img_name: str, dataset_path: pathlib.Path) -> None:
     labels_dir = dataset_path/"labels"
@@ -789,8 +827,8 @@ def _create_empty_label_file(img_name: str, dataset_path: pathlib.Path) -> None:
     with open(label_path, 'w') as f:
         pass
 
+
 def _create_no_predictions_data_yaml(dataset_path: pathlib.Path) -> pathlib.Path:
-    # Create data.yaml file
     data_yaml_content = f"""
 path: {dataset_path.as_posix()}
 train: images/
@@ -805,12 +843,11 @@ names:
         f.write(data_yaml_content)
     return data_yaml_path
 
+
 def _create_test_image_and_table() -> (pathlib.Path, tlc.Table):
-    # Create necessary directories
     data_set_path = TMP / "no_predictions"
     os.makedirs(data_set_path /"images", exist_ok=True)
     
-    # Create a 640x640 gray image
     img = np.full((640, 640, 3), 128, dtype=np.uint8)
     img_name = "gray_test.jpg"
     img_path = data_set_path /"images" / img_name
@@ -818,56 +855,7 @@ def _create_test_image_and_table() -> (pathlib.Path, tlc.Table):
     _create_empty_label_file(img_name, data_set_path)
     yolo_dataset_file = _create_no_predictions_data_yaml(data_set_path)
 
-    image_url_schema = tlc.ImagePath("image")
-    width = tlc.Int("width").schema
-    width.default_visible = False
-    height = tlc.Int("height").schema
-    height.default_visible = False
-    labels = {1.0: "a", 2.0: "b", 3.0: "c"}
+    table = tlc.Table.from_yolo(yolo_dataset_file, "train")
 
-    bbs = tlc.BoundingBoxListSchema(label_value_map=labels, x1_number_role=tlc.NUMBER_ROLE_BB_SIZE_X, y1_number_role=tlc.NUMBER_ROLE_BB_SIZE_Y, include_segmentation=False)
-
-    train_structure = {"image": image_url_schema, "width": width, "height": height, "bbs": bbs}
-
-    table = tlc.Table.from_dict(
-        {"image": [img_path.as_posix()], "width": 640, "height": 640, "bbs": [{"x0": 0, "y0":0, "x1": 0, "y1": 0, "label": 1}]},
-        project_name="test_no_predictions",
-        dataset_name="test",
-        table_name="test_table",
-        structure=train_structure,
-    )
     return yolo_dataset_file, table
-
-# def test_no_predictions() -> None:
-#     # End-to-end test of detection
-#     yolo_dataset_path, test_table = _create_test_image_and_table()
-#
-#     overrides = {
-#         "data": yolo_dataset_path,
-#         "epochs": 1,
-#         "batch": 4,
-#         "device": "cpu",
-#         "save": False,
-#         "conf": 1.0,
-#         "plots": False,
-#     }
-#
-#     model_ultralytics = YOLO("yolo11n.pt")
-#     results_ultralytics = model_ultralytics.train(**overrides)
-#     assert results_ultralytics, "Detection yolo training failed"
-#
-#     settings = Settings(
-#         collection_epoch_start=1,
-#         collect_loss=True,
-#         image_embeddings_dim=2,
-#         image_embeddings_reducer="pacmap",
-#         project_name="test_no_predictions_project",
-#         run_name="test_no_predictions",
-#         run_description="Test no predictions training",
-#         conf_thres=1.0,
-#     )
-#
-#     model_3lc = TLCYOLO("yolo11n.pt")
-#     results_3lc = model_3lc.train(**overrides, settings=settings, tables=dict(train=test_table, val=test_table))
-#     assert results_3lc, "Detection training failed"
 
