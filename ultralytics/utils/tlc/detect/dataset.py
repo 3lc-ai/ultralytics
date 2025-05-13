@@ -136,8 +136,11 @@ def unpack_boxes(
     classes_list, boxes_list = [], []
     for bbox in bboxes:
         _class, box = unpack_box(bbox)
-        classes_list.append(class_map[_class])
-        boxes_list.append(box)
+
+        # Ignore boxes with non-positive width or height
+        if bbox[2] > 0 and bbox[3] > 0:
+            classes_list.append(class_map[_class])
+            boxes_list.append(box)
 
     # Convert to np array
     boxes = np.array(boxes_list, ndmin=2, dtype=np.float32)
