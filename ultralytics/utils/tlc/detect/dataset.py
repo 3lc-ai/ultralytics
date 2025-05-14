@@ -126,7 +126,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.batch = bi  # batch index of image
 
 
-def unpack_box(bbox: dict[str, int | float]) -> tuple[int | float]:
+def unpack_box(bbox: dict[str, int | float]) -> tuple[int, list[float]]:
     return bbox[tlc.LABEL], [bbox[tlc.X0], bbox[tlc.Y0], bbox[tlc.X1], bbox[tlc.Y1]]
 
 
@@ -138,7 +138,7 @@ def unpack_boxes(
         _class, box = unpack_box(bbox)
 
         # Ignore boxes with non-positive width or height
-        if bbox[2] > 0 and bbox[3] > 0:
+        if box[2] > 0 and box[3] > 0:
             classes_list.append(class_map[_class])
             boxes_list.append(box)
 
