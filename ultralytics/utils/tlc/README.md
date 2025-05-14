@@ -194,3 +194,7 @@ In order to collect embeddings (or other additional metrics) for each bounding b
 ## Can I use the Ultralytics YOLO CLI commands in the integration to train and collect metrics?
 
 This is not supported yet, but will be added in a future commit!
+
+## How can I resume an interrupted training run?
+
+Ultralytics YOLO supports resuming an interrupted training session by loading the partially trained model, and calling `model.train(resume=True, ...)`. If there is also a 3LC training run associated with this session, and you pass the same `run_name` in the `Settings` instance, the existing 3LC run will be continued.
