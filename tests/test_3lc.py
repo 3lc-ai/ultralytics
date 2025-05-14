@@ -848,11 +848,12 @@ def _create_test_image_and_table() -> (pathlib.Path, tlc.Table):
     data_set_path = TMP / "no_predictions"
     os.makedirs(data_set_path /"images", exist_ok=True)
     
-    img = np.full((640, 640, 3), 128, dtype=np.uint8)
-    img_name = "gray_test.jpg"
-    img_path = data_set_path /"images" / img_name
-    cv2.imwrite(img_path, img)
-    _create_empty_label_file(img_name, data_set_path)
+    for i in range(4):
+        img = np.full((640, 640, 3), 128, dtype=np.uint8)
+        img_name = f"gray_test_{i}.jpg"
+        img_path = data_set_path / "images" / img_name
+        cv2.imwrite(img_path.as_posix(), img)
+        _create_empty_label_file(img_name, data_set_path)
     yolo_dataset_file = _create_no_predictions_data_yaml(data_set_path)
 
     table = tlc.Table.from_yolo(yolo_dataset_file, "train")
