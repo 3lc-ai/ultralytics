@@ -1,20 +1,17 @@
 # Ultralytics YOLO 🚀, 3LC Integration, AGPL-3.0 license
 from __future__ import annotations
 
-from multiprocessing.pool import ThreadPool
 import numpy as np
 import tlc
-from itertools import repeat
 
 from ultralytics.data.dataset import YOLODataset
 from ultralytics.data.utils import (
-    verify_image,
     segments2boxes,
 )
 from ultralytics.utils import ops
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
 
-from ultralytics.utils import LOGGER, NUM_THREADS, TQDM
+from ultralytics.utils import LOGGER
 
 from typing import Any
 
@@ -40,7 +37,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         )
         self.table = table
         self._exclude_zero = exclude_zero
-        self.class_map = class_map if class_map is not None else IdentityDict()
+        self._class_map = class_map if class_map is not None else IdentityDict()
 
         if task == "detect":
             from ultralytics.utils.tlc.detect.utils import is_coco_table, is_yolo_table
@@ -73,79 +70,29 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         return []
 
     def get_labels(self):
-        self.labels = []
-        self.example_ids = []
-
-        for example_id, row in enumerate(self.table.table_rows):
-            if self._exclude_zero and row.get(tlc.SAMPLE_WEIGHT, 1) == 0:
-                continue
-
-            self.example_ids.append(example_id)
-
-            im_file = self._absolutize_image_url(row[tlc.IMAGE], self.table.url)
-            self.im_files.append(im_file)
-            if self._table_format in ("COCO", "YOLO"):
-                self.labels.append(
-                    tlc_table_row_to_yolo_label(
-                        row, self._table_format, self.class_map, im_file
-                    )
-                )
-            elif self._table_format in ("segment_relative", "segment_absolute"):
-                self.labels.append(
-                    tlc_table_row_to_segment_label(
-                        self.table[example_id],
-                        self._table_format,
-                        self.class_map,
-                        im_file,
-                        row_index=example_id,
-                    )
-                )
-            else:
-                raise ValueError(f"Unsupported table format: {self._table_format}")
-
-        # Scan images if not already scanned
-        if not self._is_scanned():
-            self._scan_images()
-
-        self.example_ids = np.array(self.example_ids, dtype=np.int32)
+        """Get the labels from the table."""
+        example_ids, im_files, labels = self._get_rows_from_table()
+        self.labels = labels
+        self.im_files = im_files
+        self.example_ids = np.array(example_ids, dtype=np.int32)
 
         return self.labels
 
-    def _scan_images(self):
-        desc = f"{self.prefix}Scanning images in {self.table.url.to_str()}..."
-
-        nf, nc, msgs, im_files, labels, example_ids = 0, 0, [], [], [], []
-
-        # We use verify_image here, but it expects (image_path, cls) since it is used for classification
-        # Labels are not verified because they are verified in tlc.TableFromYolo
-        samples_iterator = ((im_file, None) for im_file in self.im_files)
-
-        with ThreadPool(NUM_THREADS) as pool:
-            results = pool.imap(
-                func=verify_image, iterable=zip(samples_iterator, repeat(self.prefix))
+    def _get_label_from_row(self, im_file: str, row: Any, example_id: int) -> Any:
+        if self._table_format in ("COCO", "YOLO"):
+            return tlc_table_row_to_yolo_label(
+                row, self._table_format, self._class_map, im_file
             )
-            pbar = TQDM(enumerate(results), desc=desc, total=len(self.im_files))
-            for i, (sample, nf_f, nc_f, msg) in pbar:
-                if nf_f:
-                    example_ids.append(self.example_ids[i])
-                    im_files.append(self.im_files[i])
-                    labels.append(self.labels[i])
-                if msg:
-                    msgs.append(msg)
-                nf += nf_f
-                nc += nc_f
-                pbar.desc = f"{desc} {nf} images, {nc} corrupt"
-            pbar.close()
-
-        if msgs:
-            LOGGER.info("\n".join(msgs))
-
-        if nc == 0:
-            self._write_scanned_marker()
-
-        self.example_ids = example_ids
-        self.im_files = im_files
-        self.labels = labels
+        elif self._table_format in ("segment_relative", "segment_absolute"):
+            return tlc_table_row_to_segment_label(
+                self.table[example_id],
+                self._table_format,
+                self._class_map,
+                im_file,
+                row_index=example_id,
+            )
+        else:
+            raise ValueError(f"Unsupported table format: {self._table_format}")
 
     def set_rectangle(self):
         """Save the batch shapes and indices for the dataset."""
@@ -179,7 +126,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self.batch = bi  # batch index of image
 
 
-def unpack_box(bbox: dict[str, int | float]) -> tuple[int | float]:
+def unpack_box(bbox: dict[str, int | float]) -> tuple[int, list[float]]:
     return bbox[tlc.LABEL], [bbox[tlc.X0], bbox[tlc.Y0], bbox[tlc.X1], bbox[tlc.Y1]]
 
 
@@ -189,8 +136,11 @@ def unpack_boxes(
     classes_list, boxes_list = [], []
     for bbox in bboxes:
         _class, box = unpack_box(bbox)
-        classes_list.append(class_map[_class])
-        boxes_list.append(box)
+
+        # Ignore boxes with non-positive width or height
+        if box[2] > 0 and box[3] > 0:
+            classes_list.append(class_map[_class])
+            boxes_list.append(box)
 
     # Convert to np array
     boxes = np.array(boxes_list, ndmin=2, dtype=np.float32)

@@ -104,7 +104,7 @@ def build_tlc_yolo_dataset(
         single_cls=cfg.single_cls or False,
         stride=int(stride),
         pad=0.0 if mode == "train" else 0.5,
-        prefix=cfg.split if hasattr(cfg, "split") else mode,
+        prefix=split or mode,
         task=cfg.task,
         classes=cfg.classes,
         data=data,

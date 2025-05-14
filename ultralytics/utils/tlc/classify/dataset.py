@@ -3,14 +3,10 @@ from __future__ import annotations
 
 import tlc
 
-from multiprocessing.pool import ThreadPool
-from pathlib import Path
-from itertools import repeat
-
 from ultralytics.data.dataset import ClassificationDataset
-from ultralytics.data.utils import verify_image
-from ultralytics.utils import LOGGER, NUM_THREADS, TQDM
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
+
+from typing import Any
 
 
 class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
@@ -41,78 +37,46 @@ class TLCClassificationDataset(TLCDatasetMixin, ClassificationDataset):
         assert isinstance(table, tlc.Table)
         self.table = table
         self.root = table.url
+        self.prefix = prefix
+        self._image_column_name = image_column_name
+        self._label_column_name = label_column_name
+        self._exclude_zero = exclude_zero
+        self._class_map = class_map
 
-        self.verify_schema(image_column_name, label_column_name)
+        self.verify_schema()
 
-        self.samples = []
-        self.example_ids = []
+        example_ids, im_files, labels = self._get_rows_from_table()
 
-        for example_id, row in enumerate(self.table.table_rows):
-            if exclude_zero and row.get(tlc.SAMPLE_WEIGHT, 1) == 0:
-                continue
+        self.example_ids = example_ids
+        self.samples = list(zip(im_files, labels))
 
-            self.example_ids.append(example_id)
-            image_path = Path(
-                self._absolutize_image_url(row[image_column_name], self.table.url)
-            )
-            category = (
-                class_map[row[label_column_name]]
-                if class_map
-                else row[label_column_name]
-            )
-            self.samples.append((image_path, category))
-
-        # Initialize attributes (calls self.verify_images())
+        # Initialize attributes (e.g. transforms)
         self._init_attributes(args, augment, prefix)
 
         # Call mixin
         self._post_init()
 
-    def verify_schema(self, image_column_name, label_column_name):
+    def verify_schema(self):
         """Verify that the provided Table has the desired entries"""
 
         # Check for data in columns
         assert len(self.table) > 0, f"Table {self.root.to_str()} has no rows."
         first_row = self.table.table_rows[0]
-        assert isinstance(first_row[image_column_name], str), (
-            f"First value in image column '{image_column_name}' in table {self.root.to_str()} is not a string."
+        assert isinstance(first_row[self._image_column_name], str), (
+            f"First value in image column '{self._image_column_name}' in table {self.root.to_str()} is not a string."
         )
-        assert isinstance(first_row[label_column_name], int), (
-            f"First value in label column '{label_column_name}' in table {self.root.to_str()} is not an integer."
+        assert isinstance(first_row[self._label_column_name], int), (
+            f"First value in label column '{self._label_column_name}' in table {self.root.to_str()} is not an integer."
         )
 
     def verify_images(self):
-        """Verify all images in the dataset."""
+        """Called by parent init_attributes, but this is handled by the 3LC mixin."""
+        return self.samples
 
-        # Skip verification if the dataset has already been scanned
-        if self._is_scanned():
-            return self.samples
+    def _get_label_from_row(self, im_file: str, row: Any, example_id: int) -> Any:
+        label = row[self._label_column_name]
 
-        desc = f"{self.prefix}Scanning images in {self.table.url.to_str()}..."
-        # Run scan if the marker does not exist
-        nf, nc, msgs, samples, example_ids = 0, 0, [], [], []
-        with ThreadPool(NUM_THREADS) as pool:
-            results = pool.imap(
-                func=verify_image, iterable=zip(self.samples, repeat(self.prefix))
-            )
-            pbar = TQDM(enumerate(results), desc=desc, total=len(self.samples))
-            for i, (sample, nf_f, nc_f, msg) in pbar:
-                if nf_f:
-                    example_ids.append(self.example_ids[i])
-                    samples.append(sample)
-                if msg:
-                    msgs.append(msg)
-                nf += nf_f
-                nc += nc_f
-                pbar.desc = f"{desc} {nf} images, {nc} corrupt"
-            pbar.close()
+        if self._class_map:
+            label = self._class_map[label]
 
-        if msgs:
-            LOGGER.info("\n".join(msgs))
-
-        # If no problems are found, create the marker
-        if nc == 0:
-            self._write_scanned_marker()
-
-        self._example_ids = example_ids
-        return samples
+        return label
