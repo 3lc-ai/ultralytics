@@ -155,6 +155,13 @@ def test_training(task) -> None:
     assert NUM_IMAGES in per_class_metrics_df.columns, "Expected num_images column in per-class metrics"
     assert NUM_INSTANCES in per_class_metrics_df.columns, "Expected num_instances column in per-class metrics"
 
+    # Try to resume the run and train one more epoch
+    results_resumed_3lc = model_3lc.train(resume=True, epochs=1)
+
+    assert True
+
+
+
 def test_detect_training_with_yolo12() -> None:
     model = "yolo12n.pt"
     data = TASK2DATASET["detect"]
@@ -805,7 +812,7 @@ names:
         f.write(data_yaml_content)
     return data_yaml_path
 
-def _create_test_image_and_table() -> (pathlib.Path, tlc.Table):
+def _create_test_image_and_table() -> tuple[Path, tlc.Table]:
     # Create necessary directories
     data_set_path = TMP / "no_predictions"
     os.makedirs(data_set_path /"images", exist_ok=True)
