@@ -134,8 +134,8 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
             box_loss_full[fg_mask] = box_loss.to(cls_loss.dtype).squeeze()
             dfl_loss_full[fg_mask] = dfl_loss.to(cls_loss.dtype).squeeze()
         else:
-            box_loss_full = torch.zeros(1, device=self.device)
-            dfl_loss_full = torch.zeros(1, device=self.device)
+            box_loss_full = torch.zeros(len(cls_loss), device=self.device)
+            dfl_loss_full = torch.zeros(len(cls_loss), device=self.device)
 
         # loss[0] *= self.hyp.box  # box gain
         # loss[1] *= self.hyp.cls  # cls gain
