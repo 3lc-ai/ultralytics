@@ -62,7 +62,7 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
 
     def __call__(self, preds, batch):
         """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
-        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
+        # loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = (
             preds[1] if isinstance(preds, (list, tuple)) else preds
         )  # 3lc: list when using detectionmodel
@@ -115,6 +115,8 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
         # PER-box: self.bce(pred_scores, target_scores.to(dtype)).sum(dim=2)[0] ??? Do we care about scaling these? I'd argue no, since we really just want to compare boxes with each other
 
         # Bbox loss
+        box_loss_full = torch.zeros_like(cls_loss)
+        dfl_loss_full = torch.zeros_like(cls_loss)
         if fg_mask.sum():
             target_bboxes /= stride_tensor
             # loss[0], loss[2] = self.bbox_loss(
@@ -129,13 +131,8 @@ class v8UnreducedDetectionLoss(v8DetectionLoss):
                 target_scores_sum,
                 fg_mask,
             )
-            box_loss_full = torch.zeros_like(cls_loss)
-            dfl_loss_full = torch.zeros_like(cls_loss)
             box_loss_full[fg_mask] = box_loss.to(cls_loss.dtype).squeeze()
             dfl_loss_full[fg_mask] = dfl_loss.to(cls_loss.dtype).squeeze()
-        else:
-            box_loss_full = torch.zeros(len(cls_loss), device=self.device)
-            dfl_loss_full = torch.zeros(len(cls_loss), device=self.device)
 
         # loss[0] *= self.hyp.box  # box gain
         # loss[1] *= self.hyp.cls  # cls gain

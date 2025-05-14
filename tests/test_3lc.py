@@ -778,7 +778,7 @@ def test_absolutize_image_url() -> None:
 
 
 def test_no_predictions() -> None:
-    yolo_dataset_path, test_table = _create_test_image_and_table()
+    yolo_dataset_path, (table_train, table_val) = _create_test_image_and_table()
 
     overrides = {
         "data": yolo_dataset_path,
@@ -791,9 +791,8 @@ def test_no_predictions() -> None:
     }
 
     model_ultralytics = YOLO("yolo11n.pt")
-    with pytest.raises(RuntimeError):
-        results_ultralytics = model_ultralytics.train(**overrides)
-        assert results_ultralytics, "Detection yolo training failed"
+    results_ultralytics = model_ultralytics.train(**overrides)
+    assert results_ultralytics, "Detection yolo training failed"
 
     settings = Settings(
         collection_epoch_start=1,
@@ -804,12 +803,12 @@ def test_no_predictions() -> None:
         run_name="test_no_predictions",
         run_description="Test no predictions training",
         conf_thres=1.0,
+
     )
 
     model_3lc = TLCYOLO("yolo11n.pt")
-    with pytest.raises(RuntimeError):
-        results_3lc = model_3lc.train(**overrides, settings=settings, tables=dict(train=test_table, val=test_table))
-        assert results_3lc, "Detection training failed"
+    results_3lc = model_3lc.train(**overrides, settings=settings, tables=dict(train=table_train, val=table_val))
+    assert results_3lc, "Detection training failed"
 
 # HELPERS
 
@@ -831,8 +830,8 @@ def _create_empty_label_file(img_name: str, dataset_path: pathlib.Path) -> None:
 def _create_no_predictions_data_yaml(dataset_path: pathlib.Path) -> pathlib.Path:
     data_yaml_content = f"""
 path: {dataset_path.as_posix()}
-train: images/
-val: images/
+train: train/images
+val: val/images
 names:
   0: a
   1: b 
@@ -844,19 +843,95 @@ names:
     return data_yaml_path
 
 
-def _create_test_image_and_table() -> (pathlib.Path, tlc.Table):
+def _create_test_image_and_table() -> (pathlib.Path, (tlc.Table, tlc.Table)):
     data_set_path = TMP / "no_predictions"
-    os.makedirs(data_set_path /"images", exist_ok=True)
+
+    train_dir = data_set_path / "train" / "images"
+    val_dir = data_set_path / "val" / "images"
+    os.makedirs(train_dir, exist_ok=True)
+    os.makedirs(val_dir, exist_ok=True)
+   
     
-    for i in range(4):
-        img = np.full((640, 640, 3), 128, dtype=np.uint8)
-        img_name = f"gray_test_{i}.jpg"
-        img_path = data_set_path / "images" / img_name
+    labels_dir = data_set_path / "train" / "labels"
+    os.makedirs(labels_dir, exist_ok=True)
+
+    def circles_overlap(c1, c2, r1, r2):
+        return np.sqrt((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2) < (r1 + r2)
+
+    rng = np.random.default_rng(seed=42)
+
+    for i in range(16):
+        img = np.full((640, 640, 3), 255, dtype=np.uint8)
+        img_name = f"train_test_{i}.jpg"
+        h, w = img.shape[:2]
+        
+        # Generate two non-overlapping circles
+        circles = []
+        for _ in range(2):
+            while True:
+                radius = int(0.1 * min(h, w))
+                center_x = rng.integers(radius, w-radius)
+                center_y = rng.integers(radius, h-radius)
+
+                # Check if new circle overlaps with existing ones
+                if not any(circles_overlap((center_x, center_y), (c[0], c[1]), radius, radius) for c in circles):
+                    break
+
+            circles.append((center_x, center_y, radius))
+            def is_similar_to_grey(color, threshold=30):
+                # Check if color components are too close to each other (indicating greyness)
+                r, g, b = color
+                avg = (r + g + b) / 3
+                return all(abs(c - avg) < threshold for c in (r, g, b))
+            
+            # Generate color that's not too similar to grey
+            while True:
+                color = tuple(rng.integers(0, 255, 3).tolist())
+                if not is_similar_to_grey(color):
+                    break
+            cv2.circle(img, (center_x, center_y), radius, color, -1)
+
+        # Save training image
+        img_path = train_dir / img_name
         cv2.imwrite(img_path.as_posix(), img)
-        _create_empty_label_file(img_name, data_set_path)
+
+        # Create label file for train image
+        label_path = labels_dir / f"{img_name[:-4]}.txt"
+        with open(label_path, 'w') as f:
+            for cx, cy, r in circles:
+                # Convert to YOLO format (x_center, y_center, width, height) normalized
+                x_center = cx / w
+                y_center = cy / h
+                width = (2 * r) / w
+                height = (2 * r) / h
+                f.write(f"0 {x_center} {y_center} {width} {height}\n")
+
+    # Generate validation images (all gray) with random labels
+    val_labels_dir = data_set_path / "val" / "labels"
+    os.makedirs(val_labels_dir, exist_ok=True)
+    
+    for i in range(16):
+        img = np.full((640, 640, 3), 128, dtype=np.uint8)
+        img_name = f"val_test_{i}.jpg"
+        img_path = val_dir / img_name
+        cv2.imwrite(img_path.as_posix(), img)
+        
+        # Create random labels for validation images
+        if i == 1:
+            h, w = img.shape[:2]
+            label_path = val_labels_dir / f"{img_name[:-4]}.txt"
+            with open(label_path, 'w') as f:
+                for _ in range(1):
+                    x_center = rng.random()
+                    y_center = rng.random()
+                    width = rng.random() * 0.2  # Max 20% of image width
+                    height = rng.random() * 0.2  # Max 20% of image height
+                    f.write(f"0 {x_center} {y_center} {width} {height}\n")
+
     yolo_dataset_file = _create_no_predictions_data_yaml(data_set_path)
 
-    table = tlc.Table.from_yolo(yolo_dataset_file, "train")
+    table_train = tlc.Table.from_yolo(yolo_dataset_file, "train", if_exists="overwrite")
+    table_val = tlc.Table.from_yolo(yolo_dataset_file, "val", if_exists="overwrite")
 
-    return yolo_dataset_file, table
+    return yolo_dataset_file, (table_train, table_val)
 

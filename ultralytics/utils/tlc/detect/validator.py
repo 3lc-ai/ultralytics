@@ -87,12 +87,7 @@ class TLCDetectionValidator(TLCValidatorMixin, DetectionValidator):
         processed_predictions = self._process_detection_predictions(preds, batch)
         return {
             tlc.PREDICTED_BOUNDING_BOXES: processed_predictions,
-            **{
-                k: (
-                    tensor.mean(dim=1).cpu().numpy() if len(tensor) > 1 else np.zeros(1)
-                )
-                for k, tensor in losses.items()
-            },
+            **{k: tensor.mean(dim=1).cpu().numpy() for k, tensor in losses.items()},
         }
 
     def _process_detection_predictions(self, preds, batch):
