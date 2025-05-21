@@ -464,8 +464,7 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     assert 3 not in sampled_example_ids, "Sample with zero weight should not be included in collection"
     assert len(sampled_example_ids) == len(edited_table) - 2, "Expected two samples to be excluded"
 
-@pytest.mark.parametrize("task, trainer_class", [("detect", TLCDetectionTrainer),
-                                                ("classify", TLCClassificationTrainer)])
+@pytest.mark.parametrize("task", ["detect", "classify"])
 def test_train_no_weight_column_in_table(task, trainer_class) -> None:
     # Test that training with a table that has no weight column works
     model = TLCYOLO(TASK2MODEL[task])
@@ -482,11 +481,11 @@ def test_train_no_weight_column_in_table(task, trainer_class) -> None:
     # Should fail to train with weights enabled on table with no weight column
     with pytest.raises(ValueError):
         settings = Settings(project_name="test_train_no_weight_column_in_table", sampling_weights=True)
-        model.train(tables=tables, settings=settings, workers=0, epochs=1)
+        model.train(tables=tables, settings=settings, workers=0, epochs=1, device="cpu")
 
     # Should collect with exclusion enabled and no weight column
     settings = Settings(project_name="test_train_no_weight_column_in_table", exclude_zero_weight_collection=True)
-    model.collect(tables=tables, settings=settings, workers=0)
+    model.collect(tables=tables, settings=settings, workers=0, device="cpu")
 
 
 def test_illegal_reducer() -> None:
