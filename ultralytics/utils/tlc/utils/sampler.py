@@ -32,13 +32,7 @@ def create_sampler(
                 )
 
             # No need to exclude zero weights if there is no weights column
-            if (
-                table.weights_column_name is None
-                and settings.exclude_zero_weight_training
-            ):
-                exclude_zero_weights = False
-            else:
-                exclude_zero_weights = settings.exclude_zero_weight_training
+            exclude_zero_weights = False if table.weights_column_name is None else settings.exclude_zero_weight_training
 
             try:
                 sampler = table.create_sampler(
