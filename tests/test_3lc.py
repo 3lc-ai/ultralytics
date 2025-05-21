@@ -386,10 +386,11 @@ def test_sampling_weights() -> None:
     epochs = 1000
 
     # Create edited table where one sample has weight increased to 2
+    train_table = trainer.trainset
     edited_table = tlc.EditedTable(
-        url=trainer.trainset.url.create_sibling("jonas"),
-        input_table_url=trainer.trainset,
-        edits={tlc.SAMPLE_WEIGHT: {
+        url=train_table.url.create_sibling("jonas"),
+        input_table_url=train_table,
+        edits={train_table.weights_column_name: {
             "runs_and_values": [[0], 2.0]}},
     )
 
@@ -417,10 +418,11 @@ def test_exclude_zero_weight_training() -> None:
     trainer = TLCDetectionTrainer(overrides={"data": TASK2DATASET["detect"], "settings": settings, "workers": 4})
 
     # Create edited table where one sample has weight increased to 2
+    train_table = trainer.trainset
     edited_table = tlc.EditedTable(
-        url=trainer.trainset.url.create_sibling("jonas"),
-        input_table_url=trainer.trainset,
-        edits={tlc.SAMPLE_WEIGHT: {
+        url=train_table.url.create_sibling("jonas"),
+        input_table_url=train_table,
+        edits={train_table.weights_column_name: {
             "runs_and_values": [[0], 0.0]}},
     )
 
@@ -445,10 +447,11 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
         trainer.model = Mock()
 
     # Create edited table where several samples have weight 0
+    train_table = trainer.trainset
     edited_table = tlc.EditedTable(
-        url=trainer.trainset.url.create_sibling(f"erna_{task}"),
-        input_table_url=trainer.trainset,
-        edits={tlc.SAMPLE_WEIGHT: {
+        url=train_table.url.create_sibling(f"erna_{task}"),
+        input_table_url=train_table,
+        edits={train_table.weights_column_name: {
             "runs_and_values": [[0, 3], 0.0]}},
     )
 
@@ -460,6 +463,30 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     assert 0 not in sampled_example_ids, "Sample with zero weight should not be included in collection"
     assert 3 not in sampled_example_ids, "Sample with zero weight should not be included in collection"
     assert len(sampled_example_ids) == len(edited_table) - 2, "Expected two samples to be excluded"
+
+@pytest.mark.parametrize("task, trainer_class", [("detect", TLCDetectionTrainer),
+                                                ("classify", TLCClassificationTrainer)])
+def test_train_no_weight_column_in_table(task, trainer_class) -> None:
+    # Test that training with a table that has no weight column works
+    model = TLCYOLO(TASK2MODEL[task])
+
+    settings = Settings(project_name="test_train_no_weight_column_in_table")
+    model.train(data=TASK2DATASET[task], settings=settings, epochs=1, device="cpu", workers=0)
+    table = model.trainer.trainset
+
+    no_weight_column_table = table.delete_column(table.weights_column_name)
+    tables = {"train": no_weight_column_table, "val": model.trainer.testset}
+
+    model.train(tables=tables, settings=settings, epochs=1, device="cpu", workers=0)
+
+    # Should fail to train with weights enabled on table with no weight column
+    with pytest.raises(ValueError):
+        settings = Settings(project_name="test_train_no_weight_column_in_table", sampling_weights=True)
+        model.train(tables=tables, settings=settings, workers=0, epochs=1)
+
+    # Should collect with exclusion enabled and no weight column
+    settings = Settings(project_name="test_train_no_weight_column_in_table", exclude_zero_weight_collection=True)
+    model.collect(tables=tables, settings=settings, workers=0)
 
 
 def test_illegal_reducer() -> None:
