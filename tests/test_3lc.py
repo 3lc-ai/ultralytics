@@ -632,13 +632,35 @@ def test_arbitrary_class_indices(task) -> None:
     predicted_label_value_map = sample_metrics_tables[0].get_value_map(predicted_label_column_name)
     assert label_value_map == predicted_label_value_map, "Predicted label value map mismatch"
 
-
-def test_check_tlc_dataset_different_categories() -> None:
+@pytest.mark.parametrize(
+    "train_classes,val_classes,description,expected_error",
+    [
+        (
+            ["a", "b", "c"], 
+            ["a", "b"], 
+            "Extra class in train table",
+            "All splits must have the same categories, but 'train' has categories that 'val' does not: {2: 'c'}"
+        ),
+        (
+            ["a", "b"], 
+            ["a", "b", "c"], 
+            "Extra class in val table",
+            "All splits must have the same categories, but 'val' has categories that 'train' does not: {2: 'c'}"
+        ),
+        (
+            ["a", "b", "c"], 
+            ["a", "b", "d"], 
+            "Different extra classes in both tables",
+            "All splits must have the same categories, but 'train' has categories that 'val' does not: {2: 'c'} and 'val' has categories that 'train' does not: {2: 'd'}"
+        ),
+    ],
+)
+def test_check_tlc_dataset_different_categories(train_classes, val_classes, description, expected_error) -> None:
     # Test that an error is raised if the categories of the tables are different
-    project_name = "test_check_tlc_dataset_different_categories"
+    project_name = f"test_check_tlc_dataset_different_categories_{description.lower().replace(' ', '_')}"
 
-    train_structure = {"image": tlc.ImagePath("image"), "label": tlc.CategoricalLabel("label", classes=["a", "b", "c"])}
-    val_structure = {"image": tlc.ImagePath("image"), "label": tlc.CategoricalLabel("label", classes=["a", "b", "d"])}
+    train_structure = {"image": tlc.ImagePath("image"), "label": tlc.CategoricalLabel("label", classes=train_classes)}
+    val_structure = {"image": tlc.ImagePath("image"), "label": tlc.CategoricalLabel("label", classes=val_classes)}
 
     train_table = tlc.Table.from_dict(
         {
@@ -657,7 +679,7 @@ def test_check_tlc_dataset_different_categories() -> None:
         dataset_name="val",
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=expected_error):
         check_tlc_dataset(
             data="",
             tables={
