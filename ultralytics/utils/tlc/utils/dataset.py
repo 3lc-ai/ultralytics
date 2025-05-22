@@ -141,26 +141,51 @@ def check_tlc_dataset(
 
     first_split = next(iter(tables.keys()))
 
+    names = tables[first_split].get_simple_value_map(label_column_name)
     value_map = tables[first_split].get_value_map(label_column_name)
 
-    if value_map is None:
+    if names is None:
         raise ValueError(
             f"Failed to get value map for table with Url: {tables[first_split].url}"
         )
 
-    names = {int(k): v["internal_name"] for k, v in value_map.items()}
+    for split, split_table in tables.items():
+        split_names = split_table.get_simple_value_map(label_column_name)
 
-    for split in tables:
-        other_value_map = tables[split].get_value_map(label_column_name)
-
-        if other_value_map is None:
+        if split_names is None:
             raise ValueError(
                 f"Failed to get value map for table with Url: {tables[split].url}"
             )
 
-        if other_value_map != value_map:
-            msg = f"All splits must have the same categories, but {split} has different categories from {first_split}."
-            raise ValueError(msg)
+        if split_names != names:
+            first_items = set(names.items())
+            split_items = set(split_names.items())
+
+            only_in_first = first_items - split_items
+            only_in_split = split_items - first_items
+
+            messages = []
+
+            if only_in_first:
+                dict_str = (
+                    "{" + ", ".join(f"{k}: '{v}'" for k, v in only_in_first) + "}"
+                )
+                messages.append(
+                    f"'{first_split}' has categories that '{split}' does not: {dict_str}"
+                )
+            if only_in_split:
+                dict_str = (
+                    "{" + ", ".join(f"{k}: '{v}'" for k, v in only_in_split) + "}"
+                )
+                messages.append(
+                    f"'{split}' has categories that '{first_split}' does not: {dict_str}"
+                )
+
+            error_msg = "All splits must have the same categories, but " + " and ".join(
+                messages
+            )
+
+            raise ValueError(error_msg)
 
     # Map name indices to 0, 1, ..., n-1
     names_yolo = dict(enumerate(names.values()))
