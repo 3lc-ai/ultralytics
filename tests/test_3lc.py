@@ -465,7 +465,7 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     assert len(sampled_example_ids) == len(edited_table) - 2, "Expected two samples to be excluded"
 
 @pytest.mark.parametrize("task", ["detect", "classify"])
-def test_train_no_weight_column_in_table(task, trainer_class) -> None:
+def test_train_no_weight_column_in_table(task) -> None:
     # Test that training with a table that has no weight column works
     model = TLCYOLO(TASK2MODEL[task])
 
