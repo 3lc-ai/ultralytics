@@ -31,9 +31,16 @@ def create_sampler(
                     "Distributed training and using 3LC weights is not yet supported."
                 )
 
+            # No need to exclude zero weights if there is no weights column
+            exclude_zero_weights = (
+                False
+                if table.weights_column_name is None
+                else settings.exclude_zero_weight_training
+            )
+
             try:
                 sampler = table.create_sampler(
-                    exclude_zero_weights=settings.exclude_zero_weight_training,
+                    exclude_zero_weights=exclude_zero_weights,
                     weighted=settings.sampling_weights,
                     shuffle=True,
                 )

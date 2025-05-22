@@ -247,7 +247,6 @@ def is_yolo_table(table: tlc.Table) -> tuple[bool, str]:
         assert tlc.HEIGHT in row_schema
         assert tlc.BOUNDING_BOXES in row_schema
         assert tlc.BOUNDING_BOX_LIST in row_schema[tlc.BOUNDING_BOXES].values
-        assert tlc.SAMPLE_WEIGHT in row_schema
         assert (
             tlc.LABEL
             in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
@@ -304,7 +303,6 @@ def is_coco_table(table: tlc.Table) -> bool:
         assert tlc.HEIGHT in row_schema
         assert tlc.BOUNDING_BOXES in row_schema
         assert tlc.BOUNDING_BOX_LIST in row_schema[tlc.BOUNDING_BOXES].values
-        assert tlc.SAMPLE_WEIGHT in row_schema
         assert (
             tlc.LABEL
             in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
