@@ -160,20 +160,30 @@ def check_tlc_dataset(
         if split_names != names:
             first_items = set(names.items())
             split_items = set(split_names.items())
-            
+
             only_in_first = first_items - split_items
             only_in_split = split_items - first_items
 
             messages = []
 
             if only_in_first:
-                dict_str = "{" + ", ".join(f"{k}: '{v}'" for k, v in only_in_first) + "}"
-                messages.append(f"'{first_split}' has categories that '{split}' does not: {dict_str}")
+                dict_str = (
+                    "{" + ", ".join(f"{k}: '{v}'" for k, v in only_in_first) + "}"
+                )
+                messages.append(
+                    f"'{first_split}' has categories that '{split}' does not: {dict_str}"
+                )
             if only_in_split:
-                dict_str = "{" + ", ".join(f"{k}: '{v}'" for k, v in only_in_split) + "}"
-                messages.append(f"'{split}' has categories that '{first_split}' does not: {dict_str}")
+                dict_str = (
+                    "{" + ", ".join(f"{k}: '{v}'" for k, v in only_in_split) + "}"
+                )
+                messages.append(
+                    f"'{split}' has categories that '{first_split}' does not: {dict_str}"
+                )
 
-            error_msg = "All splits must have the same categories, but " + " and ".join(messages)
+            error_msg = "All splits must have the same categories, but " + " and ".join(
+                messages
+            )
 
             raise ValueError(error_msg)
 
