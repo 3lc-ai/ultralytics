@@ -20,9 +20,10 @@ from ultralytics.utils.torch_utils import de_parallel, torch_distributed_zero_fi
 
 
 class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
+    """Trainer class for YOLO object detection with 3LC"""
+
     _default_image_column_name = IMAGE_COLUMN_NAME
     _default_label_column_name = DETECTION_LABEL_COLUMN_NAME
-    """Trainer class for YOLO object detection with 3LC"""
 
     def get_dataset(self):
         # Parse yaml and create tables
@@ -63,6 +64,8 @@ class TLCDetectionTrainer(TLCTrainerMixin, DetectionTrainer):
             stride=gs,
             exclude_zero=exclude_zero,
             class_map=self.data["3lc_class_to_range"],
+            image_column_name=self._image_column_name,
+            label_column_name=self._label_column_name,
         )
 
     def get_validator(self, dataloader=None):

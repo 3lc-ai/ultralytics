@@ -12,6 +12,7 @@ from tlc.client.torch.metrics.metrics_collectors.bounding_box_metrics_collector 
 from ultralytics.data.utils import check_det_dataset
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
+from ultralytics.utils import LOGGER
 
 from typing import Iterable
 
@@ -84,6 +85,8 @@ def build_tlc_yolo_dataset(
     exclude_zero=False,
     class_map=None,
     split=None,
+    image_column_name=None,
+    label_column_name=None,
 ):
     if multi_modal:
         return ValueError(
@@ -108,6 +111,8 @@ def build_tlc_yolo_dataset(
         classes=cfg.classes,
         data=data,
         fraction=cfg.fraction if mode == "train" else 1.0,
+        image_column_name=image_column_name,
+        label_column_name=label_column_name,
     )
 
 
@@ -161,6 +166,11 @@ def check_det_table(
             from ultralytics.utils.tlc.segment.utils import check_seg_table
 
             check_seg_table(table, image_column_name, label_column_name)
+
+            LOGGER.info(
+                f"Table {table.url} is a segmentation table, and the task is set to 'detect'. "
+                "The segmentations will be used to compute bounding boxes, and the predictions will be bounding boxes."
+            )
         except ValueError:
             raise ValueError(
                 f"Table with url {table.url} is not compatible with YOLO object detection. {e}"
