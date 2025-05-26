@@ -79,7 +79,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         return self.labels
 
     def _get_label_from_row(self, im_file: str, row: Any, example_id: int) -> Any:
-        if isinstance(self._table_format, callable):
+        if callable(self._table_format):
             return tlc_table_row_to_yolo_label(
                 row, self._table_format, self._class_map, im_file
             )
