@@ -51,8 +51,12 @@ class TLCValidatorMixin(BaseValidator):
         if run is not None:
             self._run = run
             self._settings: Settings = settings
-            self._image_column_name = image_column_name or self._default_image_column_name
-            self._label_column_name = label_column_name or self._default_label_column_name
+            self._image_column_name = (
+                image_column_name or self._default_image_column_name
+            )
+            self._label_column_name = (
+                label_column_name or self._default_label_column_name
+            )
             self._training = True
 
         # Called directly (Create a run and get settings directly)

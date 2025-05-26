@@ -58,14 +58,20 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
         # See if it is a detection table
         try:
-            self._table_format = tlc.BoundingBox.from_schema(table.rows_schema.values[column_name].values[instances_name])
+            self._table_format = tlc.BoundingBox.from_schema(
+                table.rows_schema.values[column_name].values[instances_name]
+            )
         except Exception as e:
             LOGGER.debug(f"Table {table.url} is not a detection table: {e}")
 
         # See if it is a segmentation table
         try:
-            rles_schema_value = table.rows_schema.values[column_name].values[instances_name]
-            polygons_are_relative = getattr(rles_schema_value, "polygons_are_relative", False)
+            rles_schema_value = table.rows_schema.values[column_name].values[
+                instances_name
+            ]
+            polygons_are_relative = getattr(
+                rles_schema_value, "polygons_are_relative", False
+            )
             self._table_format = (
                 "segment_relative" if polygons_are_relative else "segment_absolute"
             )
@@ -73,11 +79,15 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             LOGGER.debug(f"Table {table.url} is not a segmentation table: {e}")
 
         if self._table_format is None:
-            raise ValueError(f"Table {table.url} is not a detection or segmentation table.")
-        
+            raise ValueError(
+                f"Table {table.url} is not a detection or segmentation table."
+            )
+
         # Segmentation requires a segmentation table
         if self._task == "segment" and not self._table_format.startswith("segment"):
-            raise ValueError(f"Table {table.url} is not a segmentation table, but the task is set to 'segment'.")
+            raise ValueError(
+                f"Table {table.url} is not a segmentation table, but the task is set to 'segment'."
+            )
 
     def get_img_files(self, _):
         """Images are read in `get_labels` to avoid two loops, return empty list here."""
@@ -95,7 +105,11 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
     def _get_label_from_row(self, im_file: str, row: Any, example_id: int) -> Any:
         if callable(self._table_format):
             return tlc_table_row_to_yolo_label(
-                row, self._table_format, self._class_map, im_file, label_column_name=self._label_column_name,
+                row,
+                self._table_format,
+                self._class_map,
+                im_file,
+                label_column_name=self._label_column_name,
             )
         elif self._table_format in ("segment_relative", "segment_absolute"):
             return tlc_table_row_to_segment_label(
@@ -175,7 +189,9 @@ def unpack_boxes(
 ) -> tuple[np.ndarray, np.ndarray]:
     classes_list, boxes_list = [], []
     for bbox in bboxes:
-        _class, box = unpack_box(bbox, table_format, image_width, image_height, label_key)
+        _class, box = unpack_box(
+            bbox, table_format, image_width, image_height, label_key
+        )
 
         # Ignore boxes with non-positive width or height
         if box[2] > 0 and box[3] > 0:
@@ -207,7 +223,9 @@ def tlc_table_row_to_yolo_label(
     :param im_file: The path to the image file of the row.
     :returns: A dictionary containing the Ultralytics YOLO label information.
     """
-    bounding_boxes_column_key, bounding_boxes_list_key, label_key = label_column_name.split(".")
+    bounding_boxes_column_key, bounding_boxes_list_key, label_key = (
+        label_column_name.split(".")
+    )
 
     classes, bboxes = unpack_boxes(
         row[bounding_boxes_column_key][bounding_boxes_list_key],
@@ -220,7 +238,10 @@ def tlc_table_row_to_yolo_label(
 
     return dict(
         im_file=im_file,
-        shape=(row[bounding_boxes_column_key][tlc.IMAGE_HEIGHT], row[bounding_boxes_column_key][tlc.IMAGE_WIDTH]),  # format: (height, width)
+        shape=(
+            row[bounding_boxes_column_key][tlc.IMAGE_HEIGHT],
+            row[bounding_boxes_column_key][tlc.IMAGE_WIDTH],
+        ),  # format: (height, width)
         cls=classes,
         bboxes=bboxes,
         segments=[],
@@ -240,7 +261,9 @@ def tlc_table_row_to_segment_label(
 ) -> dict[str, Any]:
     # Row is here in sample view
 
-    segmentations_column_key, instance_properties_key, label_key = label_column_name.split(".")
+    segmentations_column_key, instance_properties_key, label_key = (
+        label_column_name.split(".")
+    )
 
     segmentations = row[segmentations_column_key]
     # Get image size
@@ -250,7 +273,10 @@ def tlc_table_row_to_segment_label(
     segments = []
 
     for i, (category, polygon) in enumerate(
-        zip(segmentations[instance_properties_key][label_key], segmentations[instance_properties_key]["polygons"])
+        zip(
+            segmentations[instance_properties_key][label_key],
+            segmentations[instance_properties_key]["polygons"],
+        )
     ):
         # Handle polygons with zero area
         if len(polygon) < 6:
