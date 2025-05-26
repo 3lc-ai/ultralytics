@@ -10,7 +10,6 @@ from tlc.client.torch.metrics.metrics_collectors.bounding_box_metrics_collector 
 )
 
 from ultralytics.data.utils import check_det_dataset
-from ultralytics.utils.tlc.segment.utils import check_seg_table
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 
@@ -159,6 +158,8 @@ def check_det_table(
     except Exception as e:
         # Fallback - segmentation tables are supported too as they can produce bounding boxes
         try:
+            from ultralytics.utils.tlc.segment.utils import check_seg_table
+
             check_seg_table(table, image_column_name, label_column_name)
         except ValueError:
             raise ValueError(

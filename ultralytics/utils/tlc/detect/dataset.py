@@ -9,7 +9,6 @@ from ultralytics.data.dataset import YOLODataset
 from ultralytics.data.utils import (
     segments2boxes,
 )
-from ultralytics.utils import ops
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
 
 from ultralytics.utils import LOGGER
