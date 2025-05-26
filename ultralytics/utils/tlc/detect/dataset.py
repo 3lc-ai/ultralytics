@@ -275,7 +275,7 @@ def tlc_table_row_to_segment_label(
     for i, (category, polygon) in enumerate(
         zip(
             segmentations[instance_properties_key][label_key],
-            segmentations[instance_properties_key]["polygons"],
+            segmentations["polygons"],
         )
     ):
         # Handle polygons with zero area
