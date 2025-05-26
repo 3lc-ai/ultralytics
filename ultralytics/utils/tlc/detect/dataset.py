@@ -45,6 +45,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self._task = task
 
         self._infer_table_format(table)
+        self._verify_table_format_compatibility()
 
         super().__init__(table, data=data, task=task, **kwargs)
 
@@ -61,6 +62,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             self._table_format = tlc.BoundingBox.from_schema(
                 table.rows_schema.values[column_name].values[instances_name]
             )
+            return
         except Exception as e:
             LOGGER.debug(f"Table {table.url} is not a detection table: {e}")
 
@@ -75,6 +77,8 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             self._table_format = (
                 "segment_relative" if polygons_are_relative else "segment_absolute"
             )
+            return
+
         except Exception as e:
             LOGGER.debug(f"Table {table.url} is not a segmentation table: {e}")
 
@@ -83,10 +87,27 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
                 f"Table {table.url} is not a detection or segmentation table."
             )
 
+    def _verify_table_format_compatibility(self):
+        """Verify that the table format is compatible with the task.
+
+        :raises ValueError: If the table is not compatible with the task."""
         # Segmentation requires a segmentation table
-        if self._task == "segment" and not self._table_format.startswith("segment"):
+        if (
+            self._task == "segment"
+            and isinstance(self._table_format, str)
+            and not self._table_format.startswith("segment")
+        ):
             raise ValueError(
-                f"Table {table.url} is not a segmentation table, but the task is set to 'segment'."
+                f"Table {self._table.url} is not a segmentation table, but the task is set to 'segment'."
+            )
+
+        if (
+            self._task == "detect"
+            and isinstance(self._table_format, str)
+            and self._table_format.startswith("segment")
+        ):
+            LOGGER.debug(
+                f"Table {self._table.url} is a segmentation table, using for detection."
             )
 
     def get_img_files(self, _):

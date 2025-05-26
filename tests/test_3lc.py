@@ -65,7 +65,7 @@ def get_metrics_tables_from_run(run: tlc.Run) -> dict[str, list[tlc.Table]]:
 
 @pytest.mark.parametrize("task", ["detect", "segment"])
 def test_training(task) -> None:
-    # End-to-end test of detection
+    # End-to-end test of training for detection and segmentation
     overrides = {
         "data": TASK2DATASET[task],
         "epochs": 1,
@@ -167,6 +167,32 @@ def test_detect_training_with_yolo12() -> None:
 
     # But should run to completion without embeddings collection
     model_3lc.train(**overrides)
+
+def test_detect_with_segmentation_table() -> None:
+    # Test that a segmentation table can be used for detection training
+    overrides = {
+        "data": TASK2DATASET["segment"],
+        "epochs": 1,
+        "batch": 4,
+        "device": "cpu",
+        "save": False,
+        "plots": False, }
+
+
+    settings = Settings(
+        project_name="test_detect_on_segment_table_project",
+        run_name="test_detect_on_segment_table_segmentation_training",
+        run_description="Test detect on segment table training",
+    )
+
+    model_segment = TLCYOLO(TASK2MODEL["segment"])
+    _ = model_segment.train(**overrides, settings=settings)
+
+    overrides["tables"] = {"train": model_segment.trainer.trainset, "val": model_segment.trainer.testset}
+
+    model_3lc = TLCYOLO(TASK2MODEL["detect"])
+    results_3lc = model_3lc.train(**overrides, settings=settings)
+    assert results_3lc, "Detection training failed"
 
 def test_classify_training() -> None:
     model = TASK2MODEL["classify"]
