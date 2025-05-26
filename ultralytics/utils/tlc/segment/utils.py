@@ -73,18 +73,18 @@ def check_seg_table(
     try:
         # Schema checks
         assert image_column_name in row_schema, (
-            f"Image column {image_column_name} not found in table with URL {table.url}"
+            f"Image column {image_column_name} not found."
         )
         assert label_column_name in row_schema, (
-            f"Label column {label_column_name} not found in table with URL {table.url}"
+            f"Label column {label_column_name} not found."
         )
 
         assert hasattr(row_schema[label_column_name], "sample_type"), (
-            f"Label column {label_column_name} does not have a sample type"
+            f"Label column {label_column_name} does not have a sample type."
         )
         sample_type = tlc.SampleType.from_schema(row_schema[label_column_name])
         assert isinstance(sample_type, tlc.InstanceSegmentationPolygons), (
-            f"Label column {label_column_name} does not have sample type InstanceSegmentationPolygons"
+            f"Label column {label_column_name} does not have sample type InstanceSegmentationPolygons."
         )
 
     except AssertionError as e:
