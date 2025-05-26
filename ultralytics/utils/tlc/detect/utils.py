@@ -112,7 +112,11 @@ def build_tlc_yolo_dataset(
     )
 
 
-def check_det_table(table: tlc.Table, image_column_name: str = tlc.IMAGE, label_column_name: str = f"{tlc.BOUNDING_BOXES}.{tlc.BOUNDING_BOX_LIST}.{tlc.LABEL}") -> None:
+def check_det_table(
+    table: tlc.Table,
+    image_column_name: str = tlc.IMAGE,
+    label_column_name: str = f"{tlc.BOUNDING_BOXES}.{tlc.BOUNDING_BOX_LIST}.{tlc.LABEL}",
+) -> None:
     """Check that a table is compatible with the detection task in the 3LC YOLO integration.
 
     :param table: The table to check.
@@ -122,7 +126,9 @@ def check_det_table(table: tlc.Table, image_column_name: str = tlc.IMAGE, label_
     """
     row_schema = table.row_schema.values
 
-    bounding_boxes_column_key, bounding_boxes_list_key, label_key = label_column_name.split(".")
+    bounding_boxes_column_key, bounding_boxes_list_key, label_key = (
+        label_column_name.split(".")
+    )
 
     try:
         assert image_column_name in row_schema
@@ -133,15 +139,31 @@ def check_det_table(table: tlc.Table, image_column_name: str = tlc.IMAGE, label_
         assert tlc.IMAGE_WIDTH in row_schema[bounding_boxes_column_key].values
 
         for coordinate in [tlc.X0, tlc.Y0, tlc.X1, tlc.Y1]:
-            assert coordinate in row_schema[bounding_boxes_column_key].values[bounding_boxes_list_key].values, f"Bounding box list {bounding_boxes_list_key} does not contain a {coordinate}."
-        assert label_key in row_schema[bounding_boxes_column_key].values[bounding_boxes_list_key].values, f"Bounding box list {bounding_boxes_list_key} does not contain a label {label_key}."
+            assert (
+                coordinate
+                in row_schema[bounding_boxes_column_key]
+                .values[bounding_boxes_list_key]
+                .values
+            ), (
+                f"Bounding box list {bounding_boxes_list_key} does not contain a {coordinate}."
+            )
+        assert (
+            label_key
+            in row_schema[bounding_boxes_column_key]
+            .values[bounding_boxes_list_key]
+            .values
+        ), (
+            f"Bounding box list {bounding_boxes_list_key} does not contain a label {label_key}."
+        )
 
     except Exception as e:
         # Fallback - segmentation tables are supported too as they can produce bounding boxes
         try:
             check_seg_table(table, image_column_name, label_column_name)
         except ValueError:
-            raise ValueError(f"Table with url {table.url} is not compatible with YOLO object detection. {e}")
+            raise ValueError(
+                f"Table with url {table.url} is not compatible with YOLO object detection. {e}"
+            )
 
 
 def yolo_predicted_bounding_box_schema(

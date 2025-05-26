@@ -44,7 +44,11 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         if task == "detect":
             # TODO: Error handling
             # TODO: Allow segmentation table here too
-            self._table_format = tlc.BoundingBox.from_schema(table.rows_schema.values[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST])
+            self._table_format = tlc.BoundingBox.from_schema(
+                table.rows_schema.values[tlc.BOUNDING_BOXES].values[
+                    tlc.BOUNDING_BOX_LIST
+                ]
+            )
         else:
             # The default is absolute, so if it is not present in the schema, it is absolute
             rles_schema_value = (
@@ -122,20 +126,36 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         )
         self.batch = bi  # batch index of image
 
-def convert_to_xywh(bbox: tlc.BoundingBox, image_width: int, image_height: int) -> CenteredXYWHBoundingBox:
+
+def convert_to_xywh(
+    bbox: tlc.BoundingBox, image_width: int, image_height: int
+) -> CenteredXYWHBoundingBox:
     if isinstance(bbox, CenteredXYWHBoundingBox):
         return bbox
     else:
-        return CenteredXYWHBoundingBox.from_top_left_xywh(bbox.to_top_left_xywh().normalize(image_width, image_height))
+        return CenteredXYWHBoundingBox.from_top_left_xywh(
+            bbox.to_top_left_xywh().normalize(image_width, image_height)
+        )
 
 
-def unpack_box(bbox: dict[str, int | float], table_format: Callable[[list[float]], tlc.BoundingBox], image_width: int, image_height: int) -> tuple[int, list[float]]:
+def unpack_box(
+    bbox: dict[str, int | float],
+    table_format: Callable[[list[float]], tlc.BoundingBox],
+    image_width: int,
+    image_height: int,
+) -> tuple[int, list[float]]:
     coordinates = [bbox[tlc.X0], bbox[tlc.Y0], bbox[tlc.X1], bbox[tlc.Y1]]
-    return bbox[tlc.LABEL], convert_to_xywh(table_format(coordinates), image_width, image_height)
+    return bbox[tlc.LABEL], convert_to_xywh(
+        table_format(coordinates), image_width, image_height
+    )
 
 
 def unpack_boxes(
-    bboxes: list[dict[str, int | float]], class_map: dict[int, int], table_format: Callable[[list[float]], tlc.BoundingBox], image_width: int, image_height: int
+    bboxes: list[dict[str, int | float]],
+    class_map: dict[int, int],
+    table_format: Callable[[list[float]], tlc.BoundingBox],
+    image_width: int,
+    image_height: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     classes_list, boxes_list = [], []
     for bbox in bboxes:
@@ -157,10 +177,13 @@ def unpack_boxes(
 
 
 def tlc_table_row_to_yolo_label(
-    row, table_format: Callable[[list[float]], tlc.BoundingBox], class_map: dict[int, int], im_file: str
+    row,
+    table_format: Callable[[list[float]], tlc.BoundingBox],
+    class_map: dict[int, int],
+    im_file: str,
 ) -> dict[str, Any]:
     """Convert a table row from a 3lc Table to a Ultralytics YOLO label dict.
-    
+
     :param row: The table row to convert.
     :param table_format: The format of the labels in the table. Is a callable for bounding boxes.
     :param class_map: A dictionary mapping 3lc class labels to contiguous class labels.
@@ -168,7 +191,11 @@ def tlc_table_row_to_yolo_label(
     :returns: A dictionary containing the Ultralytics YOLO label information.
     """
     classes, bboxes = unpack_boxes(
-        row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST], class_map, table_format, row["width"], row["height"],
+        row[tlc.BOUNDING_BOXES][tlc.BOUNDING_BOX_LIST],
+        class_map,
+        table_format,
+        row["width"],
+        row["height"],
     )
 
     return dict(
