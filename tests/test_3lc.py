@@ -158,7 +158,7 @@ def test_training(task) -> None:
 def test_detect_training_with_yolo12() -> None:
     model = "yolo12n.pt"
     data = TASK2DATASET["detect"]
-    overrides = {"data": data, "device": "cpu", "epochs": 1, "batch": 64, "imgsz": 32}
+    overrides = {"data": data, "device": "cpu", "epochs": 1, "batch": 64, "imgsz": 32, "label_column_name": "bbs"}
 
     model_3lc = TLCYOLO(model)
     # Embeddings can't be collected for yolo12

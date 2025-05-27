@@ -22,6 +22,7 @@ from ultralytics.utils.tlc.constants import (
     TLC_COLORSTR,
     TRAINING_PHASE,
 )
+from ultralytics.utils.tlc.engine.utils import _complete_label_column_name
 from ultralytics.utils.tlc.settings import Settings
 from ultralytics.utils.tlc.utils import image_embeddings_schema, training_phase_schema
 
@@ -72,6 +73,10 @@ class TLCValidatorMixin(BaseValidator):
             self._label_column_name = args.pop(
                 "label_column_name", self._default_label_column_name
             )
+            self._label_column_name = _complete_label_column_name(
+                self._label_column_name, self._default_label_column_name
+            )
+
             self._table = args.pop("table", None)
             self._training = False
 
