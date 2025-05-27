@@ -136,17 +136,23 @@ def check_det_table(
 
     try:
         assert image_column_name in row_schema, (
-            f"Image column {image_column_name} not found."
+            f"Image column '{image_column_name}' not found."
         )
         assert bounding_boxes_column_key in row_schema, (
-            f"Bounding boxes column {bounding_boxes_column_key} not found."
+            f"Bounding boxes column '{bounding_boxes_column_key}' not found."
         )
         assert (
             bounding_boxes_list_key in row_schema[bounding_boxes_column_key].values
-        ), f"Bounding boxes list {bounding_boxes_list_key} not found."
+        ), (
+            f"Bounding boxes list '{bounding_boxes_list_key}' not found in column '{bounding_boxes_column_key}'."
+        )
 
-        assert tlc.IMAGE_HEIGHT in row_schema[bounding_boxes_column_key].values
-        assert tlc.IMAGE_WIDTH in row_schema[bounding_boxes_column_key].values
+        assert tlc.IMAGE_HEIGHT in row_schema[bounding_boxes_column_key].values, (
+            f"Bounding boxes column {bounding_boxes_column_key} does not contain a key '{tlc.IMAGE_HEIGHT}'."
+        )
+        assert tlc.IMAGE_WIDTH in row_schema[bounding_boxes_column_key].values, (
+            f"Bounding boxes column {bounding_boxes_column_key} does not contain a key '{tlc.IMAGE_WIDTH}'."
+        )
 
         for coordinate in [tlc.X0, tlc.Y0, tlc.X1, tlc.Y1]:
             assert (
@@ -155,7 +161,7 @@ def check_det_table(
                 .values[bounding_boxes_list_key]
                 .values
             ), (
-                f"Bounding box list {bounding_boxes_list_key} does not contain a {coordinate}."
+                f"Bounding box list '{bounding_boxes_list_key}' in column '{bounding_boxes_column_key}' does not contain a key '{coordinate}'."
             )
         assert (
             label_key
@@ -163,28 +169,13 @@ def check_det_table(
             .values[bounding_boxes_list_key]
             .values
         ), (
-            f"Bounding box list {bounding_boxes_list_key} does not contain a label {label_key}."
+            f"Bounding box list '{bounding_boxes_list_key}' in column '{bounding_boxes_column_key}' does not contain a key '{label_key}'."
         )
 
-    except Exception as e:
-        # Fallback - segmentation tables are supported too as they can produce bounding boxes
-        try:
-            from ultralytics.utils.tlc.segment.utils import check_seg_table
-
-            check_seg_table(
-                table,
-                image_column_name,
-                label_column_name,
-            )
-
-            LOGGER.info(
-                f"Table {table.url} is a segmentation table, and the task is set to 'detect'. "
-                "The segmentations will be used to compute bounding boxes, and the predictions will be bounding boxes."
-            )
-        except ValueError:
-            raise ValueError(
-                f"Table with url {table.url} is not compatible with YOLO object detection. {e}"
-            )
+    except ValueError as e:
+        raise ValueError(
+            f"Table with url {table.url} is not compatible with YOLO object detection. {e}"
+        )
 
 
 def yolo_predicted_bounding_box_schema(
