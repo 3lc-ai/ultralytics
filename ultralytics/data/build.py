@@ -3,7 +3,7 @@
 import os
 import random
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import numpy as np
 import torch
@@ -154,7 +154,7 @@ def build_grounding(cfg, img_path, json_file, batch, mode="train", rect=False, s
     )
 
 
-def build_dataloader(dataset, batch: int, workers: int, shuffle: bool = True, rank: int = -1, sampler: torch.utils.data.Sampler | None = None):
+def build_dataloader(dataset, batch: int, workers: int, shuffle: bool = True, rank: int = -1, sampler: Optional[torch.utils.data.Sampler] = None):
     """
     Create and return an InfiniteDataLoader or DataLoader for training or validation.
 
