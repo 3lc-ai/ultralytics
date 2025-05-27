@@ -65,7 +65,7 @@ def get_metrics_tables_from_run(run: tlc.Run) -> dict[str, list[tlc.Table]]:
 
 @pytest.mark.parametrize("task", ["detect", "segment"])
 def test_training(task) -> None:
-    # End-to-end test of detection
+    # End-to-end test of training for detection and segmentation
     overrides = {
         "data": TASK2DATASET[task],
         "epochs": 1,
@@ -158,7 +158,7 @@ def test_training(task) -> None:
 def test_detect_training_with_yolo12() -> None:
     model = "yolo12n.pt"
     data = TASK2DATASET["detect"]
-    overrides = {"data": data, "device": "cpu", "epochs": 1, "batch": 64, "imgsz": 32}
+    overrides = {"data": data, "device": "cpu", "epochs": 1, "batch": 64, "imgsz": 32, "label_column_name": "bbs"}
 
     model_3lc = TLCYOLO(model)
     # Embeddings can't be collected for yolo12
@@ -769,7 +769,7 @@ def test_small_segmentations() -> None:
     assert len(table[0]["segmentations"]["polygons"][1]) < 6 # Expecting some kind of zero area polygon
     assert len(table[0]["segmentations"]["polygons"][2]) == 0 # Expecting an empty list
 
-    dataset = TLCYOLODataset(table, task="segment", data={})
+    dataset = TLCYOLODataset(table, task="segment", data={}, image_column_name="image", label_column_name=TASK2LABEL_COLUMN_NAME["segment"])
     assert len(dataset.labels[0]["segments"]) == 1
     assert len(dataset.labels[0]["cls"]) == 1
 
@@ -807,10 +807,10 @@ def test_absolute_segmentation_polygons() -> None:
     table = table_writer.finalize()
     
     # Should pass the seg table checker
-    check_seg_table(table, "image", "segmentations.instance_properties.label")
+    check_seg_table(table, "image", TASK2LABEL_COLUMN_NAME["segment"])
 
     # Should be able to populate the dataset with relative polygons
-    dataset = TLCYOLODataset(table, task="segment", data={})
+    dataset = TLCYOLODataset(table, task="segment", data={}, image_column_name="image", label_column_name=TASK2LABEL_COLUMN_NAME["segment"])
     assert len(dataset.labels[0]["segments"]) == 1
     assert all(polygon.max() <= 1.0 and polygon.min() >= 0.0 for polygon in dataset.labels[0]["segments"])
 

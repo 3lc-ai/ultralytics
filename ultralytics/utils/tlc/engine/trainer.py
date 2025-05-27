@@ -10,6 +10,7 @@ from ultralytics.utils.tlc.utils import reduce_embeddings
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK
 from ultralytics.utils.torch_utils import strip_optimizer
 from ultralytics.utils.metrics import smooth
+from ultralytics.utils.tlc.engine.utils import _complete_label_column_name
 
 
 class TLCTrainerMixin(BaseTrainer):
@@ -36,6 +37,9 @@ class TLCTrainerMixin(BaseTrainer):
         )
         self._label_column_name = overrides.pop(
             "label_column_name", self._default_label_column_name
+        )
+        self._label_column_name = _complete_label_column_name(
+            self._label_column_name, self._default_label_column_name
         )
 
         super().__init__(cfg, overrides, _callbacks)

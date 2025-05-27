@@ -75,7 +75,9 @@ class TLCDatasetMixin:
                 excluded += 1
                 continue
 
-            im_file = self._absolutize_image_url(row[tlc.IMAGE], self.table.url)
+            im_file = self._absolutize_image_url(
+                row[self._image_column_name], self.table.url
+            )
 
             (im_file, _), nf_f, nc_f, msg = verify_image(((im_file, None), ""))
 

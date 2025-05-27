@@ -10,9 +10,9 @@ from tlc.client.torch.metrics.metrics_collectors.bounding_box_metrics_collector 
 )
 
 from ultralytics.data.utils import check_det_dataset
-from ultralytics.utils import colorstr
 from ultralytics.utils.tlc.detect.dataset import TLCYOLODataset
 from ultralytics.utils.tlc.utils import check_tlc_dataset
+from ultralytics.utils import LOGGER
 
 from typing import Iterable
 
@@ -85,6 +85,8 @@ def build_tlc_yolo_dataset(
     exclude_zero=False,
     class_map=None,
     split=None,
+    image_column_name=None,
+    label_column_name=None,
 ):
     if multi_modal:
         return ValueError(
@@ -109,19 +111,70 @@ def build_tlc_yolo_dataset(
         classes=cfg.classes,
         data=data,
         fraction=cfg.fraction if mode == "train" else 1.0,
+        image_column_name=image_column_name,
+        label_column_name=label_column_name,
     )
 
 
-def check_det_table(table: tlc.Table, _0: str, _1: str) -> None:
+def check_det_table(
+    table: tlc.Table,
+    image_column_name: str = tlc.IMAGE,
+    label_column_name: str = f"{tlc.BOUNDING_BOXES}.{tlc.BOUNDING_BOX_LIST}.{tlc.LABEL}",
+) -> None:
     """Check that a table is compatible with the detection task in the 3LC YOLO integration.
 
-    :param split: The split of the table.
     :param table: The table to check.
+    :param image_column_name: The name of the column containing image paths.
+    :param label_column_name: The full label path of the column containing labels.
     :raises: ValueError if the table is not compatible with the detection task.
     """
-    if not (is_yolo_table(table) or is_coco_table(table)):
+    row_schema = table.row_schema.values
+
+    bounding_boxes_column_key, bounding_boxes_list_key, label_key = (
+        label_column_name.split(".")
+    )
+
+    try:
+        assert image_column_name in row_schema, (
+            f"Image column '{image_column_name}' not found."
+        )
+        assert bounding_boxes_column_key in row_schema, (
+            f"Bounding box column '{bounding_boxes_column_key}' not found."
+        )
+        assert (
+            bounding_boxes_list_key in row_schema[bounding_boxes_column_key].values
+        ), (
+            f"Bounding box list '{bounding_boxes_list_key}' not found in column '{bounding_boxes_column_key}'."
+        )
+
+        assert tlc.IMAGE_HEIGHT in row_schema[bounding_boxes_column_key].values, (
+            f"Bounding box column '{bounding_boxes_column_key}' does not contain a key '{tlc.IMAGE_HEIGHT}'."
+        )
+        assert tlc.IMAGE_WIDTH in row_schema[bounding_boxes_column_key].values, (
+            f"Bounding box column '{bounding_boxes_column_key}' does not contain a key '{tlc.IMAGE_WIDTH}'."
+        )
+
+        for coordinate in [tlc.X0, tlc.Y0, tlc.X1, tlc.Y1]:
+            assert (
+                coordinate
+                in row_schema[bounding_boxes_column_key]
+                .values[bounding_boxes_list_key]
+                .values
+            ), (
+                f"Bounding box list '{bounding_boxes_list_key}' in column '{bounding_boxes_column_key}' does not contain a key '{coordinate}'."
+            )
+        assert (
+            label_key
+            in row_schema[bounding_boxes_column_key]
+            .values[bounding_boxes_list_key]
+            .values
+        ), (
+            f"Bounding box list '{bounding_boxes_list_key}' in column '{bounding_boxes_column_key}' does not contain a key '{label_key}'."
+        )
+
+    except (AssertionError, KeyError) as e:
         raise ValueError(
-            f"Table {table.url} is not compatible with YOLO object detection, needs to be a YOLO or COCO table."
+            f"Table with url {table.url} is not compatible with YOLO object detection. {e}"
         )
 
 
@@ -231,110 +284,3 @@ def construct_bbox_struct(
         )
 
     return bbox_struct
-
-
-def is_yolo_table(table: tlc.Table) -> tuple[bool, str]:
-    """Check if the table is a YOLO table.
-
-    :param table: The table to check.
-    :returns: True if the table is a YOLO table, False otherwise.
-    """
-    row_schema = table.row_schema.values
-
-    try:
-        assert tlc.IMAGE in row_schema
-        assert tlc.WIDTH in row_schema
-        assert tlc.HEIGHT in row_schema
-        assert tlc.BOUNDING_BOXES in row_schema
-        assert tlc.BOUNDING_BOX_LIST in row_schema[tlc.BOUNDING_BOXES].values
-        assert (
-            tlc.LABEL
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.X0
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.Y0
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.X1
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.Y1
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-
-        X0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.X0]
-        Y0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.Y0]
-        X1 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.X1]
-        Y1 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.Y1]
-
-        assert X0.value.number_role == tlc.NUMBER_ROLE_BB_CENTER_X
-        assert Y0.value.number_role == tlc.NUMBER_ROLE_BB_CENTER_Y
-        assert X1.value.number_role == tlc.NUMBER_ROLE_BB_SIZE_X
-        assert Y1.value.number_role == tlc.NUMBER_ROLE_BB_SIZE_Y
-
-        assert X0.value.unit == tlc.UNIT_RELATIVE
-        assert Y0.value.unit == tlc.UNIT_RELATIVE
-        assert X1.value.unit == tlc.UNIT_RELATIVE
-        assert Y1.value.unit == tlc.UNIT_RELATIVE
-
-    except AssertionError:
-        return False
-
-    return True
-
-
-def is_coco_table(table: tlc.Table) -> bool:
-    """Check if the table is a COCO table.
-
-    :param table: The table to check.
-    :returns: True if the table is a COCO table, False otherwise.
-    """
-    row_schema = table.row_schema.values
-
-    try:
-        assert tlc.IMAGE in row_schema
-        assert tlc.WIDTH in row_schema
-        assert tlc.HEIGHT in row_schema
-        assert tlc.BOUNDING_BOXES in row_schema
-        assert tlc.BOUNDING_BOX_LIST in row_schema[tlc.BOUNDING_BOXES].values
-        assert (
-            tlc.LABEL
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.X0
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.Y0
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.X1
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-        assert (
-            tlc.Y1
-            in row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values
-        )
-
-        X0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.X0]
-        Y0 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.Y0]
-        X1 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.X1]
-        Y1 = row_schema[tlc.BOUNDING_BOXES].values[tlc.BOUNDING_BOX_LIST].values[tlc.Y1]
-
-        assert X0.value.number_role == tlc.NUMBER_ROLE_BB_MIN_X
-        assert Y0.value.number_role == tlc.NUMBER_ROLE_BB_MIN_Y
-        assert X1.value.number_role == tlc.NUMBER_ROLE_BB_SIZE_X
-        assert Y1.value.number_role == tlc.NUMBER_ROLE_BB_SIZE_Y
-
-    except AssertionError:
-        return False
-
-    return True
