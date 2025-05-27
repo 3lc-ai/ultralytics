@@ -36,8 +36,6 @@ class TLCDatasetMixin:
     def _absolutize_image_url(image_str: str, table_url: tlc.Url) -> str:
         """Expand aliases in the raw image string and absolutize the URL if it is relative.
 
-        Raise a ValueError if the alias cannot be expanded.
-
         :param image_str: The raw image string to absolutize.
         :param table_url: The table URL to use for absolutization, usually the table whose images are being used.
         :return: The absolutized image string.
@@ -70,8 +68,10 @@ class TLCDatasetMixin:
         desc = f"{colored_prefix} Preparing data from {self.table.url.to_str()}"
         pbar = TQDM(enumerate(self.table.table_rows), desc=desc, total=len(self.table))
 
+        weight_column_name = self.table.weights_column_name
+
         for example_id, row in pbar:
-            if self._exclude_zero and row.get(tlc.SAMPLE_WEIGHT, 1) == 0:
+            if self._exclude_zero and row.get(weight_column_name, 1) == 0:
                 excluded += 1
                 continue
 
