@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 import tlc
-from typing import Any, Callable, Literal, TypedDict
+from typing import Any, Callable, Literal
 
 from tlc.core.builtins.types.bounding_box import CenteredXYWHBoundingBox
 from ultralytics.data.dataset import YOLODataset
@@ -20,7 +20,7 @@ class IdentityDict(dict):
 
 
 class TLCYOLODataset:
-    """Factory class for creating appropriate 3LC YOLO datasets."""
+    """Factory class for creating task-specific 3LC YOLO datasets."""
 
     def __new__(
         cls,
@@ -73,7 +73,7 @@ class TLCYOLODataset:
 class BaseTLCYOLODataset(TLCDatasetMixin, YOLODataset):
     """Base class for 3LC YOLO datasets.
 
-    This class provides common functionality for both detection and segmentation datasets.
+    This class provides common functionality for any detection task.
     Task-specific functionality should be implemented in subclasses.
     """
 
@@ -159,7 +159,7 @@ class BaseTLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
 
 class TLCYOLODetectionDataset(BaseTLCYOLODataset):
-    """3LC YOLO dataset for object detection tasks."""
+    """3LC YOLO dataset for object detection."""
 
     def __init__(
         self,
@@ -198,7 +198,7 @@ class TLCYOLODetectionDataset(BaseTLCYOLODataset):
     def _get_detection_factory(
         self, table: tlc.Table, label_column_name: str
     ) -> Callable[[list[float]], tlc.BoundingBox]:
-        """Infer the format of the table and set the detection factory.
+        """Infer the bounding box factory from the table schema.
 
         :param table: The 3LC table containing the dataset
         :param label_column_name: The name of the label column in the table
@@ -229,7 +229,7 @@ class TLCYOLODetectionDataset(BaseTLCYOLODataset):
 
 
 class TLCYOLOSegmentationDataset(BaseTLCYOLODataset):
-    """3LC YOLO dataset for instance segmentation tasks."""
+    """3LC YOLO dataset for instance segmentation."""
 
     def __init__(
         self,
@@ -267,7 +267,7 @@ class TLCYOLOSegmentationDataset(BaseTLCYOLODataset):
     def _get_segment_type(
         self, table: tlc.Table, label_column_name: str
     ) -> SegmentType:
-        """Infer the format of the table and set the segment type.
+        """Verify the table format and check if the polygons are relative.
 
         :param table: The 3LC table containing the dataset
         :param label_column_name: The name of the label column in the table
