@@ -139,19 +139,19 @@ def check_det_table(
             f"Image column '{image_column_name}' not found."
         )
         assert bounding_boxes_column_key in row_schema, (
-            f"Bounding boxes column '{bounding_boxes_column_key}' not found."
+            f"Bounding box column '{bounding_boxes_column_key}' not found."
         )
         assert (
             bounding_boxes_list_key in row_schema[bounding_boxes_column_key].values
         ), (
-            f"Bounding boxes list '{bounding_boxes_list_key}' not found in column '{bounding_boxes_column_key}'."
+            f"Bounding box list '{bounding_boxes_list_key}' not found in column '{bounding_boxes_column_key}'."
         )
 
         assert tlc.IMAGE_HEIGHT in row_schema[bounding_boxes_column_key].values, (
-            f"Bounding boxes column {bounding_boxes_column_key} does not contain a key '{tlc.IMAGE_HEIGHT}'."
+            f"Bounding box column '{bounding_boxes_column_key}' does not contain a key '{tlc.IMAGE_HEIGHT}'."
         )
         assert tlc.IMAGE_WIDTH in row_schema[bounding_boxes_column_key].values, (
-            f"Bounding boxes column {bounding_boxes_column_key} does not contain a key '{tlc.IMAGE_WIDTH}'."
+            f"Bounding box column '{bounding_boxes_column_key}' does not contain a key '{tlc.IMAGE_WIDTH}'."
         )
 
         for coordinate in [tlc.X0, tlc.Y0, tlc.X1, tlc.Y1]:
@@ -172,7 +172,7 @@ def check_det_table(
             f"Bounding box list '{bounding_boxes_list_key}' in column '{bounding_boxes_column_key}' does not contain a key '{label_key}'."
         )
 
-    except ValueError as e:
+    except (AssertionError, KeyError) as e:
         raise ValueError(
             f"Table with url {table.url} is not compatible with YOLO object detection. {e}"
         )
