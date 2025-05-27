@@ -768,7 +768,7 @@ def test_small_segmentations() -> None:
     assert len(table[0]["segmentations"]["polygons"][1]) < 6 # Expecting some kind of zero area polygon
     assert len(table[0]["segmentations"]["polygons"][2]) == 0 # Expecting an empty list
 
-    dataset = TLCYOLODataset(table, task="segment", data={})
+    dataset = TLCYOLODataset(table, task="segment", data={}, image_column_name="image", label_column_name=TASK2LABEL_COLUMN_NAME["segment"])
     assert len(dataset.labels[0]["segments"]) == 1
     assert len(dataset.labels[0]["cls"]) == 1
 
@@ -806,10 +806,10 @@ def test_absolute_segmentation_polygons() -> None:
     table = table_writer.finalize()
     
     # Should pass the seg table checker
-    check_seg_table(table, "image", "segmentations.instance_properties.label")
+    check_seg_table(table, "image", TASK2LABEL_COLUMN_NAME["segment"])
 
     # Should be able to populate the dataset with relative polygons
-    dataset = TLCYOLODataset(table, task="segment", data={})
+    dataset = TLCYOLODataset(table, task="segment", data={}, image_column_name="image", label_column_name=TASK2LABEL_COLUMN_NAME["segment"])
     assert len(dataset.labels[0]["segments"]) == 1
     assert all(polygon.max() <= 1.0 and polygon.min() >= 0.0 for polygon in dataset.labels[0]["segments"])
 
