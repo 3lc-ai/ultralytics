@@ -3,17 +3,16 @@ from __future__ import annotations
 
 import numpy as np
 import tlc
+from typing import Any, Callable, Literal
 
 from tlc.core.builtins.types.bounding_box import CenteredXYWHBoundingBox
 from ultralytics.data.dataset import YOLODataset
-from ultralytics.data.utils import (
-    segments2boxes,
-)
+from ultralytics.data.utils import segments2boxes
 from ultralytics.utils.tlc.engine.dataset import TLCDatasetMixin
-
 from ultralytics.utils import LOGGER
 
-from typing import Any, Callable
+TableFormat = Literal["detect", "segment"]
+SegmentType = Literal["absolute", "relative"]
 
 
 class IdentityDict(dict):
@@ -33,7 +32,16 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         label_column_name=None,
         **kwargs,
     ):
-        """3LC equivalent of YOLODataset, populating the data fields from a 3LC Table."""
+        """3LC equivalent of YOLODataset, populating the data fields from a 3LC Table.
+
+        :param table: The 3LC table containing the dataset
+        :param data: Optional data parameter for YOLODataset
+        :param task: Either "segment" or "detect"
+        :param exclude_zero: Whether to exclude zero-class annotations
+        :param class_map: Optional mapping from original class indices to new ones
+        :param image_column_name: Name of the image column in the table
+        :param label_column_name: Name of the label column in the table
+        """
         assert task in ("segment", "detect"), (
             f"Unsupported task: {task} for TLCYOLODataset. Only 'segment' and 'detect' are supported."
         )
@@ -44,68 +52,64 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self._label_column_name = label_column_name
         self._task = task
 
+        # Initialize format-related properties
+        self._table_format: TableFormat = "detect"  # Will be set by _infer_table_format
+        self._detection_factory: Callable[[list[float]], tlc.BoundingBox] | None = None
+        self._segment_type: SegmentType | None = None
+
         self._infer_table_format(table)
         self._verify_table_format_task_compatibility()
 
         super().__init__(table, data=data, task=task, **kwargs)
-
         self._post_init()
 
-    def _infer_table_format(self, table: tlc.Table):
-        """Infer the format of the table and verify compatibility with the task."""
-        self._table_format = None
+    def _infer_table_format(self, table: tlc.Table) -> None:
+        """Infer the format of the table and set appropriate format properties.
 
+        This method determines whether the table contains detection or segmentation data
+        and sets the corresponding format properties.
+        """
         column_name, instances_name, label_name = self._label_column_name.split(".")
 
-        # See if it is a detection table
+        # Detection
         try:
-            self._table_format = tlc.BoundingBox.from_schema(
+            self._detection_factory = tlc.BoundingBox.from_schema(
                 table.rows_schema.values[column_name].values[instances_name]
             )
+            self._table_format = "detect"
             return
         except Exception as e:
             LOGGER.debug(f"Table {table.url} is not a detection table: {e}")
 
-        # See if it is a segmentation table
+        # Segmentation
         try:
             rles_schema_value = table.rows_schema.values[column_name].values[
                 instances_name
             ]
-            polygons_are_relative = getattr(
-                rles_schema_value, "polygons_are_relative", False
+            self._segment_type = (
+                "relative"
+                if getattr(rles_schema_value, "polygons_are_relative", False)
+                else "absolute"
             )
-            self._table_format = (
-                "segment_relative" if polygons_are_relative else "segment_absolute"
-            )
+            self._table_format = "segment"
             return
-
         except Exception as e:
             LOGGER.debug(f"Table {table.url} is not a segmentation table: {e}")
 
-        if self._table_format is None:
-            raise ValueError(
-                f"Table {table.url} is not a detection or segmentation table."
-            )
+        raise ValueError(f"Table {table.url} is not a detection or segmentation table.")
 
-    def _verify_table_format_task_compatibility(self):
+    def _verify_table_format_task_compatibility(self) -> None:
         """Verify that the table format is compatible with the task.
 
-        :raises ValueError: If the table is not compatible with the task."""
-        # Segmentation requires a segmentation table
-        if (
-            self._task == "segment"
-            and isinstance(self._table_format, str)
-            and not self._table_format.startswith("segment")
-        ):
+        Raises:
+            ValueError: If the table format is not compatible with the task.
+        """
+        if self._task == "segment" and self._table_format != "segment":
             raise ValueError(
                 f"Table {self.table.url} is not a segmentation table, but the task is set to 'segment'."
             )
 
-        if (
-            self._task == "detect"
-            and isinstance(self._table_format, str)
-            and self._table_format.startswith("segment")
-        ):
+        if self._task == "detect" and self._table_format == "segment":
             LOGGER.debug(
                 f"Table {self.table.url} is a segmentation table, using for detection."
             )
@@ -123,26 +127,36 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
 
         return self.labels
 
-    def _get_label_from_row(self, im_file: str, row: Any, example_id: int) -> Any:
-        if callable(self._table_format):
+    def _get_label_from_row(
+        self, im_file: str, row: Any, example_id: int
+    ) -> dict[str, Any]:
+        """Get the label for a row in the appropriate format.
+
+        Args:
+            im_file: Path to the image file
+            row: The table row to process
+            example_id: The index of the row in the table
+
+        Returns:
+            A dictionary containing the label information in YOLO format
+        """
+        if self._table_format == "detect":
             return tlc_table_row_to_yolo_label(
                 row,
-                self._table_format,
+                self._detection_factory,
                 self._class_map,
                 im_file,
                 label_column_name=self._label_column_name,
             )
-        elif self._table_format in ("segment_relative", "segment_absolute"):
+        else:  # segment
             return tlc_table_row_to_segment_label(
                 self.table[example_id],
-                self._table_format,
+                self._segment_type,
                 self._class_map,
                 im_file,
                 self._label_column_name,
                 row_index=example_id,
             )
-        else:
-            raise ValueError(f"Unsupported table format: {self._table_format}")
 
     def set_rectangle(self):
         """Save the batch shapes and indices for the dataset."""
@@ -231,18 +245,22 @@ def unpack_boxes(
 
 def tlc_table_row_to_yolo_label(
     row,
-    table_format: Callable[[list[float]], tlc.BoundingBox],
+    detection_factory: Callable[[list[float]], tlc.BoundingBox],
     class_map: dict[int, int],
     im_file: str,
     label_column_name: str,
 ) -> dict[str, Any]:
     """Convert a table row from a 3lc Table to a Ultralytics YOLO label dict.
 
-    :param row: The table row to convert.
-    :param table_format: The format of the labels in the table. Is a callable for bounding boxes.
-    :param class_map: A dictionary mapping 3lc class labels to contiguous class labels.
-    :param im_file: The path to the image file of the row.
-    :returns: A dictionary containing the Ultralytics YOLO label information.
+    Args:
+        row: The table row to convert
+        detection_factory: Factory function to create bounding boxes
+        class_map: A dictionary mapping 3lc class labels to contiguous class labels
+        im_file: The path to the image file of the row
+        label_column_name: The name of the label column in the table
+
+    Returns:
+        A dictionary containing the Ultralytics YOLO label information
     """
     bounding_boxes_column_key, bounding_boxes_list_key, label_key = (
         label_column_name.split(".")
@@ -251,7 +269,7 @@ def tlc_table_row_to_yolo_label(
     classes, bboxes = unpack_boxes(
         row[bounding_boxes_column_key][bounding_boxes_list_key],
         class_map,
-        table_format,
+        detection_factory,
         row[bounding_boxes_column_key][tlc.IMAGE_WIDTH],
         row[bounding_boxes_column_key][tlc.IMAGE_HEIGHT],
         label_key,
@@ -274,14 +292,25 @@ def tlc_table_row_to_yolo_label(
 
 def tlc_table_row_to_segment_label(
     row,
-    table_format: str,
+    segment_type: SegmentType,
     class_map: dict[int, int],
     im_file: str,
     label_column_name: str,
     row_index: int | None = None,
 ) -> dict[str, Any]:
-    # Row is here in sample view
+    """Convert a table row from a 3lc Table to a Ultralytics YOLO segmentation label dict.
 
+    Args:
+        row: The table row to convert
+        segment_type: Whether the segments are absolute or relative coordinates
+        class_map: A dictionary mapping 3lc class labels to contiguous class labels
+        im_file: The path to the image file of the row
+        label_column_name: The name of the label column in the table
+        row_index: Optional index of the row for logging purposes
+
+    Returns:
+        A dictionary containing the Ultralytics YOLO segmentation label information
+    """
     segmentations_column_key, instance_properties_key, label_key = (
         label_column_name.split(".")
     )
@@ -309,7 +338,7 @@ def tlc_table_row_to_segment_label(
         classes.append(class_map[category])
         row_segments = np.array(polygon).reshape(-1, 2)
 
-        if table_format.endswith("absolute"):
+        if segment_type == "absolute":
             row_segments = row_segments / np.array([width, height])
 
         segments.append(row_segments)
