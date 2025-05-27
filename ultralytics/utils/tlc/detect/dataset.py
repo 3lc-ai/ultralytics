@@ -45,7 +45,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
         self._task = task
 
         self._infer_table_format(table)
-        self._verify_table_format_compatibility()
+        self._verify_table_format_task_compatibility()
 
         super().__init__(table, data=data, task=task, **kwargs)
 
@@ -87,7 +87,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
                 f"Table {table.url} is not a detection or segmentation table."
             )
 
-    def _verify_table_format_compatibility(self):
+    def _verify_table_format_task_compatibility(self):
         """Verify that the table format is compatible with the task.
 
         :raises ValueError: If the table is not compatible with the task."""
@@ -98,7 +98,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             and not self._table_format.startswith("segment")
         ):
             raise ValueError(
-                f"Table {self._table.url} is not a segmentation table, but the task is set to 'segment'."
+                f"Table {self.table.url} is not a segmentation table, but the task is set to 'segment'."
             )
 
         if (
@@ -107,7 +107,7 @@ class TLCYOLODataset(TLCDatasetMixin, YOLODataset):
             and self._table_format.startswith("segment")
         ):
             LOGGER.debug(
-                f"Table {self._table.url} is a segmentation table, using for detection."
+                f"Table {self.table.url} is a segmentation table, using for detection."
             )
 
     def get_img_files(self, _):

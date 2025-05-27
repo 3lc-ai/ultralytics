@@ -135,9 +135,15 @@ def check_det_table(
     )
 
     try:
-        assert image_column_name in row_schema
-        assert bounding_boxes_column_key in row_schema
-        assert bounding_boxes_list_key in row_schema[bounding_boxes_column_key].values
+        assert image_column_name in row_schema, (
+            f"Image column {image_column_name} not found."
+        )
+        assert bounding_boxes_column_key in row_schema, (
+            f"Bounding boxes column {bounding_boxes_column_key} not found."
+        )
+        assert (
+            bounding_boxes_list_key in row_schema[bounding_boxes_column_key].values
+        ), f"Bounding boxes list {bounding_boxes_list_key} not found."
 
         assert tlc.IMAGE_HEIGHT in row_schema[bounding_boxes_column_key].values
         assert tlc.IMAGE_WIDTH in row_schema[bounding_boxes_column_key].values
@@ -165,7 +171,11 @@ def check_det_table(
         try:
             from ultralytics.utils.tlc.segment.utils import check_seg_table
 
-            check_seg_table(table, image_column_name, label_column_name)
+            check_seg_table(
+                table,
+                image_column_name,
+                label_column_name,
+            )
 
             LOGGER.info(
                 f"Table {table.url} is a segmentation table, and the task is set to 'detect'. "

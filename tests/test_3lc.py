@@ -191,7 +191,7 @@ def test_detect_with_segmentation_table() -> None:
     overrides["tables"] = {"train": model_segment.trainer.trainset, "val": model_segment.trainer.testset}
 
     model_3lc = TLCYOLO(TASK2MODEL["detect"])
-    results_3lc = model_3lc.train(**overrides, settings=settings)
+    results_3lc = model_3lc.train(**overrides, settings=settings, image_column_name="image", label_column_name="segmentations.instance_properties.label")
     assert results_3lc, "Detection training failed"
 
 def test_classify_training() -> None:
