@@ -6,7 +6,7 @@ import tlc
 from pathlib import Path
 
 from ultralytics.data.utils import IMG_FORMATS, check_cls_dataset
-from ultralytics.utils import ROOT, yaml_load
+from ultralytics.utils import ROOT, YAML
 from ultralytics.utils.tlc.utils import check_tlc_dataset
 
 from typing import Iterable
@@ -72,7 +72,7 @@ def get_or_create_cls_table(
     )
 
     if is_imagenet:
-        label_overrides = yaml_load(ROOT / "cfg/datasets/ImageNet.yaml")["map"]
+        label_overrides = YAML.load(ROOT / "cfg/datasets/ImageNet.yaml")["map"]
         label_overrides = {
             k: tlc.MapElement(internal_name=k, display_name=v)
             for k, v in label_overrides.items()
