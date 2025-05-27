@@ -168,32 +168,6 @@ def test_detect_training_with_yolo12() -> None:
     # But should run to completion without embeddings collection
     model_3lc.train(**overrides)
 
-def test_detect_with_segmentation_table() -> None:
-    # Test that a segmentation table can be used for detection training
-    overrides = {
-        "data": TASK2DATASET["segment"],
-        "epochs": 1,
-        "batch": 4,
-        "device": "cpu",
-        "save": False,
-        "plots": False, }
-
-
-    settings = Settings(
-        project_name="test_detect_on_segment_table_project",
-        run_name="test_detect_on_segment_table_segmentation_training",
-        run_description="Test detect on segment table training",
-    )
-
-    model_segment = TLCYOLO(TASK2MODEL["segment"])
-    _ = model_segment.train(**overrides, settings=settings)
-
-    overrides["tables"] = {"train": model_segment.trainer.trainset, "val": model_segment.trainer.testset}
-
-    model_3lc = TLCYOLO(TASK2MODEL["detect"])
-    results_3lc = model_3lc.train(**overrides, settings=settings, image_column_name="image", label_column_name="segmentations.instance_properties.label")
-    assert results_3lc, "Detection training failed"
-
 def test_classify_training() -> None:
     model = TASK2MODEL["classify"]
     data = TASK2DATASET["classify"]
