@@ -464,6 +464,7 @@ def test_exclude_zero_weight_collection(task, trainer_class) -> None:
     assert 3 not in sampled_example_ids, "Sample with zero weight should not be included in collection"
     assert len(sampled_example_ids) == len(edited_table) - 2, "Expected two samples to be excluded"
 
+@pytest.mark.skipif(tlc.__version__ < "2.14.0", reason="Test requires 3LC 2.14.0 or higher")
 @pytest.mark.parametrize("task", ["detect", "classify"])
 def test_train_no_weight_column_in_table(task) -> None:
     # Test that training with a table that has no weight column works
