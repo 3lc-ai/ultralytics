@@ -110,6 +110,7 @@ class TLCYOLO(YOLO):
                 tlc.active_run(),
                 method=settings.image_embeddings_reducer,
                 n_components=settings.image_embeddings_dim,
+                reducer_args=settings.reducer_args,
             )
 
         tlc.active_run().set_status_completed()
