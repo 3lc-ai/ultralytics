@@ -48,6 +48,12 @@ class Settings:
     image_embeddings_reducer: str = field(default="pacmap")
     """Reduction algorithm for image embeddings. Options: pacmap and umap. Only used if IMAGE_EMBEDDINGS_DIM > 0. Default: 'pacmap'"""
 
+    image_embeddings_reducer_args: dict = field(default_factory=dict)
+    """Reduction-method specific arguments to exert fine-grained control over the reduction process. 
+    See [PaCMAPTableArgs](https://docs.3lc.ai/3lc/latest/apidocs/tlc/tlc.client.reduce.pacmap.html#tlc.client.reduce.pacmap.PaCMAPTableArgs) 
+    or [UMAPTableArgs](https://docs.3lc.ai/3lc/latest/apidocs/tlc/tlc.client.reduce.umap.html#tlc.client.reduce.umap.UMAPTableArgs) for more details.
+    """
+
     sampling_weights: bool = field(default=False)
     """Whether to use 3LC Sampling Weights. Default: False"""
 
