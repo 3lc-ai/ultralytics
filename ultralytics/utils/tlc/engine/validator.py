@@ -211,6 +211,9 @@ class TLCValidatorMixin(BaseValidator):
             **self._compute_3lc_metrics(preds, batch),  # Task specific metrics
         }
 
+        if self._settings.metrics_collection_function:
+            batch_metrics.update(self._settings.metrics_collection_function(preds, batch))
+
         if self._settings.image_embeddings_dim > 0:
             batch_metrics["embeddings"] = self.embeddings
 
