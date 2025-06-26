@@ -233,6 +233,9 @@ class TLCValidatorMixin(BaseValidator):
             self._get_metrics_schemas()
         )  # Add task-specific metrics schema
 
+        if self._settings.metrics_schemas:
+            column_schemas.update(self._settings.metrics_schemas)
+
         self._prepare_loss_fn(model)
 
         if self._settings.image_embeddings_dim > 0:

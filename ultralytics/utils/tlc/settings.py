@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field, fields
 from difflib import get_close_matches
 from typing import Any, Callable
-
+import tlc
 
 from ultralytics.utils import LOGGER
 from ultralytics.utils.tlc.constants import TLC_COLORSTR
@@ -91,6 +91,12 @@ class Settings:
         This function must be pickleable if using multiprocessing. Avoid lambda
         functions and ensure the function is defined at module level.
     
+    Default: None"""
+    
+    metrics_schemas: dict[str, tlc.Schema] | None = field(default=None)
+    """Schemas for any additional metrics returned by the metrics_collection_function.
+    
+    Providing schemas is optional, but for complex metrics, it is recommended to provide a schema.
     Default: None"""
 
     @classmethod
