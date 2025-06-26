@@ -70,7 +70,9 @@ class Settings:
     collection_epoch_interval: int = field(default=1)
     """Epoch interval for collection. Only used if a starting epoch is set. Default: 1"""
 
-    metrics_collection_function: Callable[[Any, Any], dict[str, Any]] | None = field(default=None)
+    metrics_collection_function: Callable[[Any, Any], dict[str, Any]] | None = field(
+        default=None
+    )
     """Function to compute additional metrics during collection.
     
     This function should take predictions and batch data as arguments and return
@@ -92,7 +94,7 @@ class Settings:
         functions and ensure the function is defined at module level.
     
     Default: None"""
-    
+
     metrics_schemas: dict[str, tlc.Schema] | None = field(default=None)
     """Schemas for any additional metrics returned by the metrics_collection_function.
     
@@ -151,7 +153,7 @@ class Settings:
         )
         if self.image_embeddings_dim > 0:
             self._check_reducer_available()
-        
+
         # Validate metrics collection function if provided
         if self.metrics_collection_function is not None:
             assert callable(self.metrics_collection_function), (
@@ -305,9 +307,11 @@ class Settings:
 
         # Display defaults differently for environment variables as they are provided differently
         if self._from_env:
+
             def formatter(x):
                 return x if not isinstance(x, list) else ",".join(x)
         else:
+
             def formatter(x):
                 return x
 
