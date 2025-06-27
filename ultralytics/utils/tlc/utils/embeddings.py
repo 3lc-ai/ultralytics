@@ -12,6 +12,7 @@ def reduce_embeddings(
     method: str,
     n_components: int,
     foreign_table_url: tlc.Url | None = None,
+    reducer_args: dict = {},
 ):
     """Reduce image embeddings by a foreign table URL."""
     if foreign_table_url is None:
@@ -27,4 +28,5 @@ def reduce_embeddings(
         foreign_table_url=foreign_table_url,
         method=method,
         n_components=n_components,
+        **reducer_args,
     )
