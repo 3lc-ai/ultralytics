@@ -16,14 +16,55 @@ class RTDETRDataset(YOLODataset):
 
     This specialized dataset class is designed for use with the RT-DETR object detection model and is optimized for
     real-time detection and tracking tasks.
+
+    Attributes:
+        augment (bool): Whether to apply data augmentation.
+        rect (bool): Whether to use rectangular training.
+        use_segments (bool): Whether to use segmentation masks.
+        use_keypoints (bool): Whether to use keypoint annotations.
+        imgsz (int): Target image size for training.
+
+    Methods:
+        load_image: Load one image from dataset index.
+        build_transforms: Build transformation pipeline for the dataset.
+
+    Examples:
+        Initialize an RT-DETR dataset
+        >>> dataset = RTDETRDataset(img_path="path/to/images", imgsz=640)
+        >>> image, hw = dataset.load_image(0)
     """
 
     def __init__(self, *args, data=None, **kwargs):
-        """Initialize the RTDETRDataset class by inheriting from the YOLODataset class."""
+        """
+        Initialize the RTDETRDataset class by inheriting from the YOLODataset class.
+
+        This constructor sets up a dataset specifically optimized for the RT-DETR (Real-Time DEtection and TRacking)
+        model, building upon the base YOLODataset functionality.
+
+        Args:
+            *args (Any): Variable length argument list passed to the parent YOLODataset class.
+            data (dict | None): Dictionary containing dataset information. If None, default values will be used.
+            **kwargs (Any): Additional keyword arguments passed to the parent YOLODataset class.
+        """
         super().__init__(*args, data=data, **kwargs)
 
     def load_image(self, i, rect_mode=False):
-        """Loads 1 image from dataset index 'i', returns (im, resized hw)."""
+        """
+        Load one image from dataset index 'i'.
+
+        Args:
+            i (int): Index of the image to load.
+            rect_mode (bool, optional): Whether to use rectangular mode for batch inference.
+
+        Returns:
+            im (torch.Tensor): The loaded image.
+            resized_hw (tuple): Height and width of the resized image with shape (2,).
+
+        Examples:
+            Load an image from the dataset
+            >>> dataset = RTDETRDataset(img_path="path/to/images")
+            >>> image, hw = dataset.load_image(0)
+        """
         return super().load_image(i=i, rect_mode=rect_mode)
 
     def build_transforms(self, hyp=None):
@@ -39,6 +80,7 @@ class RTDETRDataset(YOLODataset):
         if self.augment:
             hyp.mosaic = hyp.mosaic if self.augment and not self.rect else 0.0
             hyp.mixup = hyp.mixup if self.augment and not self.rect else 0.0
+            hyp.cutmix = hyp.cutmix if self.augment and not self.rect else 0.0
             transforms = v8_transforms(self, self.imgsz, hyp, stretch=True)
         else:
             # transforms = Compose([LetterBox(new_shape=(self.imgsz, self.imgsz), auto=False, scale_fill=True)])
@@ -65,13 +107,22 @@ class RTDETRValidator(DetectionValidator):
     The class allows building of an RTDETR-specific dataset for validation, applies Non-maximum suppression for
     post-processing, and updates evaluation metrics accordingly.
 
+    Attributes:
+        args (Namespace): Configuration arguments for validation.
+        data (dict): Dataset configuration dictionary.
+
+    Methods:
+        build_dataset: Build an RTDETR Dataset for validation.
+        postprocess: Apply Non-maximum suppression to prediction outputs.
+
     Examples:
+        Initialize and run RT-DETR validation
         >>> from ultralytics.models.rtdetr import RTDETRValidator
         >>> args = dict(model="rtdetr-l.pt", data="coco8.yaml")
         >>> validator = RTDETRValidator(args=args)
         >>> validator()
 
-    Note:
+    Notes:
         For further details on the attributes and methods, refer to the parent DetectionValidator class.
     """
 
@@ -81,7 +132,8 @@ class RTDETRValidator(DetectionValidator):
 
         Args:
             img_path (str): Path to the folder containing images.
-            mode (str): `train` mode or `val` mode, users are able to customize different augmentations for each mode.
+            mode (str, optional): `train` mode or `val` mode, users are able to customize different augmentations for
+                each mode.
             batch (int, optional): Size of batches, this is for `rect`.
 
         Returns:
@@ -104,10 +156,10 @@ class RTDETRValidator(DetectionValidator):
         Apply Non-maximum suppression to prediction outputs.
 
         Args:
-            preds (List | Tuple | torch.Tensor): Raw predictions from the model.
+            preds (list | tuple | torch.Tensor): Raw predictions from the model.
 
         Returns:
-            (List[torch.Tensor]): List of processed predictions for each image in batch.
+            (list[torch.Tensor]): List of processed predictions for each image in batch.
         """
         if not isinstance(preds, (list, tuple)):  # list for PyTorch inference but list[0] Tensor for export inference
             preds = [preds, None]
@@ -119,18 +171,16 @@ class RTDETRValidator(DetectionValidator):
         for i, bbox in enumerate(bboxes):  # (300, 4)
             bbox = ops.xywh2xyxy(bbox)
             score, cls = scores[i].max(-1)  # (300, )
-            # Do not need threshold for evaluation as only got 300 boxes here
-            # idx = score > self.args.conf
             pred = torch.cat([bbox, score[..., None], cls[..., None]], dim=-1)  # filter
             # Sort by confidence to correctly get internal metrics
             pred = pred[score.argsort(descending=True)]
-            outputs[i] = pred  # [idx]
+            outputs[i] = pred[score > self.args.conf]
 
         return outputs
 
     def _prepare_batch(self, si, batch):
         """
-        Prepares a batch for validation by applying necessary transformations.
+        Prepare a batch for validation by applying necessary transformations.
 
         Args:
             si (int): Batch index.
@@ -153,7 +203,7 @@ class RTDETRValidator(DetectionValidator):
 
     def _prepare_pred(self, pred, pbatch):
         """
-        Prepares predictions by scaling bounding boxes to original image dimensions.
+        Prepare predictions by scaling bounding boxes to original image dimensions.
 
         Args:
             pred (torch.Tensor): Raw predictions.
