@@ -2,6 +2,17 @@
 
 # 3LC Integration
 
+> **⚠️ WARNING:**  
+> The 3LC integration in this repository is **no longer maintained**.  
+>
+> For the latest features and support, please use the official [3lc-ai/3lc-ultralytics](https://github.com/3lc-ai/3lc-ultralytics) repository and install via:
+>
+> ```bash
+> pip install 3lc-ultralytics
+> ```
+>
+> See [3lc-ai/3lc-ultralytics](https://github.com/3lc-ai/3lc-ultralytics) for up-to-date documentation.
+
 This document outlines how to use the 3LC integration available for Ultralytics YOLO classification, object detection and instance segmentation.
 
 For any questions or problems, please reach out on the [3LC Discord](https://discord.com/channels/1236027984150794290/1236118620002586655).
